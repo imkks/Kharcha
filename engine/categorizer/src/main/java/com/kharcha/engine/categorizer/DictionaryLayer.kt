@@ -13,6 +13,7 @@ class DictionaryLayer(private val inputStreamProvider: () -> InputStream) : Cate
     private var dictionary: Map<String, String>? = null
     private var sortedEntries: List<Pair<String, String>>? = null
 
+    @Suppress("SwallowedException", "TooGenericExceptionCaught")
     private fun loadDictionary(): Pair<Map<String, String>, List<Pair<String, String>>> {
         val existingDict = dictionary
         val existingSorted = sortedEntries
@@ -38,7 +39,7 @@ class DictionaryLayer(private val inputStreamProvider: () -> InputStream) : Cate
                             map[normalized] = value
                         }
                     }
-                } catch (@Suppress("SwallowedException") e: Exception) {
+                } catch (e: Exception) {
                     // Fall back to empty map
                 }
                 val sorted = map.toList().sortedByDescending { it.first.length }

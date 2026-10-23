@@ -7,11 +7,10 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 
 enum class OnboardingState {
     WELCOME,
@@ -22,11 +21,11 @@ enum class OnboardingState {
 }
 
 @Composable
-fun OnboardingRoute(onOnboardingComplete: () -> Unit = {}) {
-    var currentState by remember { mutableStateOf(OnboardingState.WELCOME) }
-    var isPermissionDenied by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf(0.0f) }
-    var transactionCount by remember { mutableStateOf(0) }
+fun OnboardingRoute(
+    viewModel: OnboardingViewModel = hiltViewModel(),
+    onOnboardingComplete: () -> Unit = {},
+) {
+    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     val permissionLauncher =
@@ -34,19 +33,15 @@ fun OnboardingRoute(onOnboardingComplete: () -> Unit = {}) {
             contract = ActivityResultContracts.RequestMultiplePermissions(),
         ) { permissions ->
             val isGranted = permissions.values.all { it }
-            if (isGranted) {
-                currentState = OnboardingState.SETUP
-            } else {
-                isPermissionDenied = true
-            }
+            viewModel.onPermissionResult(isGranted)
         }
 
-    when (currentState) {
+    when (uiState.currentState) {
         OnboardingState.WELCOME -> {
-            WelcomeScreen(onGetStartedClick = { currentState = OnboardingState.PRIVACY })
+            WelcomeScreen(onGetStartedClick = { viewModel.moveToState(OnboardingState.PRIVACY) })
         }
         OnboardingState.PRIVACY -> {
-            PrivacyScreen(onContinueClick = { currentState = OnboardingState.PERMISSION })
+            PrivacyScreen(onContinueClick = { viewModel.moveToState(OnboardingState.PERMISSION) })
         }
         OnboardingState.PERMISSION -> {
             PermissionScreen(
@@ -59,7 +54,7 @@ fun OnboardingRoute(onOnboardingComplete: () -> Unit = {}) {
                     )
                 },
                 onUseManualMode = {
-                    currentState = OnboardingState.SETUP
+                    viewModel.moveToState(OnboardingState.SETUP)
                 },
                 onOpenSettings = {
                     val intent =
@@ -68,18 +63,18 @@ fun OnboardingRoute(onOnboardingComplete: () -> Unit = {}) {
                         }
                     context.startActivity(intent)
                 },
-                isDenied = isPermissionDenied,
+                isDenied = uiState.isPermissionDenied,
             )
         }
         OnboardingState.SETUP -> {
             SetupScreen(onStartImport = { window, storeRaw ->
-                currentState = OnboardingState.IMPORT_PROGRESS
+                viewModel.startImport(window, storeRaw)
             })
         }
         OnboardingState.IMPORT_PROGRESS -> {
             ImportProgressScreen(
-                progress = progress,
-                transactionCount = transactionCount,
+                progress = uiState.progress,
+                transactionCount = uiState.transactionCount,
                 onSkipClick = onOnboardingComplete,
             )
         }

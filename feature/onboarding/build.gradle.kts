@@ -55,8 +55,13 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
+    implementation(project(":engine:sms"))
+    implementation(project(":engine:parser"))
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -40,6 +40,7 @@ class ImportWorkerTest {
             val batches = (totalMessages / batchSize)
 
             coEvery { repository.getCheckpoint() } returns 0L
+            coEvery { inboxReader.getSmsCount(any()) } returns totalMessages
 
             var currentId = 1L
             for (i in 0 until batches) {

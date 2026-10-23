@@ -1,0 +1,151 @@
+package com.kharcha.feature.onboarding
+
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.kharcha.engine.parser.GenericFallbackParser
+import com.kharcha.engine.parser.NoiseFilter
+import com.kharcha.engine.sms.Deduplicator
+import com.kharcha.engine.sms.ImportWorker
+import com.kharcha.engine.sms.InboxReader
+import com.kharcha.engine.sms.SenderFilter
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class OnboardingUiState(
+    val currentState: OnboardingState = OnboardingState.WELCOME,
+    val isPermissionDenied: Boolean = false,
+    val progress: Float = 0.0f,
+    val transactionCount: Int = 0,
+    val isImportComplete: Boolean = false,
+)
+
+@HiltViewModel
+class OnboardingViewModel
+    @Inject
+    constructor(
+        private val inboxReader: InboxReader,
+        private val senderFilter: SenderFilter,
+        private val deduplicator: Deduplicator,
+        @ApplicationContext private val context: Context,
+    ) : ViewModel() {
+        private val _uiState = MutableStateFlow(OnboardingUiState())
+        val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
+
+        private val fallbackParser = GenericFallbackParser()
+
+        fun moveToState(state: OnboardingState) {
+            _uiState.update { it.copy(currentState = state) }
+        }
+
+        fun onPermissionResult(isGranted: Boolean) {
+            if (isGranted) {
+                _uiState.update { it.copy(currentState = OnboardingState.SETUP, isPermissionDenied = false) }
+            } else {
+                _uiState.update { it.copy(isPermissionDenied = true) }
+            }
+        }
+
+        fun startImport(
+            window: String,
+            storeRaw: Boolean,
+        ) {
+            _uiState.update {
+                it.copy(
+                    currentState = OnboardingState.IMPORT_PROGRESS,
+                    progress = 0.0f,
+                    transactionCount = 0,
+                    isImportComplete = false,
+                )
+            }
+
+            viewModelScope.launch(Dispatchers.IO) {
+                val now = System.currentTimeMillis()
+                val sinceTimestamp =
+                    when (window) {
+                        "30 days" -> now - 30L * 24 * 60 * 60 * 1000L
+                        "90 days" -> now - 90L * 24 * 60 * 60 * 1000L
+                        "6 months" -> now - 180L * 24 * 60 * 60 * 1000L
+                        else -> 0L
+                    }
+
+                val totalCount = inboxReader.getSmsCount(sinceTimestamp)
+                if (totalCount <= 0) {
+                    _uiState.update { it.copy(progress = 1.0f, isImportComplete = true) }
+                    enqueueBackgroundWorker()
+                    return@launch
+                }
+
+                val batchSize = 100
+                var lastProcessedId = 0L
+                var processedCount = 0
+                var foundCount = 0
+                val seenHashes = mutableSetOf<String>()
+
+                while (true) {
+                    val batch = inboxReader.readSmsBatch(lastProcessedId, batchSize, sinceTimestamp)
+                    if (batch.isEmpty()) break
+
+                    for (sms in batch) {
+                        lastProcessedId = maxOf(lastProcessedId, sms.id)
+                        processedCount++
+
+                        val hash = deduplicator.generateHash(sms.sender, sms.body, sms.receivedAt)
+                        if (!seenHashes.add(hash)) {
+                            continue
+                        }
+
+                        if (!senderFilter.isFinancialSender(sms.sender)) {
+                            continue
+                        }
+
+                        if (NoiseFilter.filter(sms) != null) {
+                            continue
+                        }
+
+                        val parsedTxn = fallbackParser.parse(sms)
+                        if (parsedTxn != null) {
+                            foundCount++
+                        }
+                    }
+
+                    val currentProgress = (processedCount.toFloat() / totalCount.toFloat()).coerceIn(0f, 1f)
+                    _uiState.update {
+                        it.copy(
+                            progress = currentProgress,
+                            transactionCount = foundCount,
+                        )
+                    }
+                }
+
+                _uiState.update {
+                    it.copy(
+                        progress = 1.0f,
+                        transactionCount = foundCount,
+                        isImportComplete = true,
+                    )
+                }
+
+                enqueueBackgroundWorker()
+            }
+        }
+
+        @Suppress("TooGenericExceptionCaught")
+        private fun enqueueBackgroundWorker() {
+            try {
+                val workRequest = OneTimeWorkRequestBuilder<ImportWorker>().build()
+                WorkManager.getInstance(context).enqueue(workRequest)
+            } catch (e: Exception) {
+                // Ignore if WorkManager fails in tests or headless mode
+            }
+        }
+    }

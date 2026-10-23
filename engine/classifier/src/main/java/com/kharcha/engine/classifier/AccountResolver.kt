@@ -29,10 +29,11 @@ class AccountResolver {
 
         return if (existing != null) {
             // Update balance if newer
+            val lastUpdated = existing.balanceUpdatedAt
             val shouldUpdateBalance =
                 parsedTxnBalance != null &&
                     txnDateTime != null &&
-                    (existing.balanceUpdatedAt == null || txnDateTime > existing.balanceUpdatedAt)
+                    (lastUpdated == null || txnDateTime > lastUpdated)
 
             if (shouldUpdateBalance) {
                 existing.copy(

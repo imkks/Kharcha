@@ -51,15 +51,16 @@ class DictionaryLayer(private val inputStreamProvider: () -> InputStream) : Cate
     }
 
     override suspend fun categorize(input: CategorizationInput): CategorizationResult? {
-        if (input.merchantRaw.isNullOrBlank()) return null
+        val raw = input.merchantRaw
+        if (raw.isNullOrBlank()) return null
 
-        val normalized = MerchantNormalizer.normalize(input.merchantRaw)
+        val normalized = MerchantNormalizer.normalize(raw)
         if (normalized.isBlank()) return null
 
         val (dict, sorted) = loadDictionary()
 
         // 1. Exact match on normalized or raw uppercase
-        val exactMatch = dict[normalized] ?: dict[input.merchantRaw.trim().uppercase()]
+        val exactMatch = dict[normalized] ?: dict[raw.trim().uppercase()]
         if (exactMatch != null) {
             return CategorizationResult(
                 categoryId = exactMatch,
@@ -73,7 +74,7 @@ class DictionaryLayer(private val inputStreamProvider: () -> InputStream) : Cate
             // Require key to be at least 3 characters to avoid short false positives
             if (key.length >= 3) {
                 val wordRegex = Regex("(?i)\\b${Regex.escape(key)}\\b")
-                if (wordRegex.containsMatchIn(normalized) || wordRegex.containsMatchIn(input.merchantRaw)) {
+                if (wordRegex.containsMatchIn(normalized) || wordRegex.containsMatchIn(raw)) {
                     return CategorizationResult(
                         categoryId = categoryId,
                         source = CategorySource.Dictionary,

@@ -1,0 +1,10 @@
+{
+  "id": "hdfc_upi_debit_v1",
+  "bank": "HDFC",
+  "senderPatterns": ["^[A-Z]{2}-HDFCBK$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)Rs\\.?\\s?(?<amount>[\\d,]+\\.?\\d*)\\s+debited from a/c (?:X+|\\*+)(?<last4>\\d{4}).*?VPA\\s+(?<upi>\\S+)",
+  "dateFormats": ["dd-MM-yy", "dd-MMM-yy"],
+  "confidence": 0.95
+}

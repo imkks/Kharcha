@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_welcome_title">Track every rupee automatically</string>
+    <string name="onboarding_welcome_subtitle">reading bank SMS on your phone only</string>
+    <string name="onboarding_get_started">Get started</string>
+
+    <string name="onboarding_privacy_device">Stays on your device</string>
+    <string name="onboarding_privacy_messages">Only bank messages are read</string>
+    <string name="onboarding_privacy_delete">You can delete everything anytime</string>
+    <string name="onboarding_privacy_link">Privacy Policy</string>
+    <string name="onboarding_continue">Continue</string>
+
+    <string name="onboarding_permission_rationale">We need READ_SMS and RECEIVE_SMS to automatically categorize your transactions.</string>
+    <string name="onboarding_use_manual">Use manual mode</string>
+    <string name="onboarding_open_settings">Open settings</string>
+
+    <string name="onboarding_setup_currency">Currency</string>
+    <string name="onboarding_setup_import_window">Import Window</string>
+    <string name="onboarding_setup_30_days">30 days</string>
+    <string name="onboarding_setup_90_days">90 days</string>
+    <string name="onboarding_setup_6_months">6 months</string>
+    <string name="onboarding_setup_all">All</string>
+    <string name="onboarding_setup_store_original">Store original SMS text</string>
+    <string name="onboarding_setup_start_import">Start Import</string>
+
+    <string name="onboarding_import_progress_counter">Found %1$d transactions</string>
+    <string name="onboarding_skip_to_app">Skip to app</string>
+</resources>

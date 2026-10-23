@@ -152,7 +152,7 @@ class OnboardingViewModel
                         val parsedTxn = fallbackParser.parse(sms)
                         if (parsedTxn != null) {
                             foundCount++
-                            val isCredit = parsedTxn.direction == Direction.Credit
+                            val isCredit = parsedTxn.direction == Direction.CREDIT
                             val type = if (isCredit) TransactionType.Income else TransactionType.Expense
                             val txn =
                                 Transaction(

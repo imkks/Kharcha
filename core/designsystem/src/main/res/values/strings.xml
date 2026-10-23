@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="unknown_merchant">Unknown Merchant</string>
+    <string name="low_confidence_hint">Low confidence parse</string>
+    <string name="row_needs_review">Needs review</string>
+    <string name="row_default_subtitle">Transaction</string>
+</resources>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transactions_title">Transactions</string>
+    <string name="transactions_search_hint">Search transactions…</string>
+    <string name="transactions_filter_all">All</string>
+    <string name="transactions_filter_expense">Expense</string>
+    <string name="transactions_filter_income">Income</string>
+    <string name="transactions_filter_transfer">Transfer</string>
+    <string name="transactions_filter_needs_review">Needs review</string>
+    <string name="transactions_summary_income">Income: %1$s</string>
+    <string name="transactions_summary_expense">Expense: %1$s</string>
+    <string name="transactions_summary_net">Net: %1$s</string>
+    <string name="transactions_empty_title">No transactions found</string>
+    <string name="transactions_empty_subtitle">Try adjusting your filters or search query.</string>
+    <string name="transactions_clear_filters">Clear filters</string>
+    <string name="transactions_today">Today</string>
+    <string name="transactions_yesterday">Yesterday</string>
+</resources>

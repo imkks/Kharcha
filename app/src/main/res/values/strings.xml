@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Kharcha</string>
+    <string name="home_welcome_title">You\'re all set!</string>
+    <string name="home_welcome_subtitle">New bank transactions will be tracked automatically from incoming SMS.</string>
 </resources>

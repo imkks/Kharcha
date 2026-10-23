@@ -75,6 +75,7 @@ fun OnboardingRoute(
             ImportProgressScreen(
                 progress = uiState.progress,
                 transactionCount = uiState.transactionCount,
+                isComplete = uiState.isImportComplete || uiState.progress >= 1.0f,
                 onSkipClick = onOnboardingComplete,
             )
         }

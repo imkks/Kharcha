@@ -25,5 +25,8 @@
     <string name="onboarding_setup_start_import">Start Import</string>
 
     <string name="onboarding_import_progress_counter">Found %1$d transactions</string>
+    <string name="onboarding_importing_title">Reading your messages</string>
+    <string name="onboarding_import_complete_title">All done!</string>
+    <string name="onboarding_continue_to_app">Continue to app</string>
     <string name="onboarding_skip_to_app">Skip to app</string>
 </resources>

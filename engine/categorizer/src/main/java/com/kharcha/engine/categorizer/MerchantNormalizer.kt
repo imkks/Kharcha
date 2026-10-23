@@ -12,12 +12,13 @@ object MerchantNormalizer {
         setOf(
             "PVT", "LTD", "PRIVATE", "LIMITED", "INC", "LLP", "CORP", "CORPORATION", "CO",
             "ORDER", "TXN", "TRANSACTION", "PAYMENT", "REF", "UPI", "VPA", "POS", "ECOM",
+            "PAYU", "RAZORPAY", "BILLDESK", "CCAVENUE", "CASHFREE", "PINELABS", "JUSPAY",
         )
 
     private val BANK_SUFFIXES =
         setOf(
             "ICICI", "HDFC", "SBI", "AXIS", "KOTAK", "PNB", "BOB", "YESBANK", "BANK",
-            "OKAXIS", "OKSBI", "OKHDFC", "PAYTM",
+            "OKAXIS", "OKSBI", "OKHDFC", "PAYTM", "HDFCBANK", "ICICIBANK", "SBIBANK",
         )
 
     fun normalize(rawMerchant: String?): String {
@@ -59,10 +60,13 @@ object MerchantNormalizer {
 
         // 6. Remove common noise words and bank suffixes
         val words = normalized.split(" ").filter { it.isNotBlank() }
-        val filteredWords = words.filter { it !in NOISE_WORDS }
+        val nonNoiseWords = words.filter { it !in NOISE_WORDS }
+        val filteredWords = if (nonNoiseWords.isEmpty()) words else nonNoiseWords
 
         val withoutBankSuffix =
-            if (filteredWords.size > 1 && filteredWords.last() in BANK_SUFFIXES) {
+            if (filteredWords.size > 1 &&
+                (filteredWords.last() in BANK_SUFFIXES || filteredWords.last().endsWith("BANK"))
+            ) {
                 filteredWords.dropLast(1)
             } else {
                 filteredWords

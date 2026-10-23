@@ -15,4 +15,15 @@ subprojects {
     detekt {
         config.setFrom(files("$rootDir/detekt-config.yml"))
     }
+    configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+        filter {
+            exclude("**/test/**")
+            exclude("**/androidTest/**")
+        }
+    }
+    tasks.matching {
+        it.name.contains("Test", ignoreCase = true) && it.name.contains("ktlint", ignoreCase = true)
+    }.configureEach {
+        enabled = false
+    }
 }

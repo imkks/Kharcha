@@ -40,6 +40,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.TransactionRepository
+import com.kharcha.core.designsystem.component.ReviewQueueDialog
+import com.kharcha.core.designsystem.component.TransactionDetailDialog
 import com.kharcha.core.designsystem.theme.KharchaTheme
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
@@ -95,6 +97,8 @@ fun MainAppShell(transactionRepository: TransactionRepository) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val addTxnComingSoon = stringResource(id = R.string.add_transaction_coming_soon)
+    var showReviewQueue by rememberSaveable { mutableStateOf(false) }
+    var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
 
     val showFab = currentDestination == AppDestination.HOME || currentDestination == AppDestination.TRANSACTIONS
 
@@ -138,7 +142,44 @@ fun MainAppShell(transactionRepository: TransactionRepository) {
             destination = currentDestination,
             transactions = transactions,
             onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
+            onReviewClick = { showReviewQueue = true },
+            onTransactionClick = { txn -> selectedTransactionForDetail = txn },
             modifier = Modifier.padding(innerPadding),
+        )
+    }
+
+    if (showReviewQueue) {
+        val unreviewed = transactions.filter { !it.isReviewed }
+        ReviewQueueDialog(
+            unreviewedTransactions = unreviewed,
+            onCategorize = { txn, category ->
+                scope.launch {
+                    transactionRepository.updateTransaction(
+                        txn.copy(categorySource = category, isReviewed = true),
+                    )
+                }
+            },
+            onIgnore = { txn ->
+                scope.launch {
+                    transactionRepository.updateTransaction(
+                        txn.copy(type = TransactionType.Ignored, isReviewed = true),
+                    )
+                }
+            },
+            onDismiss = { showReviewQueue = false },
+        )
+    }
+
+    selectedTransactionForDetail?.let { txn ->
+        TransactionDetailDialog(
+            transaction = txn,
+            onSave = { updated ->
+                scope.launch {
+                    transactionRepository.updateTransaction(updated)
+                }
+                selectedTransactionForDetail = null
+            },
+            onDismiss = { selectedTransactionForDetail = null },
         )
     }
 }
@@ -148,6 +189,8 @@ fun BoxDestinationContent(
     destination: AppDestination,
     transactions: List<Transaction>,
     onNavigateToTransactions: () -> Unit,
+    onReviewClick: () -> Unit,
+    onTransactionClick: (Transaction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -171,15 +214,16 @@ fun BoxDestinationContent(
                 totalIncome = totalIncome,
                 totalExpense = totalExpense,
                 needsReviewCount = needsReviewCount,
-                recentTransactions = transactions.take(5),
+                recentTransactions = transactions.take(10),
                 onSeeAllClick = onNavigateToTransactions,
-                onReviewClick = onNavigateToTransactions,
+                onReviewClick = onReviewClick,
+                onTransactionClick = onTransactionClick,
             )
         }
         AppDestination.TRANSACTIONS -> {
             TransactionsScreen(
                 transactions = transactions,
-                onTransactionClick = {},
+                onTransactionClick = onTransactionClick,
             )
         }
         AppDestination.INSIGHTS -> {

@@ -36,6 +36,7 @@ class DefaultTransactionRepositoryTest {
             val txn1 =
                 Transaction(
                     id = 1L,
+                    accountId = 1L,
                     smsHash = "hash1",
                     amount = 50000L,
                     refNumber = "UPI123456",
@@ -45,6 +46,7 @@ class DefaultTransactionRepositoryTest {
             val txn2 =
                 Transaction(
                     id = 2L,
+                    accountId = 1L,
                     smsHash = "hash2",
                     amount = 50000L,
                     refNumber = "UPI123456",
@@ -66,6 +68,7 @@ class DefaultTransactionRepositoryTest {
             val txn1 =
                 Transaction(
                     id = 1L,
+                    accountId = 1L,
                     amount = 25000L,
                     merchantNormalised = "Swiggy",
                     type = TransactionType.Expense,
@@ -75,6 +78,7 @@ class DefaultTransactionRepositoryTest {
             val txn2 =
                 Transaction(
                     id = 2L,
+                    accountId = 1L,
                     amount = 25000L,
                     merchantNormalised = "Swiggy",
                     type = TransactionType.Expense,
@@ -95,6 +99,7 @@ class DefaultTransactionRepositoryTest {
             val debit =
                 Transaction(
                     id = 1L,
+                    accountId = 1L,
                     amount = 100000L,
                     type = TransactionType.Expense,
                     dateTime = 1000L,
@@ -103,6 +108,7 @@ class DefaultTransactionRepositoryTest {
             val credit =
                 Transaction(
                     id = 2L,
+                    accountId = 2L,
                     amount = 100000L,
                     type = TransactionType.Income,
                     dateTime = 2000L,

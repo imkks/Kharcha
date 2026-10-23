@@ -7,5 +7,7 @@ enum class IgnoreReason {
     REMINDER,
     FAILED,
     ENQUIRY,
+    LOW_CONFIDENCE,
+    NOT_A_TRANSACTION,
     OTHER,
 }

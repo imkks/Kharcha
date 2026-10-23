@@ -1,0 +1,10 @@
+{
+  "id": "atm_withdrawal_v1",
+  "bank": "Unknown",
+  "senderPatterns": [".*"],
+  "direction": "DEBIT",
+  "channel": "ATM",
+  "regex": "(?i)Rs\\.?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+withdrawn at ATM on (?<date>\\d{2}-\\d{2}-\\d{2}).*?Avl Bal Rs\\.?\\s*(?<balance>[\\d,]+\\.?\\d*)",
+  "dateFormats": ["dd-MM-yy"],
+  "confidence": 0.90
+}

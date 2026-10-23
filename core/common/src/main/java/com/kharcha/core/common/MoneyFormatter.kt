@@ -1,14 +1,8 @@
 package com.kharcha.core.common
 
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 object MoneyFormatter {
-    private val symbols = DecimalFormatSymbols(Locale("en", "IN")).apply {
-        currencySymbol = "₹"
-    }
-
     fun formatMinorUnits(
         amountMinor: Long,
         showSign: Boolean = false,

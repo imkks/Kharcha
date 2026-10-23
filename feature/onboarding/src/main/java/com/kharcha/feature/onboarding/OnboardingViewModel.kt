@@ -206,7 +206,7 @@ class OnboardingViewModel
             try {
                 val workRequest = OneTimeWorkRequestBuilder<ImportWorker>().build()
                 WorkManager.getInstance(context).enqueue(workRequest)
-            } catch (e: Exception) {
+            } catch (_: Throwable) {
                 // Ignore if WorkManager fails in tests or headless mode
             }
         }

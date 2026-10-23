@@ -7,6 +7,7 @@ import com.kharcha.engine.sms.Deduplicator
 import com.kharcha.engine.sms.InboxReader
 import com.kharcha.engine.sms.SenderFilter
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -80,16 +81,15 @@ class OnboardingViewModelTest {
                 )
 
             coEvery { inboxReader.getSmsCount(any()) } returns fakeSmsList.size
-            coEvery { inboxReader.readSmsBatch(0L, any(), any()) } returns fakeSmsList
-            coEvery { inboxReader.readSmsBatch(3L, any(), any()) } returns emptyList()
+            coEvery { inboxReader.readSmsBatch(any(), any(), any()) } returns fakeSmsList andThen emptyList()
 
-            coEvery {
+            every {
                 deduplicator.generateHash(any(), any(), any())
             } answers {
                 "${firstArg<String>()}_${secondArg<String>()}"
             }
-            coEvery { senderFilter.isFinancialSender("XX-HDFCBK") } returns true
-            coEvery { senderFilter.isFinancialSender("9876543210") } returns false
+            every { senderFilter.isFinancialSender("XX-HDFCBK") } returns true
+            every { senderFilter.isFinancialSender("9876543210") } returns false
 
             viewModel.startImport("30 days", false)
             advanceUntilIdle()

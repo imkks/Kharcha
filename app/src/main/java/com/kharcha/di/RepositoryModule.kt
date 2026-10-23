@@ -15,9 +15,7 @@ import javax.inject.Singleton
 object RepositoryModule {
     @Provides
     @Singleton
-    fun provideTransactionRepository(
-        @ApplicationContext context: Context,
-    ): TransactionRepository {
+    fun provideTransactionRepository(@ApplicationContext context: Context): TransactionRepository {
         return DefaultTransactionRepository.getInstance(context)
     }
 }

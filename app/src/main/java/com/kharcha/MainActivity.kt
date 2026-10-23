@@ -89,9 +89,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainAppShell(
-    transactionRepository: TransactionRepository,
-) {
+fun MainAppShell(transactionRepository: TransactionRepository) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
     val snackbarHostState = remember { SnackbarHostState() }

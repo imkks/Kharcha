@@ -1,14 +1,5 @@
 package com.kharcha.core.model
 
-enum class TransactionType {
-    Expense,
-    Income,
-    Transfer,
-    Refund,
-    Investment,
-    Ignored,
-}
-
 enum class CategorySource {
     UserRule,
     LearnedMapping,

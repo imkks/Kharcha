@@ -1,0 +1,10 @@
+{
+  "id": "neft_credit_v1",
+  "bank": "Unknown",
+  "senderPatterns": [".*"],
+  "direction": "CREDIT",
+  "channel": "NEFT",
+  "regex": "(?i)INR\\s+(?<amount>[\\d,]+\\.?\\d*)\\s+credited to A/c (?:X+|\\*+)(?<last4>\\d{4}) on (?<date>\\d{2}-\\d{2}-\\d{2}) by NEFT from (?<merchant>.*)",
+  "dateFormats": ["dd-MM-yy"],
+  "confidence": 0.90
+}

@@ -2,7 +2,7 @@ package com.kharcha.core.model
 
 data class ParsedTxn(
     val amountMinor: Long,
-    val currency: String,
+    val currency: String = "INR",
     val direction: Direction,
     val dateTime: Long?,
     val accountLast4: String?,

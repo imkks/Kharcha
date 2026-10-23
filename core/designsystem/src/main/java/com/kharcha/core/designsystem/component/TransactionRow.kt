@@ -40,7 +40,11 @@ fun TransactionRow(
 
     val subtitle =
         buildString {
-            transaction.channel?.let { append(it.name) }
+            transaction.categorySource?.let { append(it) }
+            transaction.channel?.let {
+                if (isNotEmpty()) append(" • ")
+                append(it.name)
+            }
             if (!transaction.isReviewed) {
                 if (isNotEmpty()) append(" • ")
                 append(needsReviewLabel)

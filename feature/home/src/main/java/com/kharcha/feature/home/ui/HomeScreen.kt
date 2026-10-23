@@ -24,6 +24,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -48,16 +52,24 @@ fun HomeScreen(
     onReviewClick: () -> Unit = {},
     onTransactionClick: (Transaction) -> Unit = {},
 ) {
+    var periodIndex by rememberSaveable { mutableIntStateOf(0) }
+    val periodLabels =
+        listOf(
+            stringResource(id = R.string.home_period_this_month),
+            stringResource(id = R.string.home_period_last_month),
+            stringResource(id = R.string.home_period_all),
+        )
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(id = R.string.home_title)) },
                 actions = {
                     OutlinedButton(
-                        onClick = {},
+                        onClick = { periodIndex = (periodIndex + 1) % periodLabels.size },
                         modifier = Modifier.padding(end = 8.dp),
                     ) {
-                        Text(text = stringResource(id = R.string.home_period_this_month))
+                        Text(text = periodLabels[periodIndex])
                     }
                 },
                 colors =

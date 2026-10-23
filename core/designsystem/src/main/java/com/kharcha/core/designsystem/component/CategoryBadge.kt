@@ -20,19 +20,32 @@ fun CategoryBadge(
     size: Dp = 40.dp,
 ) {
     val initial = categoryName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "•"
+    val colorIndex = (initial.firstOrNull()?.code ?: 0).rem(3)
+    val containerColor =
+        when (colorIndex) {
+            1 -> MaterialTheme.colorScheme.secondaryContainer
+            2 -> MaterialTheme.colorScheme.tertiaryContainer
+            else -> MaterialTheme.colorScheme.primaryContainer
+        }
+    val contentColor =
+        when (colorIndex) {
+            1 -> MaterialTheme.colorScheme.onSecondaryContainer
+            2 -> MaterialTheme.colorScheme.onTertiaryContainer
+            else -> MaterialTheme.colorScheme.onPrimaryContainer
+        }
 
     Box(
         modifier =
             modifier
                 .size(size)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .background(containerColor),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = initial,
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = contentColor,
         )
     }
 }

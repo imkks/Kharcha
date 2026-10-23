@@ -4,4 +4,18 @@
     <string name="low_confidence_hint">Low confidence parse</string>
     <string name="row_needs_review">Needs review</string>
     <string name="row_default_subtitle">Transaction</string>
+    <string name="review_title">Review Transactions</string>
+    <string name="review_progress">%1$d of %2$d</string>
+    <string name="review_not_expense">Not an expense</string>
+    <string name="review_skip">Skip</string>
+    <string name="review_all_done_title">All caught up!</string>
+    <string name="review_all_done_subtitle">All transactions have been reviewed and categorized.</string>
+    <string name="review_done">Done</string>
+    <string name="txn_detail_title">Transaction Details</string>
+    <string name="txn_detail_category">Category</string>
+    <string name="txn_detail_channel">Channel: %1$s</string>
+    <string name="txn_detail_ref">Ref: %1$s</string>
+    <string name="txn_detail_upi">UPI ID: %1$s</string>
+    <string name="txn_detail_save">Save</string>
+    <string name="txn_detail_close">Close</string>
 </resources>

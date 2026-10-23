@@ -10,5 +10,7 @@ interface TransactionRepository {
 
     suspend fun insertTransaction(transaction: Transaction)
 
+    suspend fun updateTransaction(transaction: Transaction)
+
     suspend fun clearTransactions()
 }

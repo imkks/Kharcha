@@ -64,6 +64,19 @@ class DefaultTransactionRepository(
         insertTransactions(listOf(transaction))
     }
 
+    override suspend fun updateTransaction(transaction: Transaction) {
+        withContext(ioDispatcher) {
+            val current = _transactions.value.toMutableList()
+            val index = current.indexOfFirst { it.id == transaction.id }
+            if (index != -1) {
+                current[index] = transaction.copy(updatedAt = System.currentTimeMillis())
+                val updated = current.sortedByDescending { it.dateTime }
+                _transactions.value = updated
+                saveToDisk(updated)
+            }
+        }
+    }
+
     override suspend fun clearTransactions() {
         withContext(ioDispatcher) {
             _transactions.value = emptyList()
@@ -120,6 +133,7 @@ class DefaultTransactionRepository(
         obj.put("upiId", txn.upiId)
         obj.put("balanceAfter", txn.balanceAfter)
         obj.put("note", txn.note)
+        obj.put("categorySource", txn.categorySource)
         obj.put("isReviewed", txn.isReviewed)
         txn.parseConfidence?.let { obj.put("parseConfidence", it.toDouble()) }
         return obj
@@ -177,6 +191,12 @@ class DefaultTransactionRepository(
             balanceAfter =
                 if (json.has("balanceAfter") && !json.isNull("balanceAfter")) json.getLong("balanceAfter") else null,
             note = if (json.has("note") && !json.isNull("note")) json.getString("note") else null,
+            categorySource =
+                if (json.has("categorySource") && !json.isNull("categorySource")) {
+                    json.getString("categorySource")
+                } else {
+                    null
+                },
             isReviewed = json.optBoolean("isReviewed", false),
             parseConfidence = parseConf,
         )

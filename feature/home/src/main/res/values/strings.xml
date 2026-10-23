@@ -2,6 +2,8 @@
 <resources>
     <string name="home_title">Kharcha</string>
     <string name="home_period_this_month">This Month</string>
+    <string name="home_period_last_month">Last Month</string>
+    <string name="home_period_all">All Time</string>
     <string name="home_summary_net">Net Balance</string>
     <string name="home_summary_income">Total Income</string>
     <string name="home_summary_expense">Total Expense</string>

@@ -1,5 +1,4 @@
 [versions]
-mockk = "1.13.10"
 agp = "8.4.1"
 kotlin = "1.9.24"
 coreKtx = "1.13.1"
@@ -29,7 +28,6 @@ androidxCoreTest = "1.5.0"
 hiltWork = "1.2.0"
 
 [libraries]
-mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

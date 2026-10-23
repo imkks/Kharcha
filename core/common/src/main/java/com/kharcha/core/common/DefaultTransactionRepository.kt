@@ -4,6 +4,7 @@ import android.content.Context
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +16,7 @@ import java.io.File
 
 class DefaultTransactionRepository(
     private val context: Context,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : TransactionRepository {
     private val _transactions = MutableStateFlow<List<Transaction>>(emptyList())
     private val file: File
@@ -36,7 +38,7 @@ class DefaultTransactionRepository(
 
     override suspend fun insertTransactions(transactions: List<Transaction>) {
         if (transactions.isEmpty()) return
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val current = _transactions.value.toMutableList()
             val existingIds = current.map { it.id }.toMutableSet()
             val existingHashes = current.mapNotNull { it.smsHash }.toMutableSet()
@@ -63,7 +65,7 @@ class DefaultTransactionRepository(
     }
 
     override suspend fun clearTransactions() {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             _transactions.value = emptyList()
             if (file.exists()) {
                 file.delete()

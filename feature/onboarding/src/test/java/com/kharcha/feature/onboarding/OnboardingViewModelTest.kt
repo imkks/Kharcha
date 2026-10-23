@@ -1,6 +1,7 @@
 package com.kharcha.feature.onboarding
 
 import android.content.Context
+import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.model.RawSms
 import com.kharcha.engine.sms.Deduplicator
 import com.kharcha.engine.sms.InboxReader
@@ -26,6 +27,7 @@ class OnboardingViewModelTest {
     private val inboxReader: InboxReader = mockk()
     private val senderFilter: SenderFilter = mockk()
     private val deduplicator: Deduplicator = mockk()
+    private val transactionRepository: TransactionRepository = mockk(relaxed = true)
     private val context: Context = mockk(relaxed = true)
 
     private lateinit var viewModel: OnboardingViewModel
@@ -38,6 +40,7 @@ class OnboardingViewModelTest {
                 inboxReader,
                 senderFilter,
                 deduplicator,
+                transactionRepository,
                 context,
                 testDispatcher,
             )

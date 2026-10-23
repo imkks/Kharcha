@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.TransactionRepository
+import com.kharcha.core.designsystem.component.AddTransactionDialog
 import com.kharcha.core.designsystem.component.ReviewQueueDialog
 import com.kharcha.core.designsystem.component.TransactionDetailDialog
 import com.kharcha.core.designsystem.theme.KharchaTheme
@@ -96,9 +97,9 @@ fun MainAppShell(transactionRepository: TransactionRepository) {
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val addTxnComingSoon = stringResource(id = R.string.add_transaction_coming_soon)
     var showReviewQueue by rememberSaveable { mutableStateOf(false) }
     var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
+    var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
 
     val showFab = currentDestination == AppDestination.HOME || currentDestination == AppDestination.TRANSACTIONS
 
@@ -124,11 +125,7 @@ fun MainAppShell(transactionRepository: TransactionRepository) {
         floatingActionButton = {
             if (showFab) {
                 FloatingActionButton(
-                    onClick = {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(addTxnComingSoon)
-                        }
-                    },
+                    onClick = { showAddTransactionDialog = true },
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -153,9 +150,15 @@ fun MainAppShell(transactionRepository: TransactionRepository) {
         ReviewQueueDialog(
             unreviewedTransactions = unreviewed,
             onCategorize = { txn, category ->
+                val type =
+                    if (category.equals("Transfer", ignoreCase = true)) {
+                        TransactionType.Transfer
+                    } else {
+                        txn.type
+                    }
                 scope.launch {
                     transactionRepository.updateTransaction(
-                        txn.copy(categorySource = category, isReviewed = true),
+                        txn.copy(type = type, categorySource = category, isReviewed = true),
                     )
                 }
             },
@@ -180,6 +183,19 @@ fun MainAppShell(transactionRepository: TransactionRepository) {
                 selectedTransactionForDetail = null
             },
             onDismiss = { selectedTransactionForDetail = null },
+        )
+    }
+
+    if (showAddTransactionDialog) {
+        val txnAddedMsg = stringResource(id = R.string.txn_added)
+        AddTransactionDialog(
+            onSave = { newTxn ->
+                scope.launch {
+                    transactionRepository.insertTransaction(newTxn)
+                    snackbarHostState.showSnackbar(txnAddedMsg)
+                }
+            },
+            onDismiss = { showAddTransactionDialog = false },
         )
     }
 }

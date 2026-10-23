@@ -52,6 +52,7 @@ val DEFAULT_CATEGORIES =
         "Health",
         "Investments",
         "Salary",
+        "Transfer",
         "Other",
     )
 

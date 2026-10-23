@@ -18,4 +18,15 @@
     <string name="txn_detail_upi">UPI ID: %1$s</string>
     <string name="txn_detail_save">Save</string>
     <string name="txn_detail_close">Close</string>
+    <string name="add_txn_title">Add Transaction</string>
+    <string name="add_txn_type_expense">Expense</string>
+    <string name="add_txn_type_income">Income</string>
+    <string name="add_txn_type_transfer">Transfer</string>
+    <string name="add_txn_amount_hint">0.00</string>
+    <string name="add_txn_merchant_label">Merchant / Description</string>
+    <string name="add_txn_merchant_hint">e.g. Swiggy, Groceries, Chai</string>
+    <string name="add_txn_channel_label">Payment Mode</string>
+    <string name="add_txn_save">Save</string>
+    <string name="add_txn_cancel">Cancel</string>
+    <string name="add_txn_currency_symbol">₹</string>
 </resources>

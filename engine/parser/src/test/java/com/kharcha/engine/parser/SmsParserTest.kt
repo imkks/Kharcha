@@ -194,4 +194,24 @@ class SmsParserTest {
         assertEquals(Direction.DEBIT, txn.direction)
         assertEquals("9999", txn.accountLast4)
     }
+
+    @Test
+    fun testFallbackGenericParserWithRupeeSymbolAndTransfer() {
+        val transferSms =
+            RawSms(
+                id = 10,
+                sender = "XX-HDFCBK",
+                body = "₹2,500.00 transferred to A/c ending 4321 on 24-Oct-26",
+                receivedAt = 1698300000000L,
+                subId = null,
+            )
+
+        val result = parser.parse(transferSms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+
+        assertEquals(250000L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("4321", txn.accountLast4)
+    }
 }

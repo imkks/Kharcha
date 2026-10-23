@@ -44,10 +44,16 @@ object NoiseFilter {
 
         // 5. Enquiry (Balance check only)
         val bodyLower = body.lowercase()
-        if ((bodyLower.contains("balance") || bodyLower.contains("bal")) &&
-            !bodyLower.contains("debited") && !bodyLower.contains("credited") &&
-            !bodyLower.contains("spent") && !bodyLower.contains("withdrawn")
-        ) {
+        val hasTransactionKeyword =
+            bodyLower.contains("debited") || bodyLower.contains("credited") ||
+                bodyLower.contains("spent") || bodyLower.contains("withdrawn") ||
+                bodyLower.contains("transferred") || bodyLower.contains("transfer") ||
+                bodyLower.contains("paid") || bodyLower.contains("sent") ||
+                bodyLower.contains("deducted") || bodyLower.contains("charged") ||
+                bodyLower.contains("received") || bodyLower.contains("deposited") ||
+                bodyLower.contains("refunded")
+
+        if ((bodyLower.contains("balance") || bodyLower.contains("bal")) && !hasTransactionKeyword) {
             return ParseResult.Ignored(IgnoreReason.ENQUIRY)
         }
 

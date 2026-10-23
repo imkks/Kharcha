@@ -27,6 +27,30 @@ object MoneyFormatter {
         return "$prefix$formattedNumber"
     }
 
+    fun parseMinorUnits(amountStr: String): Long? {
+        val trimmed = amountStr.trim()
+        if (trimmed.isEmpty()) return null
+        return try {
+            val parts = trimmed.split(".")
+            val rupees = parts[0].toLongOrNull() ?: 0L
+            val paise =
+                if (parts.size > 1) {
+                    val p = parts[1]
+                    when {
+                        p.isEmpty() -> 0L
+                        p.length == 1 -> (p.toLongOrNull() ?: 0L) * 10L
+                        p.length == 2 -> p.toLongOrNull() ?: 0L
+                        else -> p.substring(0, 2).toLongOrNull() ?: 0L
+                    }
+                } else {
+                    0L
+                }
+            (rupees * 100L) + paise
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun formatIndianNumber(number: Long): String {
         if (number < 1000L) return number.toString()
         val numStr = number.toString()

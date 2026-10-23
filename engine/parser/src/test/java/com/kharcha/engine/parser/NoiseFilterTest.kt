@@ -97,4 +97,27 @@ class NoiseFilterTest {
         assertNotNull(result)
         assertEquals(IgnoreReason.REMINDER, (result as ParseResult.Ignored).reason)
     }
+
+    @Test
+    fun doesNotIgnoreTransferOrPaymentWithBalance() {
+        val transferSms =
+            RawSms(
+                id = 7,
+                sender = "XX-HDFCBK",
+                body = "HDFC Bank: Rs 2000 transferred to a/c ending 5678 on 24-OCT-26. Avl Bal Rs 15,000",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        assertNull(NoiseFilter.filter(transferSms))
+
+        val paidSms =
+            RawSms(
+                id = 8,
+                sender = "XX-SBIBNK",
+                body = "Paid Rs 350 on Paytm using SBI UPI. Avl Bal Rs 5000",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        assertNull(NoiseFilter.filter(paidSms))
+    }
 }

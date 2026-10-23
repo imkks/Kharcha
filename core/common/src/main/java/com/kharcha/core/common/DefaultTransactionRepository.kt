@@ -39,22 +39,10 @@ class DefaultTransactionRepository(
     override suspend fun insertTransactions(transactions: List<Transaction>) {
         if (transactions.isEmpty()) return
         withContext(ioDispatcher) {
-            val current = _transactions.value.toMutableList()
-            val existingIds = current.map { it.id }.toMutableSet()
-            val existingHashes = current.mapNotNull { it.smsHash }.toMutableSet()
-
-            for (txn in transactions) {
-                val hasHashConflict = txn.smsHash != null && existingHashes.contains(txn.smsHash)
-                val hasIdConflict = existingIds.contains(txn.id)
-
-                if (!hasHashConflict && !hasIdConflict) {
-                    current.add(txn)
-                    existingIds.add(txn.id)
-                    txn.smsHash?.let { existingHashes.add(it) }
-                }
-            }
-
-            val updated = current.sortedByDescending { it.dateTime }
+            val combined = _transactions.value + transactions
+            val deduplicated = deduplicateList(combined).toMutableList()
+            reconcileTransfers(deduplicated)
+            val updated = deduplicated.sortedByDescending { it.dateTime }
             _transactions.value = updated
             saveToDisk(updated)
         }
@@ -70,6 +58,7 @@ class DefaultTransactionRepository(
             val index = current.indexOfFirst { it.id == transaction.id }
             if (index != -1) {
                 current[index] = transaction.copy(updatedAt = System.currentTimeMillis())
+                reconcileTransfers(current)
                 val updated = current.sortedByDescending { it.dateTime }
                 _transactions.value = updated
                 saveToDisk(updated)
@@ -98,9 +87,77 @@ class DefaultTransactionRepository(
                 val obj = jsonArray.getJSONObject(i)
                 list.add(jsonToTransaction(obj))
             }
-            _transactions.value = list.sortedByDescending { it.dateTime }
+            val deduplicated = deduplicateList(list).toMutableList()
+            reconcileTransfers(deduplicated)
+            val sorted = deduplicated.sortedByDescending { it.dateTime }
+            _transactions.value = sorted
+            if (sorted.size < list.size) {
+                saveToDisk(sorted)
+            }
         } catch (_: Exception) {
             // Keep empty list if corrupted
+        }
+    }
+
+    private fun isNearDuplicate(existing: Transaction, txn: Transaction): Boolean {
+        if (existing.amount != txn.amount || existing.type != txn.type) return false
+        val timeDiff = kotlin.math.abs(existing.dateTime - txn.dateTime)
+        if (timeDiff > 180_000L) return false // 3 minutes window
+        val sameMerchant =
+            (!existing.merchantNormalised.isNullOrBlank() &&
+                existing.merchantNormalised.equals(txn.merchantNormalised, ignoreCase = true)) ||
+                (!existing.merchantRaw.isNullOrBlank() &&
+                    existing.merchantRaw.equals(txn.merchantRaw, ignoreCase = true))
+        val sameChannel = existing.channel != null && existing.channel == txn.channel
+        return sameMerchant || sameChannel
+    }
+
+    private fun deduplicateList(transactions: List<Transaction>): List<Transaction> {
+        val result = mutableListOf<Transaction>()
+        val seenIds = mutableSetOf<Long>()
+        val seenHashes = mutableSetOf<String>()
+        val seenRefs = mutableSetOf<String>()
+
+        for (txn in transactions) {
+            val hasId = seenIds.contains(txn.id)
+            val hasHash = txn.smsHash != null && seenHashes.contains(txn.smsHash)
+            val ref = txn.refNumber?.trim()
+            val hasRef = !ref.isNullOrEmpty() && seenRefs.contains(ref)
+            val hasNear = result.any { isNearDuplicate(it, txn) }
+
+            if (!hasId && !hasHash && !hasRef && !hasNear) {
+                result.add(txn)
+                seenIds.add(txn.id)
+                txn.smsHash?.let { seenHashes.add(it) }
+                if (!ref.isNullOrEmpty()) seenRefs.add(ref)
+            }
+        }
+        return result
+    }
+
+    private fun reconcileTransfers(list: MutableList<Transaction>) {
+        for (i in list.indices) {
+            val t1 = list[i]
+            if (t1.type != TransactionType.Expense) continue
+            for (j in list.indices) {
+                if (i == j) continue
+                val t2 = list[j]
+                if (t2.type != TransactionType.Income) continue
+                if (t1.amount == t2.amount) {
+                    val window =
+                        if (t1.channel == Channel.CARD || t2.channel == Channel.CARD) {
+                            7L * 24 * 60 * 60 * 1000L
+                        } else {
+                            10 * 60 * 1000L
+                        }
+                    if (kotlin.math.abs(t1.dateTime - t2.dateTime) <= window) {
+                        list[i] =
+                            t1.copy(type = TransactionType.Transfer, categorySource = "Transfer", isReviewed = true)
+                        list[j] =
+                            t2.copy(type = TransactionType.Transfer, categorySource = "Transfer", isReviewed = true)
+                    }
+                }
+            }
         }
     }
 

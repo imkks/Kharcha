@@ -6,22 +6,34 @@ import com.kharcha.core.model.ParsedTxn
 import com.kharcha.core.model.RawSms
 
 class GenericFallbackParser {
-    private val amountRegex = Regex("(?i)(?:rs\\.?|inr)\\s*([\\d,]+\\.?\\d*)")
-    private val debitKeywords = listOf("debited", "spent", "sent", "withdrawn", "paid")
-    private val creditKeywords = listOf("credited", "received", "deposited")
+    private val amountRegex = Regex("(?i)(?:rs\\.?|inr\\.?|₹|inr:|rs:)\\s*([\\d,]+\\.?\\d*)")
+    private val fallbackAmountRegex =
+        Regex("(?i)\\b(?:debited|credited|spent|withdrawn|transferred|transfer|paid|sent|deducted|charged)" +
+            "\\s*(?:by|for|of)?\\s*(?:rs\\.?|inr\\.?|₹)?\\s*([\\d,]+\\.?\\d*)")
+
+    private val debitKeywords =
+        listOf("debited", "spent", "sent", "withdrawn", "paid", "deducted", "charged")
+    private val creditKeywords =
+        listOf("credited", "received", "deposited", "added to", "refunded")
 
     fun parse(sms: RawSms): ParsedTxn? {
         val body = sms.body
         val bodyLower = body.lowercase()
 
-        val amountMatch = amountRegex.find(bodyLower) ?: return null
+        val amountMatch = amountRegex.find(bodyLower) ?: fallbackAmountRegex.find(bodyLower) ?: return null
         val amountMinor = AmountParser.parseMinorUnits(amountMatch.groupValues[1]) ?: return null
 
         var direction: Direction? = null
-        if (debitKeywords.any { bodyLower.contains(it) }) {
+        if (bodyLower.contains("transferred to") || bodyLower.contains("transfer to")) {
             direction = Direction.DEBIT
+        } else if (bodyLower.contains("transferred from") || bodyLower.contains("transfer from")) {
+            direction = Direction.CREDIT
         } else if (creditKeywords.any { bodyLower.contains(it) }) {
             direction = Direction.CREDIT
+        } else if (debitKeywords.any { bodyLower.contains(it) }) {
+            direction = Direction.DEBIT
+        } else if (bodyLower.contains("transfer") || bodyLower.contains("transferred")) {
+            direction = if (bodyLower.contains("to your a/c")) Direction.CREDIT else Direction.DEBIT
         }
 
         if (direction == null) return null
@@ -33,11 +45,17 @@ class GenericFallbackParser {
                 bodyLower.contains("card") -> Channel.CARD
                 bodyLower.contains("neft") -> Channel.NEFT
                 bodyLower.contains("imps") -> Channel.IMPS
+                bodyLower.contains("rtgs") -> Channel.NEFT
+                bodyLower.contains("wallet") -> Channel.WALLET
+                bodyLower.contains("transfer") -> Channel.UPI
                 else -> Channel.OTHER
             }
 
         val last4 =
-            Regex("(?i)(?:a/c|acct|card).*?\\*+?(\\d{4})").find(bodyLower)?.groupValues?.get(1)
+            Regex("(?i)(?:a/c|acct|account|ac|card).*?(?:\\*+|x+|ending\\s*(?:with|in)?\\s*|[.\\- ]+)(\\d{3,4})\\b")
+                .find(bodyLower)?.groupValues?.get(1)
+                ?: Regex("(?i)\\b(?:ending|ending in|ending with)\\s*(\\d{3,4})\\b")
+                    .find(bodyLower)?.groupValues?.get(1)
                 ?: Regex("(?i)(?:a/c|acct|card)[\\s\\-x]*(\\d{4})\\b").find(bodyLower)?.groupValues?.get(1)
 
         val upiMatch = Regex("(?i)\\b([a-zA-Z0-9.\\-_]+@[a-zA-Z0-9]+)\\b").find(body)

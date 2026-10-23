@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.kharcha.core.designsystem.R
 import com.kharcha.core.model.Transaction
+import com.kharcha.core.model.TransactionType
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -40,7 +41,8 @@ fun TransactionDetailDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedCategory by remember { mutableStateOf(transaction.categorySource ?: "General") }
+    var selectedType by remember { mutableStateOf(transaction.type) }
+    var selectedCategory by remember { mutableStateOf(transaction.categorySource ?: "Other") }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -79,7 +81,7 @@ fun TransactionDetailDialog(
                         Spacer(modifier = Modifier.height(4.dp))
                         AmountText(
                             amountMinor = transaction.amount,
-                            type = transaction.type,
+                            type = selectedType,
                             style = MaterialTheme.typography.headlineMedium,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -111,6 +113,30 @@ fun TransactionDetailDialog(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf(
+                        TransactionType.Expense to stringResource(id = R.string.add_txn_type_expense),
+                        TransactionType.Income to stringResource(id = R.string.add_txn_type_income),
+                        TransactionType.Transfer to stringResource(id = R.string.add_txn_type_transfer),
+                    ).forEach { (type, label) ->
+                        FilterChip(
+                            selected = selectedType == type,
+                            onClick = {
+                                selectedType = type
+                                if (type == TransactionType.Transfer) {
+                                    selectedCategory = "Transfer"
+                                }
+                            },
+                            label = { Text(text = label) },
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = stringResource(id = R.string.txn_detail_category),
                     style = MaterialTheme.typography.labelLarge,
@@ -125,7 +151,12 @@ fun TransactionDetailDialog(
                     DEFAULT_CATEGORIES.forEach { category ->
                         FilterChip(
                             selected = selectedCategory == category,
-                            onClick = { selectedCategory = category },
+                            onClick = {
+                                selectedCategory = category
+                                if (category == "Transfer") {
+                                    selectedType = TransactionType.Transfer
+                                }
+                            },
                             label = { Text(text = category) },
                         )
                     }
@@ -146,6 +177,7 @@ fun TransactionDetailDialog(
                         onClick = {
                             val updated =
                                 transaction.copy(
+                                    type = selectedType,
                                     categorySource = selectedCategory,
                                     isReviewed = true,
                                 )

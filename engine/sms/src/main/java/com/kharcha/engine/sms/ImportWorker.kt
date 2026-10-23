@@ -5,8 +5,14 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.kharcha.core.common.DefaultTransactionRepository
+import com.kharcha.core.common.TransactionClassifierHelper
+import com.kharcha.core.model.Direction
 import com.kharcha.core.model.IgnoreReason
 import com.kharcha.core.model.IgnoredMessage
+import com.kharcha.core.model.Transaction
+import com.kharcha.core.model.TransactionType
+import com.kharcha.engine.parser.GenericFallbackParser
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +55,58 @@ class ImportWorker
                                 )
                             } else if (!deduplicator.isDuplicate(sms.sender, sms.body, sms.receivedAt)) {
                                 smsRepository.saveRawSms(sms)
+                                try {
+                                    val parsed = GenericFallbackParser().parse(sms)
+                                    if (parsed != null) {
+                                        val isCredit = parsed.direction == Direction.CREDIT
+                                        val rawMerchant = parsed.merchantRaw ?: parsed.upiId
+                                        val normMerchant =
+                                            TransactionClassifierHelper.cleanMerchantDisplay(
+                                                rawMerchant,
+                                                parsed.bankName,
+                                                parsed.channel?.name,
+                                            )
+                                        val type =
+                                            TransactionClassifierHelper.classifyType(
+                                                parsed.direction,
+                                                sms.body,
+                                                normMerchant,
+                                            )
+                                        val isTransfer = type == TransactionType.Transfer
+                                        val category =
+                                            TransactionClassifierHelper.guessCategory(
+                                                normMerchant,
+                                                isCredit,
+                                                isTransfer,
+                                            )
+                                        val txn =
+                                            Transaction(
+                                                id = sms.id,
+                                                smsHash = deduplicator.generateHash(
+                                                    sms.sender,
+                                                    sms.body,
+                                                    sms.receivedAt,
+                                                ),
+                                                accountId = 1L,
+                                                type = type,
+                                                amount = parsed.amountMinor,
+                                                currency = parsed.currency,
+                                                dateTime = parsed.dateTime ?: sms.receivedAt,
+                                                merchantRaw = rawMerchant ?: normMerchant,
+                                                merchantNormalised = normMerchant,
+                                                categorySource = category,
+                                                channel = parsed.channel,
+                                                refNumber = parsed.refNumber,
+                                                upiId = parsed.upiId,
+                                                balanceAfter = parsed.balanceAfterMinor,
+                                                parseConfidence = parsed.confidence,
+                                                isReviewed = true,
+                                            )
+                                        DefaultTransactionRepository.getInstance(appContext)
+                                            .insertTransaction(txn)
+                                    }
+                                } catch (_: Throwable) {
+                                }
                             }
                             lastProcessedId = maxOf(lastProcessedId, sms.id)
                         }

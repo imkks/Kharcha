@@ -365,7 +365,8 @@ fun filterTransactions(
                 (txn.merchantRaw?.lowercase(Locale.getDefault())?.contains(trimmed) == true) ||
                     (txn.merchantNormalised?.lowercase(Locale.getDefault())?.contains(trimmed) == true) ||
                     (txn.refNumber?.lowercase(Locale.getDefault())?.contains(trimmed) == true) ||
-                    (txn.channel?.name?.lowercase(Locale.getDefault())?.contains(trimmed) == true)
+                    (txn.channel?.name?.lowercase(Locale.getDefault())?.contains(trimmed) == true) ||
+                    (txn.categorySource?.lowercase(Locale.getDefault())?.contains(trimmed) == true)
             }
 
         val matchesFilter =
@@ -373,7 +374,9 @@ fun filterTransactions(
                 TransactionFilterType.ALL -> true
                 TransactionFilterType.EXPENSE -> txn.type == TransactionType.Expense
                 TransactionFilterType.INCOME -> txn.type == TransactionType.Income
-                TransactionFilterType.TRANSFER -> txn.type == TransactionType.Transfer
+                TransactionFilterType.TRANSFER ->
+                    txn.type == TransactionType.Transfer ||
+                        txn.categorySource.equals("Transfer", ignoreCase = true)
                 TransactionFilterType.NEEDS_REVIEW -> !txn.isReviewed
             }
 

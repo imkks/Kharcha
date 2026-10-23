@@ -33,7 +33,14 @@ class OnboardingViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = OnboardingViewModel(inboxReader, senderFilter, deduplicator, context)
+        viewModel =
+            OnboardingViewModel(
+                inboxReader,
+                senderFilter,
+                deduplicator,
+                context,
+                testDispatcher,
+            )
     }
 
     @After

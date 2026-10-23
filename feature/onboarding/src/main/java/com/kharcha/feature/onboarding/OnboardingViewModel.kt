@@ -13,6 +13,7 @@ import com.kharcha.engine.sms.InboxReader
 import com.kharcha.engine.sms.SenderFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +39,18 @@ class OnboardingViewModel
         private val deduplicator: Deduplicator,
         @ApplicationContext private val context: Context,
     ) : ViewModel() {
+        var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+        constructor(
+            inboxReader: InboxReader,
+            senderFilter: SenderFilter,
+            deduplicator: Deduplicator,
+            context: Context,
+            ioDispatcher: CoroutineDispatcher,
+        ) : this(inboxReader, senderFilter, deduplicator, context) {
+            this.ioDispatcher = ioDispatcher
+        }
+
         private val _uiState = MutableStateFlow(OnboardingUiState())
         val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
@@ -68,7 +81,7 @@ class OnboardingViewModel
                 )
             }
 
-            viewModelScope.launch(Dispatchers.IO) {
+            viewModelScope.launch(ioDispatcher) {
                 val now = System.currentTimeMillis()
                 val sinceTimestamp =
                     when (window) {

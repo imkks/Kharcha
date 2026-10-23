@@ -1,0 +1,10 @@
+{
+  "id": "cc_spend_v1",
+  "bank": "Unknown",
+  "senderPatterns": [".*"],
+  "direction": "DEBIT",
+  "channel": "CARD",
+  "regex": "(?i)Rs\\.?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+spent on Credit Card (?:X+|\\*+)(?<last4>\\d{4}) at (?<merchant>.*?)\\s+on\\s+(?<date>\\d{2}-[a-zA-Z]{3})\\.\\s+Avl limit Rs\\.?\\s*(?<balance>[\\d,]+\\.?\\d*)",
+  "dateFormats": ["dd-MMM"],
+  "confidence": 0.90
+}

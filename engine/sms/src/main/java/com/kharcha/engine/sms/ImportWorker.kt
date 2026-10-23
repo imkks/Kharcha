@@ -102,7 +102,7 @@ class ImportWorker
                                                 parseConfidence = parsed.confidence,
                                                 isReviewed = true,
                                             )
-                                        DefaultTransactionRepository.getInstance(appContext)
+                                        DefaultTransactionRepository.getInstance(applicationContext)
                                             .insertTransaction(txn)
                                     }
                                 } catch (_: Throwable) {

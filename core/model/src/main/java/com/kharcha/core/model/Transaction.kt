@@ -26,9 +26,3 @@ data class Transaction(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
 )
-
-data class Category(
-    val id: String,
-    val name: String,
-    val iconId: String? = null,
-)

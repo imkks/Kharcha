@@ -1,6 +1,7 @@
 package com.kharcha.core.model
 
 enum class IgnoreReason {
+    NON_FINANCIAL,
     OTP,
     PROMO,
     REMINDER,
@@ -8,4 +9,5 @@ enum class IgnoreReason {
     ENQUIRY,
     LOW_CONFIDENCE,
     NOT_A_TRANSACTION,
+    OTHER,
 }

@@ -1,0 +1,27 @@
+package com.kharcha.engine.sms
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.provider.Telephony
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
+class SmsReceiver : BroadcastReceiver() {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
+        if (intent.action == Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
+            val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+            if (messages.isNotEmpty()) {
+                val workRequest =
+                    OneTimeWorkRequestBuilder<ImportWorker>()
+                        .build()
+                WorkManager.getInstance(context).enqueue(workRequest)
+            }
+        }
+    }
+}

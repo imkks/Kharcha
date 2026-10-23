@@ -26,6 +26,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,12 +39,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.designsystem.theme.KharchaTheme
+import com.kharcha.core.model.Transaction
+import com.kharcha.core.model.TransactionType
 import com.kharcha.feature.home.ui.HomeScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 enum class AppDestination(
     val labelRes: Int,
@@ -57,6 +62,9 @@ enum class AppDestination(
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var transactionRepository: TransactionRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -72,7 +80,7 @@ class MainActivity : ComponentActivity() {
                             onOnboardingComplete = { isOnboardingCompleted = true },
                         )
                     } else {
-                        MainAppShell()
+                        MainAppShell(transactionRepository = transactionRepository)
                     }
                 }
             }
@@ -81,8 +89,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainAppShell() {
+fun MainAppShell(
+    transactionRepository: TransactionRepository,
+) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
+    val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val addTxnComingSoon = stringResource(id = R.string.add_transaction_coming_soon)
@@ -127,6 +138,7 @@ fun MainAppShell() {
     ) { innerPadding ->
         BoxDestinationContent(
             destination = currentDestination,
+            transactions = transactions,
             onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
             modifier = Modifier.padding(innerPadding),
         )
@@ -136,19 +148,39 @@ fun MainAppShell() {
 @Composable
 fun BoxDestinationContent(
     destination: AppDestination,
+    transactions: List<Transaction>,
     onNavigateToTransactions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
         AppDestination.HOME -> {
+            val totalIncome =
+                remember(transactions) {
+                    transactions.filter { it.type == TransactionType.Income }.sumOf { it.amount }
+                }
+            val totalExpense =
+                remember(transactions) {
+                    transactions.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+                }
+            val netAmount = totalIncome - totalExpense
+            val needsReviewCount =
+                remember(transactions) {
+                    transactions.count { !it.isReviewed }
+                }
+
             HomeScreen(
+                netAmount = netAmount,
+                totalIncome = totalIncome,
+                totalExpense = totalExpense,
+                needsReviewCount = needsReviewCount,
+                recentTransactions = transactions.take(5),
                 onSeeAllClick = onNavigateToTransactions,
                 onReviewClick = onNavigateToTransactions,
             )
         }
         AppDestination.TRANSACTIONS -> {
             TransactionsScreen(
-                transactions = emptyList(),
+                transactions = transactions,
                 onTransactionClick = {},
             )
         }

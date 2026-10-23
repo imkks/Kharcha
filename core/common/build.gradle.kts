@@ -31,6 +31,7 @@ android {
 }
 
 dependencies {
+    api(project(":core:model"))
     implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

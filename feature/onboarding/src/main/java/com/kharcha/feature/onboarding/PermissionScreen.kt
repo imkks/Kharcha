@@ -44,7 +44,7 @@ fun PermissionScreen(
             onClick = onRequestPermission,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(text = "Grant Permission")
+            Text(text = stringResource(id = R.string.onboarding_grant_permission))
         }
 
         if (isDenied) {

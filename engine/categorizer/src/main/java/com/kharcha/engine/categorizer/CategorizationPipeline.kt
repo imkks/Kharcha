@@ -7,6 +7,8 @@ class CategorizationPipeline(
     private val layers: List<CategorizationLayer>,
     private val confidenceThreshold: Float = 0.6f,
 ) {
+    suspend fun run(input: CategorizationInput): CategorizationResult = categorize(input)
+
     suspend fun categorize(input: CategorizationInput): CategorizationResult {
         for (layer in layers) {
             val result = layer.categorize(input)

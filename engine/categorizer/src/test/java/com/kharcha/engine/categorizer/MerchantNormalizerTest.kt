@@ -10,6 +10,16 @@ class MerchantNormalizerTest {
         assertEquals("ZOMATO", MerchantNormalizer.normalize("POS/ZOMATO"))
         assertEquals("AMAZON", MerchantNormalizer.normalize("VPA/AMAZON"))
         assertEquals("FLIPKART", MerchantNormalizer.normalize("NEFT/FLIPKART"))
+        assertEquals("SWIGGY", MerchantNormalizer.normalize("UPI SWIGGY"))
+        assertEquals("AMAZON", MerchantNormalizer.normalize("ECOM AMAZON"))
+    }
+
+    @Test
+    fun testNormalizeHandlesUpiHandlesAndBankSuffixes() {
+        assertEquals("SWIGGY", MerchantNormalizer.normalize("swiggy@icici"))
+        assertEquals("ZOMATO", MerchantNormalizer.normalize("zomato@paytm"))
+        assertEquals("SWIGGY", MerchantNormalizer.normalize("SWIGGY ICICI"))
+        assertEquals("UBER", MerchantNormalizer.normalize("uber.payu@hdfcbank"))
     }
 
     @Test

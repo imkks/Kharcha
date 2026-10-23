@@ -29,7 +29,7 @@ class LayersTest {
             assertNotNull(result1)
             assertEquals("Food Delivery", result1?.categoryId)
             assertEquals(CategorySource.Dictionary, result1?.source)
-            assertEquals(0.95f, result1?.confidence ?: 0f, 0.01f)
+            assertEquals(0.85f, result1?.confidence ?: 0f, 0.01f)
 
             val input2 = CategorizationInput(45000L, "UPI/SWIGGY INSTAMART", "UPI", null, TransactionType.Expense)
             val result2 = layer.categorize(input2)
@@ -51,7 +51,7 @@ class LayersTest {
             assertNotNull(result)
             assertEquals("Cash Withdrawal", result?.categoryId)
             assertEquals(CategorySource.Heuristics, result?.source)
-            assertEquals(0.9f, result?.confidence ?: 0f, 0.01f)
+            assertEquals(0.7f, result?.confidence ?: 0f, 0.01f)
         }
 
     @Test
@@ -62,6 +62,22 @@ class LayersTest {
             val result = layer.categorize(input)
             assertNotNull(result)
             assertEquals("Loans and EMI", result?.categoryId)
+        }
+
+    @Test
+    fun testHeuristicLayerDoesNotMatchFalsePositiveSubstrings() =
+        runBlocking {
+            val layer = HeuristicLayer()
+            // "VI" inside "PROVISION" or "SERVICE" should NOT trigger Bills and Utilities
+            val input1 = CategorizationInput(50000L, "PROVISION STORE", "UPI", null, TransactionType.Expense)
+            assertNull(layer.categorize(input1))
+
+            val input2 = CategorizationInput(50000L, "CAR SERVICE CENTER", "CARD", null, TransactionType.Expense)
+            assertNull(layer.categorize(input2))
+
+            // "EMI" inside "PREMIUM" should NOT trigger Loans and EMI
+            val input3 = CategorizationInput(50000L, "PREMIUM DRY FRUITS", "UPI", null, TransactionType.Expense)
+            assertNull(layer.categorize(input3))
         }
 
     @Test

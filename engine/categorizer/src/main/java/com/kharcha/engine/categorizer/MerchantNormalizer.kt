@@ -4,13 +4,20 @@ object MerchantNormalizer {
     private val PREFIXES_TO_STRIP =
         listOf(
             "UPI/", "POS/", "VPA/", "NEFT/", "IMPS/", "RTGS/", "ATM/", "BIL/", "MATM/",
-            "ACH/", "ECS/", "PUR/", "INB/", "SI/", "NFS/", "CASH/", "CHQ/",
+            "ACH/", "ECS/", "PUR/", "INB/", "SI/", "NFS/", "CASH/", "CHQ/", "ECOM/",
+            "UPI ", "POS ", "VPA ", "ECOM ",
         )
 
     private val NOISE_WORDS =
         setOf(
             "PVT", "LTD", "PRIVATE", "LIMITED", "INC", "LLP", "CORP", "CORPORATION", "CO",
-            "ORDER", "TXN", "TRANSACTION", "PAYMENT", "REF",
+            "ORDER", "TXN", "TRANSACTION", "PAYMENT", "REF", "UPI", "VPA", "POS", "ECOM",
+        )
+
+    private val BANK_SUFFIXES =
+        setOf(
+            "ICICI", "HDFC", "SBI", "AXIS", "KOTAK", "PNB", "BOB", "YESBANK", "BANK",
+            "OKAXIS", "OKSBI", "OKHDFC", "PAYTM",
         )
 
     fun normalize(rawMerchant: String?): String {
@@ -25,19 +32,24 @@ object MerchantNormalizer {
             }
         }
 
-        // 2. Remove leading/trailing special characters and multiple spaces
+        // 2. If it contains a UPI handle (e.g. swiggy@icici), strip the handle suffix
+        if (normalized.contains("@")) {
+            normalized = normalized.substringBefore("@").trim()
+        }
+
+        // 3. Remove leading/trailing special characters and multiple spaces
         normalized =
             normalized.replace(Regex("[^A-Z0-9 ]"), " ")
                 .replace(Regex("\\s+"), " ")
                 .trim()
 
-        // 3. Remove numbers (often transaction IDs, store IDs)
+        // 4. Remove numbers (often transaction IDs, store IDs)
         normalized =
             normalized.replace(Regex("[0-9]+"), " ")
                 .replace(Regex("\\s+"), " ")
                 .trim()
 
-        // 4. Remove .com and other TLDs if present by replacing common ones
+        // 5. Remove .com and other TLDs if present
         if (normalized.endsWith(" COM")) {
             normalized = normalized.removeSuffix(" COM")
         }
@@ -45,10 +57,17 @@ object MerchantNormalizer {
             normalized = normalized.removeSuffix(" IN")
         }
 
-        // 5. Remove common noise words
+        // 6. Remove common noise words and bank suffixes
         val words = normalized.split(" ").filter { it.isNotBlank() }
         val filteredWords = words.filter { it !in NOISE_WORDS }
 
-        return filteredWords.joinToString(" ").trim()
+        val withoutBankSuffix =
+            if (filteredWords.size > 1 && filteredWords.last() in BANK_SUFFIXES) {
+                filteredWords.dropLast(1)
+            } else {
+                filteredWords
+            }
+
+        return withoutBankSuffix.joinToString(" ").trim()
     }
 }

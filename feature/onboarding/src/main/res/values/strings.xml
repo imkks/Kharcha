@@ -11,6 +11,7 @@
     <string name="onboarding_continue">Continue</string>
 
     <string name="onboarding_permission_rationale">We need READ_SMS and RECEIVE_SMS to automatically categorize your transactions.</string>
+    <string name="onboarding_grant_permission">Grant permission</string>
     <string name="onboarding_use_manual">Use manual mode</string>
     <string name="onboarding_open_settings">Open settings</string>
 

@@ -32,7 +32,7 @@ class AccountResolver {
             val shouldUpdateBalance =
                 parsedTxnBalance != null &&
                     txnDateTime != null &&
-                    let { existing.balanceUpdatedAt == null || txnDateTime > existing.balanceUpdatedAt!! }
+                    (existing.balanceUpdatedAt == null || txnDateTime > existing.balanceUpdatedAt)
 
             if (shouldUpdateBalance) {
                 existing.copy(

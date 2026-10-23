@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -33,8 +34,8 @@ android {
 dependencies {
     implementation(project(":core:model"))
     implementation(libs.androidx.core.ktx)
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
-    testImplementation("org.json:json:20231013")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

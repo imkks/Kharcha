@@ -26,8 +26,11 @@ import com.kharcha.feature.home.viewmodel.HomeViewModel
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     onNavigateToTransactions: () -> Unit = {},
+    onNavigateToCategory: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    val periodName = if (uiState.periodOffset == 0) "Current Month" else "Offset ${uiState.periodOffset}"
 
     Scaffold(
         topBar = {
@@ -35,9 +38,9 @@ fun HomeScreen(
                 title = { Text("Kharcha") },
                 actions = {
                     PeriodSelector(
-                        periodName = "Current Month",
-                        onPrevious = { /* TODO */ },
-                        onNext = { /* TODO */ },
+                        periodName = periodName,
+                        onPrevious = { viewModel.onPreviousPeriod() },
+                        onNext = { viewModel.onNextPeriod() },
                         modifier = Modifier.padding(end = 8.dp),
                     )
                 },
@@ -62,7 +65,9 @@ fun HomeScreen(
             )
 
             Text("Top Categories", style = MaterialTheme.typography.titleMedium)
-            CategoryDonutChart(categories = uiState.topCategories)
+            CategoryDonutChart(categories = uiState.topCategories) { categoryId ->
+                onNavigateToCategory(categoryId)
+            }
 
             Text("Income vs Expense", style = MaterialTheme.typography.titleMedium)
             IncomeExpenseBarChart(monthlyTotals = uiState.monthlyTotals)

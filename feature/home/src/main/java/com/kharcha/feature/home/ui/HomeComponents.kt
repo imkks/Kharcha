@@ -129,11 +129,11 @@ fun RecentTransactions(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(txn.merchantName ?: "Unknown", style = MaterialTheme.typography.bodyLarge)
+                    Text(txn.merchantRaw ?: "Unknown", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        formatAmount(txn.amountMinor),
+                        formatAmount(txn.amount),
                         color =
-                            if (txn.type == TransactionType.INCOME) {
+                            if (txn.type == TransactionType.Income) {
                                 Color(0xFF4CAF50)
                             } else {
                                 MaterialTheme.colorScheme.onSurface

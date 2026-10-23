@@ -1,11 +1,19 @@
 package com.kharcha.feature.home.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,14 +37,17 @@ import com.patrykandpatrick.vico.core.entry.entryModelOf
 fun CategoryDonutChart(
     categories: List<CategoryTotal>,
     modifier: Modifier = Modifier,
+    onCategoryClick: (String) -> Unit = {},
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
-        Box(
+        Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-            contentAlignment = Alignment.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             if (categories.isEmpty()) {
-                Text("No data", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+                    Text("No data", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             } else {
                 val total = categories.sumOf { it.totalAmount }.toFloat()
                 val colors =
@@ -48,18 +59,47 @@ fun CategoryDonutChart(
                         Color(0xFF9C27B0),
                     )
 
-                Canvas(modifier = Modifier.size(150.dp)) {
-                    var startAngle = -90f
-                    categories.take(5).forEachIndexed { index, catTotal ->
-                        val sweepAngle = (catTotal.totalAmount / total) * 360f
-                        drawArc(
-                            color = colors[index % colors.size],
-                            startAngle = startAngle,
-                            sweepAngle = sweepAngle,
-                            useCenter = false,
-                            style = Stroke(width = 40f, cap = StrokeCap.Butt),
-                        )
-                        startAngle += sweepAngle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Canvas(modifier = Modifier.size(150.dp)) {
+                        var startAngle = -90f
+                        categories.take(5).forEachIndexed { index, catTotal ->
+                            val sweepAngle = (catTotal.totalAmount / total) * 360f
+                            drawArc(
+                                color = colors[index % colors.size],
+                                startAngle = startAngle,
+                                sweepAngle = sweepAngle,
+                                useCenter = false,
+                                style = Stroke(width = 40f, cap = StrokeCap.Butt),
+                            )
+                            startAngle += sweepAngle
+                        }
+                    }
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        categories.take(5).forEachIndexed { index, catTotal ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable { onCategoryClick(catTotal.category?.id ?: "") },
+                            ) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(12.dp)
+                                            .background(colors[index % colors.size], CircleShape),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = catTotal.category?.name ?: "Unknown",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
                     }
                 }
             }

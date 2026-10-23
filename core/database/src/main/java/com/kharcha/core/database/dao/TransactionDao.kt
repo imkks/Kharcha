@@ -41,7 +41,7 @@ interface TransactionDao {
         """
         SELECT categoryId, SUM(amountMinor) as totalAmount
         FROM transactions
-        WHERE type = 'EXPENSE' AND timestamp >= :startTime AND timestamp <= :endTime
+        WHERE type = 'Expense' AND timestamp >= :startTime AND timestamp <= :endTime
         GROUP BY categoryId
         ORDER BY totalAmount DESC
     """,
@@ -55,8 +55,8 @@ interface TransactionDao {
         """
         SELECT
             strftime('%Y-%m', timestamp / 1000, 'unixepoch', 'localtime') as monthYear,
-            SUM(CASE WHEN type = 'INCOME' THEN amountMinor ELSE 0 END) as totalIncome,
-            SUM(CASE WHEN type = 'EXPENSE' THEN amountMinor ELSE 0 END) as totalExpense
+            SUM(CASE WHEN type = 'Income' THEN amountMinor ELSE 0 END) as totalIncome,
+            SUM(CASE WHEN type = 'Expense' THEN amountMinor ELSE 0 END) as totalExpense
         FROM transactions
         WHERE timestamp >= :startTime AND timestamp <= :endTime
         GROUP BY monthYear

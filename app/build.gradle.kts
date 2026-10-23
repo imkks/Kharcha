@@ -89,4 +89,8 @@ dependencies {
     implementation(project(":engine:classifier"))
     implementation(project(":engine:categorizer"))
     implementation(project(":engine:recurring"))
+
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+    implementation(project(":engine:sms"))
 }

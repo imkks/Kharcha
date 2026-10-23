@@ -54,10 +54,10 @@ fun ReviewQueueScreen(viewModel: ReviewQueueViewModel = hiltViewModel()) {
                         ReviewItemCard(
                             item = item,
                             onAccept = { categoryId ->
-                                pendingCategoryAcceptance = Pair(item.transaction.id, categoryId)
+                                pendingCategoryAcceptance = Pair(item.transaction.id.toString(), categoryId)
                             },
-                            onIgnore = { viewModel.markIgnored(item.transaction.id) },
-                            onSkip = { viewModel.skip(item.transaction.id) },
+                            onIgnore = { viewModel.markIgnored(item.transaction.id.toString()) },
+                            onSkip = { viewModel.skip(item.transaction.id.toString()) },
                         )
                     }
                 }
@@ -142,11 +142,12 @@ fun ReviewItemCard(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = item.transaction.merchant, style = MaterialTheme.typography.titleLarge)
+            val titleText = item.transaction.merchantNormalised ?: item.transaction.merchantRaw ?: "Unknown"
+            Text(text = titleText, style = MaterialTheme.typography.titleLarge)
             Text(text = "Amount: ${item.transaction.amount}", style = MaterialTheme.typography.bodyLarge)
-            Text(text = "Date: ${item.transaction.date}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Date: ${item.transaction.dateTime}", style = MaterialTheme.typography.bodyMedium)
 
-            item.transaction.originalSms?.let { sms ->
+            item.transaction.merchantRaw?.let { sms -> // Using merchant raw as proxy for sms for UI
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = sms,

@@ -43,7 +43,7 @@ class ReviewQueueViewModel
                 transactionRepository.getUnreviewedTransactions().collect { transactions ->
                     val reviewItems =
                         transactions
-                            .filterNot { skippedTransactionIds.contains(it.id) }
+                            .filterNot { skippedTransactionIds.contains(it.id.toString()) }
                             .map { tx ->
                                 ReviewItemUiState(
                                     transaction = tx,
@@ -64,7 +64,7 @@ class ReviewQueueViewModel
             categoryId: String,
             applyToPast: Boolean,
         ) {
-            val item = _uiState.value.items.find { it.transaction.id == transactionId } ?: return
+            val item = _uiState.value.items.find { it.transaction.id.toString() == transactionId } ?: return
 
             viewModelScope.launch {
                 transactionRepository.updateTransactionCategory(transactionId, categoryId)
@@ -72,7 +72,7 @@ class ReviewQueueViewModel
                 if (applyToPast) {
                     categorizationLearner.applyCorrection(
                         transactionId = transactionId,
-                        merchant = item.transaction.merchant,
+                        merchant = item.transaction.merchantNormalised ?: item.transaction.merchantRaw ?: "",
                         categoryId = categoryId,
                         applyToPast = applyToPast,
                     )?.let { rule ->
@@ -92,7 +92,7 @@ class ReviewQueueViewModel
         fun skip(transactionId: String) {
             skippedTransactionIds.add(transactionId)
             _uiState.update { currentState ->
-                val updatedItems = currentState.items.filterNot { it.transaction.id == transactionId }
+                val updatedItems = currentState.items.filterNot { it.transaction.id.toString() == transactionId }
                 currentState.copy(
                     items = updatedItems,
                     remainingCount = updatedItems.size,

@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TransactionDao {
-    @Query("SELECT * FROM transactions WHERE confidence < 0.6 AND isReviewed = 0")
+    @Query("SELECT * FROM transactions WHERE categoryConfidence < 0.6 AND isReviewed = 0")
     fun getUnreviewedTransactions(): Flow<List<TransactionEntity>>
 
     @Query("UPDATE transactions SET categoryId = :categoryId, isReviewed = 1 WHERE id = :transactionId")
@@ -15,7 +15,11 @@ interface TransactionDao {
         categoryId: String,
     )
 
-    @Query("UPDATE transactions SET categoryId = :categoryId, isReviewed = 1 WHERE merchant = :merchant")
+    @Query(
+        "UPDATE transactions " +
+            "SET categoryId = :categoryId, isReviewed = 1 " +
+            "WHERE merchantNormalised = :merchant OR merchantRaw = :merchant",
+    )
     suspend fun updateTransactionsByMerchant(
         merchant: String,
         categoryId: String,

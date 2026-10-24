@@ -47,6 +47,7 @@ import com.kharcha.core.designsystem.theme.KharchaTheme
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.feature.home.ui.HomeScreen
+import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -243,9 +244,9 @@ fun BoxDestinationContent(
             )
         }
         AppDestination.INSIGHTS -> {
-            PlaceholderDestination(
-                title = stringResource(id = R.string.insights_coming_soon),
-                subtitle = stringResource(id = R.string.insights_subtitle),
+            InsightsScreen(
+                transactions = transactions,
+                onTransactionClick = onTransactionClick,
                 modifier = modifier,
             )
         }

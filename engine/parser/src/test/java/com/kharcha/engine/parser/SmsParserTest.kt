@@ -897,4 +897,19 @@ class SmsParserTest {
         assertEquals("amex_card_spend_v1", txn.templateId)
         assertEquals(Channel.CARD, txn.channel)
     }
+
+    @Test
+    fun testBrandPowerCashWalletIsIgnoredNotIncome() {
+        val sms =
+            RawSms(
+                id = 42,
+                sender = "XX-TISSOT",
+                body = "Rs.2000 has been credited to your Tissot Power Cash Wallet. Access your wallet here: ",
+                receivedAt = 1698300000000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Ignored)
+        assertEquals(IgnoreReason.PROMO, (result as ParseResult.Ignored).reason)
+    }
 }

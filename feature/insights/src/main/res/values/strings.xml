@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="insights_title">Insights &amp; Analytics</string>
+    <string name="insights_safe_to_spend_title">Safe-to-Spend</string>
+    <string name="insights_safe_daily_label">Daily Safe Allowance</string>
+    <string name="insights_days_remaining">%1$d days left</string>
+    <string name="insights_status_on_track">On Track</string>
+    <string name="insights_status_warning">Pacing High</string>
+    <string name="insights_status_exceeded">Exceeded</string>
+    <string name="insights_daily_burn_rate">Daily burn: %1$s/day</string>
+    <string name="insights_budget_spent">Spent %1$s of %2$s budget</string>
+    <string name="insights_summary_title">Monthly Flow</string>
+    <string name="insights_summary_income">Income</string>
+    <string name="insights_summary_expense">Expenses</string>
+    <string name="insights_summary_net">Savings</string>
+    <string name="insights_category_breakdown_title">Top Spending Categories</string>
+    <string name="insights_payment_channel_title">Payment Modes</string>
+    <string name="insights_top_merchants_title">Top Merchants</string>
+    <string name="insights_empty_title">No Data for Selected Period</string>
+    <string name="insights_empty_subtitle">Transactions recorded in this period will appear here.</string>
+    <string name="insights_time_this_month">This Month</string>
+    <string name="insights_time_last_month">Last Month</string>
+    <string name="insights_time_all">All Time</string>
+</resources>

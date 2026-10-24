@@ -22,7 +22,11 @@ class GenericFallbackParser {
 
         if (bodyLower.contains("coupon") || bodyLower.contains("voucher") ||
             bodyLower.contains("discount") || bodyLower.contains("to shop") ||
-            bodyLower.contains("shop now") || bodyLower.contains("credit limit")
+            bodyLower.contains("shop now") || bodyLower.contains("credit limit") ||
+            bodyLower.contains("power cash") || bodyLower.contains("bonus cash") ||
+            bodyLower.contains("brand cash") || bodyLower.contains("store credit") ||
+            bodyLower.contains("cash wallet") || bodyLower.contains("reward wallet") ||
+            bodyLower.contains("access your wallet")
         ) {
             return null
         }

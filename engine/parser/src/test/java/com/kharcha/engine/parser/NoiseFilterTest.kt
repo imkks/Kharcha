@@ -174,4 +174,31 @@ class NoiseFilterTest {
         assertNotNull(loanResult)
         assertEquals(IgnoreReason.PROMO, (loanResult as ParseResult.Ignored).reason)
     }
+
+    @Test
+    fun ignoresBrandWalletAndPowerCashOffers() {
+        val tissotSms =
+            RawSms(
+                id = 13,
+                sender = "XX-TISSOT",
+                body = "Rs.2000 has been credited to your Tissot Power Cash Wallet. Access your wallet here: ",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val result = NoiseFilter.filter(tissotSms)
+        assertNotNull(result)
+        assertEquals(IgnoreReason.PROMO, (result as ParseResult.Ignored).reason)
+
+        val brandWalletSms =
+            RawSms(
+                id = 14,
+                sender = "XX-LNSKRT",
+                body = "Rs. 500 has been credited to your Lenskart wallet.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val brandResult = NoiseFilter.filter(brandWalletSms)
+        assertNotNull(brandResult)
+        assertEquals(IgnoreReason.PROMO, (brandResult as ParseResult.Ignored).reason)
+    }
 }

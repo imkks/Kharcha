@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,13 +54,14 @@ import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.designsystem.component.AddTransactionDialog
 import com.kharcha.core.designsystem.component.ReviewQueueDialog
-import com.kharcha.core.designsystem.component.TransactionDetailDialog
 import com.kharcha.core.designsystem.theme.KharchaTheme
+import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.feature.home.ui.HomeScreen
 import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
+import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
@@ -131,51 +134,110 @@ fun MainAppShell(
     var showReviewQueue by rememberSaveable { mutableStateOf(false) }
     var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
+    var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
 
     val showFab = currentDestination == AppDestination.HOME || currentDestination == AppDestination.TRANSACTIONS
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            NavigationBar {
-                AppDestination.entries.forEach { destination ->
-                    NavigationBarItem(
-                        selected = currentDestination == destination,
-                        onClick = { currentDestination = destination },
-                        icon = {
-                            Icon(
-                                imageVector = destination.icon,
-                                contentDescription = stringResource(id = destination.labelRes),
+    var isPrivacyMode by rememberSaveable { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
+    val onTogglePrivacyMode = {
+        val newMode = !isPrivacyMode
+        isPrivacyMode = newMode
+        userPreferences.isPrivacyModeEnabled = newMode
+    }
+
+    CompositionLocalProvider(LocalPrivacyMode provides isPrivacyMode) {
+        if (selectedTransactionForDetail != null) {
+            BackHandler { selectedTransactionForDetail = null }
+            val txn = selectedTransactionForDetail!!
+            TransactionDetailScreen(
+                transaction = txn,
+                onBack = { selectedTransactionForDetail = null },
+                onSave = { updated, propagate ->
+                    scope.launch {
+                        if (propagate) {
+                            val newCategory = updated.categorySource ?: "Other"
+                            val count =
+                                transactionRepository.updateTransactionAndPropagateMerchant(
+                                    transaction = updated,
+                                    newCategory = newCategory,
+                                    newType = updated.type,
+                                    userPreferences = userPreferences,
+                                )
+                            val merchant = updated.merchantNormalised ?: updated.merchantRaw ?: "Merchant"
+                            if (count > 1) {
+                                snackbarHostState.showSnackbar("Updated $count transactions for $merchant")
+                            } else {
+                                snackbarHostState.showSnackbar("Transaction updated")
+                            }
+                        } else {
+                            transactionRepository.updateTransaction(updated)
+                            snackbarHostState.showSnackbar("Transaction updated")
+                        }
+                    }
+                    selectedTransactionForDetail = null
+                },
+                onDelete = { toDelete ->
+                    scope.launch {
+                        transactionRepository.updateTransaction(
+                            toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
+                        )
+                        snackbarHostState.showSnackbar("Transaction deleted")
+                    }
+                    selectedTransactionForDetail = null
+                },
+            )
+        } else {
+            Scaffold(
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+                bottomBar = {
+                    NavigationBar {
+                        AppDestination.entries.forEach { destination ->
+                            NavigationBarItem(
+                                selected = currentDestination == destination,
+                                onClick = { currentDestination = destination },
+                                icon = {
+                                    Icon(
+                                        imageVector = destination.icon,
+                                        contentDescription = stringResource(id = destination.labelRes),
+                                    )
+                                },
+                                label = { Text(text = stringResource(id = destination.labelRes)) },
                             )
-                        },
-                        label = { Text(text = stringResource(id = destination.labelRes)) },
-                    )
-                }
+                        }
+                    }
+                },
+                floatingActionButton = {
+                    if (showFab) {
+                        FloatingActionButton(
+                            onClick = { showAddTransactionDialog = true },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = stringResource(id = R.string.fab_add_transaction),
+                            )
+                        }
+                    }
+                },
+            ) { innerPadding ->
+                BoxDestinationContent(
+                    destination = currentDestination,
+                    transactions = transactions,
+                    userPreferences = userPreferences,
+                    onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
+                    onReviewClick = { showReviewQueue = true },
+                    onTransactionClick = { txn -> selectedTransactionForDetail = txn },
+                    onCategoryClick = { cat ->
+                        filterCategoryForTransactions = cat
+                        currentDestination = AppDestination.TRANSACTIONS
+                    },
+                    filterCategory = filterCategoryForTransactions,
+                    onClearCategoryFilter = { filterCategoryForTransactions = null },
+                    onResetOnboarding = onResetOnboarding,
+                    onPrivacyToggle = onTogglePrivacyMode,
+                    modifier = Modifier.padding(innerPadding),
+                )
             }
-        },
-        floatingActionButton = {
-            if (showFab) {
-                FloatingActionButton(
-                    onClick = { showAddTransactionDialog = true },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(id = R.string.fab_add_transaction),
-                    )
-                }
-            }
-        },
-    ) { innerPadding ->
-        BoxDestinationContent(
-            destination = currentDestination,
-            transactions = transactions,
-            userPreferences = userPreferences,
-            onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
-            onReviewClick = { showReviewQueue = true },
-            onTransactionClick = { txn -> selectedTransactionForDetail = txn },
-            onResetOnboarding = onResetOnboarding,
-            modifier = Modifier.padding(innerPadding),
-        )
+        }
     }
 
     if (showReviewQueue) {
@@ -214,30 +276,6 @@ fun MainAppShell(
         )
     }
 
-    selectedTransactionForDetail?.let { txn ->
-        TransactionDetailDialog(
-            transaction = txn,
-            onSave = { updated ->
-                scope.launch {
-                    val newCategory = updated.categorySource ?: "Other"
-                    val count =
-                        transactionRepository.updateTransactionAndPropagateMerchant(
-                            transaction = updated,
-                            newCategory = newCategory,
-                            newType = updated.type,
-                            userPreferences = userPreferences,
-                        )
-                    val merchant = updated.merchantNormalised ?: updated.merchantRaw ?: "Merchant"
-                    if (count > 1) {
-                        snackbarHostState.showSnackbar("Updated $count transactions for $merchant")
-                    }
-                }
-                selectedTransactionForDetail = null
-            },
-            onDismiss = { selectedTransactionForDetail = null },
-        )
-    }
-
     if (showAddTransactionDialog) {
         val txnAddedMsg = stringResource(id = R.string.txn_added)
         AddTransactionDialog(
@@ -260,46 +298,39 @@ fun BoxDestinationContent(
     onNavigateToTransactions: () -> Unit,
     onReviewClick: () -> Unit,
     onTransactionClick: (Transaction) -> Unit,
+    onCategoryClick: (String) -> Unit = {},
+    filterCategory: String? = null,
+    onClearCategoryFilter: () -> Unit = {},
     onResetOnboarding: () -> Unit,
+    onPrivacyToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
         AppDestination.HOME -> {
-            val totalIncome =
-                remember(transactions) {
-                    transactions.filter { it.type == TransactionType.Income }.sumOf { it.amount }
-                }
-            val totalExpense =
-                remember(transactions) {
-                    transactions.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
-                }
-            val netAmount = totalIncome - totalExpense
-            val needsReviewCount =
-                remember(transactions) {
-                    transactions.count { !it.isReviewed }
-                }
-
             HomeScreen(
-                netAmount = netAmount,
-                totalIncome = totalIncome,
-                totalExpense = totalExpense,
-                needsReviewCount = needsReviewCount,
-                recentTransactions = transactions.take(10),
+                transactions = transactions,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onSeeAllClick = onNavigateToTransactions,
                 onReviewClick = onReviewClick,
                 onTransactionClick = onTransactionClick,
+                onCategoryClick = onCategoryClick,
+                onPrivacyToggle = onPrivacyToggle,
             )
         }
         AppDestination.TRANSACTIONS -> {
             TransactionsScreen(
                 transactions = transactions,
                 onTransactionClick = onTransactionClick,
+                onPrivacyToggle = onPrivacyToggle,
+                initialCategory = filterCategory,
+                onClearInitialCategory = onClearCategoryFilter,
             )
         }
         AppDestination.INSIGHTS -> {
             InsightsScreen(
                 transactions = transactions,
+                monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
+                onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 onTransactionClick = onTransactionClick,
                 modifier = modifier,
             )

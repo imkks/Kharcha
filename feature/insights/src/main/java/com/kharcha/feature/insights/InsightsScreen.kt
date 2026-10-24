@@ -25,25 +25,38 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.component.CategoryBadge
+import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.model.TimePeriod
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+
+enum class InsightsTab(val labelRes: Int) {
+    OVERVIEW(R.string.insights_tab_overview),
+    BUDGETS(R.string.insights_tab_budgets),
+    RECURRING(R.string.insights_tab_recurring),
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,8 +64,11 @@ fun InsightsScreen(
     transactions: List<Transaction>,
     onTransactionClick: (Transaction) -> Unit,
     modifier: Modifier = Modifier,
+    monthlyBudgetMinor: Long = 30_000_00L,
+    onUpdateMonthlyBudget: (Long) -> Unit = {},
 ) {
-    var selectedPeriod by remember { mutableStateOf(TimePeriod.THIS_MONTH) }
+    var selectedTab by rememberSaveable { mutableStateOf(InsightsTab.OVERVIEW) }
+    var selectedPeriod by rememberSaveable { mutableStateOf(TimePeriod.THIS_MONTH) }
 
     val periodTxns =
         remember(transactions, selectedPeriod) {
@@ -106,9 +122,28 @@ fun InsightsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(id = R.string.insights_title)) },
-            )
+            Column {
+                TopAppBar(
+                    title = { Text(text = stringResource(id = R.string.insights_title)) },
+                )
+                TabRow(
+                    selectedTabIndex = selectedTab.ordinal,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ) {
+                    InsightsTab.entries.forEach { tab ->
+                        Tab(
+                            selected = selectedTab == tab,
+                            onClick = { selectedTab = tab },
+                            text = {
+                                Text(
+                                    text = stringResource(id = tab.labelRes),
+                                    fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
         },
         modifier = modifier,
     ) { innerPadding ->
@@ -120,57 +155,70 @@ fun InsightsScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item {
-                PeriodSelectorRow(
-                    selectedPeriod = selectedPeriod,
-                    onSelectPeriod = { selectedPeriod = it },
-                )
-            }
-
-            if (selectedPeriod == TimePeriod.THIS_MONTH) {
-                item {
-                    SafeToSpendCard(safeToSpend = safeToSpend)
-                }
-            }
-
-            item {
-                MonthlyFlowCard(
-                    incomeMinor = totalIncome,
-                    expenseMinor = totalExpense,
-                    netSavingsMinor = netSavings,
-                )
-            }
-
-            item {
-                SpendCalendarHeatmap(days = heatmapDays)
-            }
-
-            if (recurringSubscriptions.isNotEmpty()) {
-                item {
-                    RecurringSubscriptionsSection(subscriptions = recurringSubscriptions)
-                }
-            }
-
-            if (expenses.isEmpty()) {
-                item {
-                    EmptyInsightsCard()
-                }
-            } else {
-                if (categoryShares.isNotEmpty()) {
+            when (selectedTab) {
+                InsightsTab.OVERVIEW -> {
                     item {
-                        CategoryBreakdownCard(categoryShares = categoryShares)
+                        PeriodSelectorRow(
+                            selectedPeriod = selectedPeriod,
+                            onSelectPeriod = { selectedPeriod = it },
+                        )
+                    }
+
+                    item {
+                        MonthlyFlowCard(
+                            incomeMinor = totalIncome,
+                            expenseMinor = totalExpense,
+                            netSavingsMinor = netSavings,
+                        )
+                    }
+
+                    item {
+                        SpendCalendarHeatmap(days = heatmapDays)
+                    }
+
+                    if (expenses.isEmpty()) {
+                        item {
+                            EmptyInsightsCard()
+                        }
+                    } else {
+                        if (categoryShares.isNotEmpty()) {
+                            item {
+                                CategoryBreakdownCard(categoryShares = categoryShares)
+                            }
+                        }
+
+                        if (channelShares.isNotEmpty()) {
+                            item {
+                                PaymentChannelBreakdownCard(channelShares = channelShares)
+                            }
+                        }
+
+                        if (topMerchants.isNotEmpty()) {
+                            item {
+                                TopMerchantsCard(topMerchants = topMerchants)
+                            }
+                        }
                     }
                 }
-
-                if (channelShares.isNotEmpty()) {
+                InsightsTab.BUDGETS -> {
                     item {
-                        PaymentChannelBreakdownCard(channelShares = channelShares)
+                        BudgetsTabContent(
+                            transactions = transactions,
+                            monthlyBudgetMinor = monthlyBudgetMinor,
+                            onUpdateMonthlyBudget = onUpdateMonthlyBudget,
+                            categoryShares = categoryShares,
+                        )
                     }
                 }
-
-                if (topMerchants.isNotEmpty()) {
-                    item {
-                        TopMerchantsCard(topMerchants = topMerchants)
+                InsightsTab.RECURRING -> {
+                    if (recurringSubscriptions.isNotEmpty()) {
+                        item {
+                            RecurringSubscriptionsSection(subscriptions = recurringSubscriptions)
+                        }
+                    } else {
+                        item {
+                            EmptyRecurringCard()
+                        }
                     }
                 }
             }
@@ -230,7 +278,9 @@ fun SafeToSpendCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val safeFormatted = MoneyFormatter.formatMinorUnits(safeToSpend.dailySafeMinor)
+            val isPrivacy = LocalPrivacyMode.current
+            val safeFormatted =
+                if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(safeToSpend.dailySafeMinor)
             Text(
                 text = safeFormatted,
                 style = MaterialTheme.typography.headlineLarge,
@@ -266,7 +316,8 @@ fun SafeToSpendCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                val dailyBurnStr = MoneyFormatter.formatMinorUnits(safeToSpend.currentDailyBurnMinor)
+                val dailyBurnStr =
+                    if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(safeToSpend.currentDailyBurnMinor)
                 Text(
                     text = stringResource(id = R.string.insights_daily_burn_rate, dailyBurnStr),
                     style = MaterialTheme.typography.labelSmall,
@@ -284,14 +335,15 @@ fun SafeToSpendCard(
 
 @Composable
 fun PacingStatusBadge(status: PacingStatus) {
+    val financialColors = MaterialTheme.financialColors
     val (labelRes, color) =
         when (status) {
             PacingStatus.ON_TRACK ->
-                R.string.insights_status_on_track to Color(0xFF2E7D32)
+                R.string.insights_status_on_track to financialColors.income
             PacingStatus.WARNING ->
-                R.string.insights_status_warning to Color(0xFFED6C02)
+                R.string.insights_status_warning to financialColors.warning
             PacingStatus.EXCEEDED ->
-                R.string.insights_status_exceeded to MaterialTheme.colorScheme.error
+                R.string.insights_status_exceeded to financialColors.expense
         }
 
     SuggestionChip(
@@ -334,15 +386,16 @@ fun MonthlyFlowCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                val financialColors = MaterialTheme.financialColors
                 FlowSummaryItem(
                     title = stringResource(id = R.string.insights_summary_income),
                     amountMinor = incomeMinor,
-                    color = Color(0xFF2E7D32),
+                    color = financialColors.income,
                 )
                 FlowSummaryItem(
                     title = stringResource(id = R.string.insights_summary_expense),
                     amountMinor = expenseMinor,
-                    color = MaterialTheme.colorScheme.error,
+                    color = financialColors.expense,
                 )
                 FlowSummaryItem(
                     title = stringResource(id = R.string.insights_summary_net),
@@ -360,6 +413,8 @@ fun FlowSummaryItem(
     amountMinor: Long,
     color: Color,
 ) {
+    val isPrivacy = LocalPrivacyMode.current
+    val formatted = if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(amountMinor)
     Column {
         Text(
             text = title,
@@ -368,7 +423,7 @@ fun FlowSummaryItem(
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
-            text = MoneyFormatter.formatMinorUnits(amountMinor),
+            text = formatted,
             style = MaterialTheme.typography.titleMedium,
             color = color,
         )
@@ -380,6 +435,7 @@ fun CategoryBreakdownCard(
     categoryShares: List<CategorySpendShare>,
     modifier: Modifier = Modifier,
 ) {
+    val isPrivacy = LocalPrivacyMode.current
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -416,7 +472,8 @@ fun CategoryBreakdownCard(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        val formattedAmount = MoneyFormatter.formatMinorUnits(share.totalMinor)
+                        val formattedAmount =
+                            if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(share.totalMinor)
                         val pctText = "${(share.percentage * 100).toInt()}%"
                         Text(
                             text = "$formattedAmount ($pctText)",
@@ -440,67 +497,11 @@ fun CategoryBreakdownCard(
 }
 
 @Composable
-fun PaymentChannelBreakdownCard(
-    channelShares: List<ChannelSpendShare>,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(id = R.string.insights_payment_channel_title),
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                channelShares.forEach { channelShare ->
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(12.dp),
-                    ) {
-                        Column {
-                            Text(
-                                text = channelShare.channelName,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = MoneyFormatter.formatMinorUnits(channelShare.totalMinor),
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Text(
-                                text = "${(channelShare.percentage * 100).toInt()}%",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun TopMerchantsCard(
     topMerchants: List<MerchantSpendShare>,
     modifier: Modifier = Modifier,
 ) {
+    val isPrivacy = LocalPrivacyMode.current
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -551,12 +552,48 @@ fun TopMerchantsCard(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    val formatted =
+                        if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(merchant.totalMinor)
                     Text(
-                        text = MoneyFormatter.formatMinorUnits(merchant.totalMinor),
+                        text = formatted,
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun EmptyRecurringCard(modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(id = R.string.insights_recurring_empty_title),
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = stringResource(id = R.string.insights_recurring_empty_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

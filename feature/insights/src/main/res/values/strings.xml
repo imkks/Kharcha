@@ -31,4 +31,25 @@
     <string name="insights_due_tomorrow">Due Tomorrow</string>
     <string name="insights_due_in_days">Due in %1$d days</string>
     <string name="insights_price_hike_alert">+%1$s alert</string>
+    <string name="insights_tab_overview">Overview</string>
+    <string name="insights_tab_budgets">Budgets</string>
+    <string name="insights_tab_recurring">Recurring</string>
+    <string name="insights_recurring_empty_title">No Recurring Bills Detected</string>
+    <string name="insights_recurring_empty_subtitle">
+        Regular bills and subscriptions will be automatically detected and tracked here.
+    </string>
+    <string name="insights_budgets_title">Monthly Budget Pacing</string>
+    <string name="insights_budgets_subtitle">Track safe daily allowance and category limits</string>
+    <string name="budget_sparkline_title">Spend Pacing Curve</string>
+    <string name="budget_sparkline_subtitle">Actual spend vs linear budget pace</string>
+    <string name="budget_sparkline_day_start">Day 1</string>
+    <string name="budget_sparkline_today">Today</string>
+    <string name="budget_sparkline_day_end">Day %1$d</string>
+    <string name="budget_sparkline_target_legend">Target Pace</string>
+    <string name="budget_sparkline_actual_legend">Actual Spend</string>
+    <string name="budget_edit_title">Edit Monthly Budget</string>
+    <string name="budget_edit_amount_hint">Amount in ₹</string>
+    <string name="budget_edit_save">Save</string>
+    <string name="budget_edit_cancel">Cancel</string>
+    <string name="budget_category_limits_title">Category Budgets</string>
 </resources>

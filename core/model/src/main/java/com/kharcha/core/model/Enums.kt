@@ -31,3 +31,9 @@ enum class AccountType {
     Wallet,
     Cash,
 }
+
+enum class TimePeriod {
+    THIS_MONTH,
+    LAST_MONTH,
+    ALL_TIME,
+}

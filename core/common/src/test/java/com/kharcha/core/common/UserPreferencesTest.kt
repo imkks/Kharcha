@@ -50,6 +50,17 @@ class UserPreferencesTest {
     }
 
     @Test
+    fun testPrivacyMode_defaultAndSet() {
+        every { sharedPreferences.getBoolean("key_privacy_mode_enabled", false) } returns false
+        assertFalse(userPreferences.isPrivacyModeEnabled)
+
+        every { sharedPreferences.getBoolean("key_privacy_mode_enabled", false) } returns true
+        userPreferences.isPrivacyModeEnabled = true
+        verify { editor.putBoolean("key_privacy_mode_enabled", true) }
+        assertTrue(userPreferences.isPrivacyModeEnabled)
+    }
+
+    @Test
     fun testMerchantCategoryRules() {
         every { sharedPreferences.getString("key_merchant_rules_json", null) } returns null
         assertTrue(userPreferences.getMerchantCategoryRules().isEmpty())

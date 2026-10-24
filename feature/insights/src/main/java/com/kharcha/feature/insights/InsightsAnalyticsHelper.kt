@@ -1,5 +1,7 @@
 package com.kharcha.feature.insights
 
+import com.kharcha.core.common.PeriodHelper
+import com.kharcha.core.model.TimePeriod
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import java.time.Instant
@@ -34,6 +36,7 @@ data class ChannelSpendShare(
     val channelName: String,
     val totalMinor: Long,
     val percentage: Float,
+    val transactionCount: Int = 0,
 )
 
 data class MerchantSpendShare(
@@ -152,6 +155,7 @@ object InsightsAnalyticsHelper {
                     channelName = channel,
                     totalMinor = channelSum,
                     percentage = pct,
+                    transactionCount = list.size,
                 )
             }.sortedByDescending { it.totalMinor }
     }
@@ -176,37 +180,7 @@ object InsightsAnalyticsHelper {
         transactions: List<Transaction>,
         period: TimePeriod,
         referenceDate: LocalDate = LocalDate.now(),
-    ): List<Transaction> {
-        return when (period) {
-            TimePeriod.THIS_MONTH -> {
-                val start =
-                    referenceDate
-                        .with(TemporalAdjusters.firstDayOfMonth())
-                        .atStartOfDay(ZoneId.systemDefault())
-                        .toInstant()
-                        .toEpochMilli()
-                transactions.filter { it.dateTime >= start }
-            }
-            TimePeriod.LAST_MONTH -> {
-                val lastMonthDate = referenceDate.minusMonths(1)
-                val start =
-                    lastMonthDate
-                        .with(TemporalAdjusters.firstDayOfMonth())
-                        .atStartOfDay(ZoneId.systemDefault())
-                        .toInstant()
-                        .toEpochMilli()
-                val end =
-                    lastMonthDate
-                        .with(TemporalAdjusters.lastDayOfMonth())
-                        .atTime(23, 59, 59, 999_000_000)
-                        .atZone(ZoneId.systemDefault())
-                        .toInstant()
-                        .toEpochMilli()
-                transactions.filter { it.dateTime in start..end }
-            }
-            TimePeriod.ALL_TIME -> transactions
-        }
-    }
+    ): List<Transaction> = PeriodHelper.filterTransactionsByPeriod(transactions, period, referenceDate)
 
     fun calculateSpendingHeatmap(
         transactions: List<Transaction>,
@@ -294,8 +268,3 @@ object InsightsAnalyticsHelper {
     }
 }
 
-enum class TimePeriod {
-    THIS_MONTH,
-    LAST_MONTH,
-    ALL_TIME,
-}

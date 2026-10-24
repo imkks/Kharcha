@@ -43,6 +43,7 @@ fun KharchaTheme(
     CompositionLocalProvider(LocalFinancialColors provides financialColors) {
         MaterialTheme(
             colorScheme = colors,
+            typography = KharchaTypography,
             content = content,
         )
     }

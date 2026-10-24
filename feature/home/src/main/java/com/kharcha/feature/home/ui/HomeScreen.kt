@@ -20,6 +20,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -40,10 +41,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.MoneyFormatter
+import com.kharcha.core.common.PeriodHelper
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.AmountText
+import com.kharcha.core.designsystem.component.DonutChart
+import com.kharcha.core.designsystem.component.IncomeExpenseBarChart
 import com.kharcha.core.designsystem.component.TransactionRow
+import com.kharcha.core.designsystem.component.buildCategorySlices
+import com.kharcha.core.designsystem.component.calculateMonthlyComparisonData
+import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.model.TimePeriod
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.feature.home.R
@@ -52,17 +60,21 @@ import java.time.LocalDate
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    netAmount: Long = 0L,
-    totalIncome: Long = 0L,
-    totalExpense: Long = 0L,
-    needsReviewCount: Int = 0,
-    recentTransactions: List<Transaction> = emptyList(),
+    transactions: List<Transaction> = emptyList(),
+    netAmount: Long? = null,
+    totalIncome: Long? = null,
+    totalExpense: Long? = null,
+    needsReviewCount: Int? = null,
+    recentTransactions: List<Transaction>? = null,
     monthlyBudgetMinor: Long = 30_000_00L,
     onSeeAllClick: () -> Unit = {},
     onReviewClick: () -> Unit = {},
     onTransactionClick: (Transaction) -> Unit = {},
+    onCategoryClick: (String) -> Unit = {},
+    onPrivacyToggle: () -> Unit = {},
 ) {
     var periodIndex by rememberSaveable { mutableIntStateOf(0) }
+    val periods = listOf(TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH, TimePeriod.ALL_TIME)
     val periodLabels =
         listOf(
             stringResource(id = R.string.home_period_this_month),
@@ -70,20 +82,74 @@ fun HomeScreen(
             stringResource(id = R.string.home_period_all),
         )
 
+    val selectedPeriod = periods[periodIndex % periods.size]
+    val periodTransactions =
+        remember(transactions, selectedPeriod) {
+            if (transactions.isNotEmpty()) {
+                PeriodHelper.filterTransactionsByPeriod(transactions, selectedPeriod)
+            } else {
+                emptyList()
+            }
+        }
+
+    val computedIncome =
+        remember(periodTransactions, totalIncome) {
+            totalIncome
+                ?: periodTransactions
+                    .filter { it.type == TransactionType.Income }
+                    .sumOf { it.amount }
+        }
+    val computedExpense =
+        remember(periodTransactions, totalExpense) {
+            totalExpense
+                ?: periodTransactions
+                    .filter { it.type == TransactionType.Expense }
+                    .sumOf { it.amount }
+        }
+    val computedNet =
+        remember(computedIncome, computedExpense, netAmount) {
+            netAmount ?: (computedIncome - computedExpense)
+        }
+    val computedReviewCount =
+        remember(transactions, needsReviewCount) {
+            needsReviewCount ?: transactions.count { !it.isReviewed }
+        }
+    val computedRecentTransactions =
+        remember(periodTransactions, transactions, recentTransactions) {
+            recentTransactions
+                ?: if (periodTransactions.isNotEmpty()) {
+                    periodTransactions.take(10)
+                } else {
+                    transactions.take(10)
+                }
+        }
+
+    val othersLabel = stringResource(id = R.string.home_spending_breakdown_others)
+    val categorySlices =
+        remember(periodTransactions, transactions, othersLabel) {
+            val target = if (periodTransactions.isNotEmpty()) periodTransactions else transactions
+            buildCategorySlices(target, othersLabel)
+        }
+
+    val monthlyComparisonData =
+        remember(transactions) {
+            calculateMonthlyComparisonData(transactions)
+        }
+
     val today = LocalDate.now()
     val daysInMonth = today.lengthOfMonth()
     val currentDay = today.dayOfMonth
     val daysRemaining = (daysInMonth - currentDay + 1).coerceAtLeast(1)
 
     val safeToSpendUiModel =
-        remember(totalExpense, monthlyBudgetMinor, daysRemaining, currentDay) {
-            val remainingBudget = (monthlyBudgetMinor - totalExpense).coerceAtLeast(0L)
+        remember(computedExpense, monthlyBudgetMinor, daysRemaining, currentDay) {
+            val remainingBudget = (monthlyBudgetMinor - computedExpense).coerceAtLeast(0L)
             val dailySafe = remainingBudget / daysRemaining
-            val currentDailyBurn = if (currentDay > 0) totalExpense / currentDay else 0L
+            val currentDailyBurn = if (currentDay > 0) computedExpense / currentDay else 0L
 
             val status =
                 when {
-                    totalExpense > monthlyBudgetMinor -> PacingStatus.EXCEEDED
+                    computedExpense > monthlyBudgetMinor -> PacingStatus.EXCEEDED
                     dailySafe > 0 && currentDailyBurn > (dailySafe * 5 / 4) -> PacingStatus.WARNING
                     else -> PacingStatus.ON_TRACK
                 }
@@ -91,7 +157,7 @@ fun HomeScreen(
             SafeToSpendUiModel(
                 dailySafeMinor = dailySafe,
                 currentDailyBurnMinor = currentDailyBurn,
-                totalSpentMinor = totalExpense,
+                totalSpentMinor = computedExpense,
                 monthlyBudgetMinor = monthlyBudgetMinor,
                 daysRemaining = daysRemaining,
                 pacingStatus = status,
@@ -103,11 +169,34 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text(text = stringResource(id = R.string.home_title)) },
                 actions = {
+                    val isPrivacy = LocalPrivacyMode.current
+                    IconButton(onClick = onPrivacyToggle) {
+                        Icon(
+                            painter =
+                                painterResource(
+                                    id =
+                                        if (isPrivacy) {
+                                            DesignR.drawable.ic_visibility_off
+                                        } else {
+                                            DesignR.drawable.ic_visibility
+                                        },
+                                ),
+                            contentDescription =
+                                stringResource(
+                                    id =
+                                        if (isPrivacy) {
+                                            DesignR.string.action_show_amounts
+                                        } else {
+                                            DesignR.string.action_hide_amounts
+                                        },
+                                ),
+                        )
+                    }
                     OutlinedButton(
                         onClick = { periodIndex = (periodIndex + 1) % periodLabels.size },
                         modifier = Modifier.padding(end = 8.dp),
                     ) {
-                        Text(text = periodLabels[periodIndex])
+                        Text(text = periodLabels[periodIndex % periodLabels.size])
                     }
                 },
                 colors =
@@ -128,21 +217,44 @@ fun HomeScreen(
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 SummaryCard(
-                    netAmount = netAmount,
-                    totalIncome = totalIncome,
-                    totalExpense = totalExpense,
+                    netAmount = computedNet,
+                    totalIncome = computedIncome,
+                    totalExpense = computedExpense,
                 )
             }
 
-            item {
-                SafeToSpendGaugeCard(data = safeToSpendUiModel)
+            if (selectedPeriod == TimePeriod.THIS_MONTH) {
+                item {
+                    SafeToSpendGaugeCard(data = safeToSpendUiModel)
+                }
             }
 
-            if (needsReviewCount > 0) {
+            if (transactions.isNotEmpty()) {
+                item {
+                    IncomeExpenseBarChart(data = monthlyComparisonData)
+                }
+            }
+
+            if (computedReviewCount > 0) {
                 item {
                     ReviewCard(
-                        count = needsReviewCount,
+                        count = computedReviewCount,
                         onReviewClick = onReviewClick,
+                    )
+                }
+            }
+
+            if (categorySlices.isNotEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(id = R.string.home_spending_breakdown_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    DonutChart(
+                        slices = categorySlices,
+                        totalAmountMinor = computedExpense,
+                        onCategoryClick = onCategoryClick,
                     )
                 }
             }
@@ -163,12 +275,12 @@ fun HomeScreen(
                 }
             }
 
-            if (recentTransactions.isEmpty()) {
+            if (computedRecentTransactions.isEmpty()) {
                 item {
                     EmptyHomeState()
                 }
             } else {
-                items(recentTransactions) { txn ->
+                items(computedRecentTransactions) { txn ->
                     TransactionRow(
                         transaction = txn,
                         onClick = { onTransactionClick(txn) },
@@ -207,8 +319,11 @@ fun SummaryCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(4.dp))
+            val isPrivacy = LocalPrivacyMode.current
+            val netDisplay =
+                if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(netAmount)
             Text(
-                text = MoneyFormatter.formatMinorUnits(netAmount),
+                text = netDisplay,
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

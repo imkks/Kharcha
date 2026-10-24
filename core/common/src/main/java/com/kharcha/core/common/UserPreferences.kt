@@ -7,6 +7,7 @@ import org.json.JSONObject
 interface UserPreferences {
     var isOnboardingCompleted: Boolean
     var monthlyBudgetMinor: Long
+    var isPrivacyModeEnabled: Boolean
     fun getMerchantCategoryRules(): Map<String, String>
     fun setMerchantCategory(merchant: String, category: String)
     fun getCategoryForMerchant(merchant: String): String?
@@ -24,6 +25,10 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
     override var monthlyBudgetMinor: Long
         get() = prefs.getLong(KEY_MONTHLY_BUDGET, DEFAULT_BUDGET_PAISE)
         set(value) = prefs.edit().putLong(KEY_MONTHLY_BUDGET, value).apply()
+
+    override var isPrivacyModeEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PRIVACY_MODE_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_PRIVACY_MODE_ENABLED, value).apply()
 
     override fun getMerchantCategoryRules(): Map<String, String> {
         val raw = prefs.getString(KEY_MERCHANT_RULES, null) ?: return emptyMap()
@@ -63,6 +68,7 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val PREFS_NAME = "kharcha_user_prefs"
         private const val KEY_ONBOARDING_COMPLETED = "key_onboarding_completed"
         private const val KEY_MONTHLY_BUDGET = "key_monthly_budget_paise"
+        private const val KEY_PRIVACY_MODE_ENABLED = "key_privacy_mode_enabled"
         private const val KEY_MERCHANT_RULES = "key_merchant_rules_json"
         const val DEFAULT_BUDGET_PAISE: Long = 30_000_00L
     }

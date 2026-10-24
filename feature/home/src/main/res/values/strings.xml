@@ -20,4 +20,6 @@
     <string name="home_status_exceeded">Exceeded</string>
     <string name="home_daily_burn_rate">Daily burn: %1$s/day</string>
     <string name="home_days_remaining">%1$d days left</string>
+    <string name="home_spending_breakdown_title">Spending Breakdown</string>
+    <string name="home_spending_breakdown_others">Others</string>
 </resources>

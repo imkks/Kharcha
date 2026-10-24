@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.MoneyFormatter
+import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.feature.home.R
 
@@ -83,7 +84,9 @@ fun SafeToSpendGaugeCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val safeFormatted = MoneyFormatter.formatMinorUnits(data.dailySafeMinor)
+            val isPrivacy = LocalPrivacyMode.current
+            val safeFormatted =
+                if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(data.dailySafeMinor)
             Text(
                 text = safeFormatted,
                 style = MaterialTheme.typography.displaySmall,
@@ -131,7 +134,8 @@ fun SafeToSpendGaugeCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                val dailyBurnStr = MoneyFormatter.formatMinorUnits(data.currentDailyBurnMinor)
+                val dailyBurnStr =
+                    if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(data.currentDailyBurnMinor)
                 Text(
                     text = stringResource(id = R.string.home_daily_burn_rate, dailyBurnStr),
                     style = MaterialTheme.typography.labelSmall,

@@ -2,4 +2,15 @@
     <string name="app_name">Kharcha</string>
     <string name="home_welcome_title">You\'re all set!</string>
     <string name="home_welcome_subtitle">New bank transactions will be tracked automatically from incoming SMS.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_transactions">Transactions</string>
+    <string name="nav_insights">Insights</string>
+    <string name="nav_more">More</string>
+    <string name="fab_add_transaction">Add transaction</string>
+    <string name="insights_coming_soon">Insights &amp; Analytics</string>
+    <string name="insights_subtitle">Budgets, category breakdowns and recurring bills will appear here.</string>
+    <string name="more_coming_soon">More</string>
+    <string name="more_subtitle">Accounts, category rules, export and settings.</string>
+    <string name="add_transaction_coming_soon">Add transaction manual entry coming soon</string>
+    <string name="txn_added">Transaction added</string>
 </resources>

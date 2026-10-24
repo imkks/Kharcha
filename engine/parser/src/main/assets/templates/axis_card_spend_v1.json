@@ -1,0 +1,10 @@
+{
+  "id": "axis_card_spend_v1",
+  "bank": "AXIS",
+  "senderPatterns": ["^[A-Za-z]{2}-?(AXISBK|AXISBN|AXISPG)$"],
+  "direction": "DEBIT",
+  "channel": "CARD",
+  "regex": "(?i)(?:INR|Rs\\.?|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+spent\\s+on\\s+(?:Axis\\s+Bank\\s+)?(?:Credit|Debit)?\\s*Card\\s+(?:ending\\s+with|no\\.|ending|X+|\\*+)\\s*(?<last4>\\d{4})\\s+at\\s+(?<merchant>[^.]+?)\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})",
+  "dateFormats": ["dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

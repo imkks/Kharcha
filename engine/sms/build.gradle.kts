@@ -46,6 +46,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 
     implementation(project(":core:model"))
+    implementation(project(":core:common"))
+    implementation(project(":engine:parser"))
 
     testImplementation(libs.androidx.test.core)
 

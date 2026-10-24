@@ -1,0 +1,10 @@
+{
+  "id": "kotak_credit_v1",
+  "bank": "KOTAK",
+  "senderPatterns": ["^[A-Za-z]{2}-?(KOTAKB|KMBLBN|KOTAK)$"],
+  "direction": "CREDIT",
+  "channel": "NEFT",
+  "regex": "(?i)Your\\s+Kotak\\s+Bank\\s+(?:AC|A/[Cc]|Account)\\s+(?:ending\\s+with|ending|no\\.?|X+|\\*+)?\\s*(?<last4>\\d{4})\\s+has\\s+been\\s+credited\\s+with\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})\\s+by\\s+(?:transfer\\s+from\\s+)?(?<merchant>[^.]+?)(?:\\.\\s+Avl\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*)|\\.?$)",
+  "dateFormats": ["dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

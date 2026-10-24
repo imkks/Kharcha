@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="unknown_merchant">Unknown Merchant</string>
+    <string name="low_confidence_hint">Low confidence parse</string>
+    <string name="row_needs_review">Needs review</string>
+    <string name="row_default_subtitle">Transaction</string>
+    <string name="review_title">Review Transactions</string>
+    <string name="review_progress">%1$d of %2$d</string>
+    <string name="review_not_expense">Not an expense</string>
+    <string name="review_skip">Skip</string>
+    <string name="review_all_done_title">All caught up!</string>
+    <string name="review_all_done_subtitle">All transactions have been reviewed and categorized.</string>
+    <string name="review_done">Done</string>
+    <string name="txn_detail_title">Transaction Details</string>
+    <string name="txn_detail_category">Category</string>
+    <string name="txn_detail_channel">Channel: %1$s</string>
+    <string name="txn_detail_ref">Ref: %1$s</string>
+    <string name="txn_detail_upi">UPI ID: %1$s</string>
+    <string name="txn_detail_message">Original Message</string>
+    <string name="txn_detail_no_message">No message available</string>
+    <string name="txn_detail_save">Save</string>
+    <string name="txn_detail_close">Close</string>
+    <string name="add_txn_title">Add Transaction</string>
+    <string name="add_txn_type_expense">Expense</string>
+    <string name="add_txn_type_income">Income</string>
+    <string name="add_txn_type_transfer">Transfer</string>
+    <string name="add_txn_amount_hint">0.00</string>
+    <string name="add_txn_merchant_label">Merchant / Description</string>
+    <string name="add_txn_merchant_hint">e.g. Swiggy, Groceries, Chai</string>
+    <string name="add_txn_channel_label">Payment Mode</string>
+    <string name="add_txn_save">Save</string>
+    <string name="add_txn_cancel">Cancel</string>
+    <string name="add_txn_currency_symbol">₹</string>
+</resources>

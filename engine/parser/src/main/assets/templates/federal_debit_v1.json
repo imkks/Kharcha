@@ -1,0 +1,10 @@
+{
+  "id": "federal_debit_v1",
+  "bank": "FEDERAL",
+  "senderPatterns": ["^[A-Za-z]{2}-?(FEDBNK|FDRL)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+debited\\s+from\\s+Federal\\s+Bank\\s+A/C\\s+(?:ending|X+|\\*+)\\s*(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})(?:\\s+(?<time>\\d{2}:\\d{2}))?\\s+via\\s+UPI\\s+to\\s+(?<merchant>[^.\\n]+?)(?:\\s*\\.?\\s+Ref:?\\s*(?<ref>\\w+))?(?:\\s*\\.?\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*)|\\.?$)",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy"],
+  "confidence": 0.95
+}

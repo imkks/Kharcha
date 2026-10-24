@@ -1,0 +1,10 @@
+{
+  "id": "pnb_upi_debit_v1",
+  "bank": "PNB",
+  "senderPatterns": ["^[A-Za-z]{2}-?(PNBSMS|PUNJAB)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)Your\\s+A/[Cc]\\s+[*X]*(?<last4>\\d{4})\\s+is\\s+debited\\s+by\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})\\s+via\\s+UPI\\s+to\\s+(?<merchant>[^.\\n]+?)(?:\\.\\s+Ref:?\\s*(?<ref>\\w+))?(?:\\.\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*)|\\.?$)",
+  "dateFormats": ["dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

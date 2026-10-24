@@ -1,0 +1,10 @@
+{
+  "id": "kotak_upi_debit_v1",
+  "bank": "KOTAK",
+  "senderPatterns": ["^[A-Za-z]{2}-?(KOTAKB|KMBLBN|KOTAK)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)(?:Sent|Paid|Debited)\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+from\\s+Kotak\\s+Bank\\s+(?:AC|A/c|Account)\\s+[*X]*(?<last4>\\d{4})\\s+to\\s+(?<merchant>[^.\\n]+?)\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})(?:.*?(?:UPI\\s+Ref|Ref)\\s*(?<ref>\\w+))?(?:.*?(?:Bal|Balance):?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

@@ -203,4 +203,84 @@ class InsightsAnalyticsTest {
         val channelShares = InsightsAnalyticsHelper.calculateChannelShares(emptyList())
         assertTrue(channelShares.isEmpty())
     }
+
+    @Test
+    fun testSpendingHeatmapCalculation() {
+        val txns =
+            listOf(
+                Transaction(
+                    id = 1L,
+                    accountId = 1L,
+                    type = TransactionType.Expense,
+                    amount = 300_00L, // Level 1 (<= 500)
+                    dateTime = dateToMillis(2026, 10, 15),
+                ),
+                Transaction(
+                    id = 2L,
+                    accountId = 1L,
+                    type = TransactionType.Expense,
+                    amount = 1_500_00L, // Level 2 (500-2000)
+                    dateTime = dateToMillis(2026, 10, 14),
+                ),
+                Transaction(
+                    id = 3L,
+                    accountId = 1L,
+                    type = TransactionType.Expense,
+                    amount = 6_000_00L, // Level 4 (> 5000)
+                    dateTime = dateToMillis(2026, 10, 13),
+                ),
+            )
+
+        val heatmap =
+            InsightsAnalyticsHelper.calculateSpendingHeatmap(
+                transactions = txns,
+                referenceDate = testDate,
+                daysCount = 35,
+            )
+
+        assertEquals(35, heatmap.size)
+        val todayCell = heatmap.last()
+        assertEquals(testDate, todayCell.date)
+        assertEquals(1, todayCell.intensityLevel)
+        assertEquals(300_00L, todayCell.totalExpenseMinor)
+
+        val prevCell = heatmap[33]
+        assertEquals(2, prevCell.intensityLevel)
+        assertEquals(1_500_00L, prevCell.totalExpenseMinor)
+
+        val highCell = heatmap[32]
+        assertEquals(4, highCell.intensityLevel)
+        assertEquals(6_000_00L, highCell.totalExpenseMinor)
+    }
+
+    @Test
+    fun testRecurringSubscriptionsDetection() {
+        val txns =
+            listOf(
+                Transaction(
+                    id = 1L,
+                    accountId = 1L,
+                    type = TransactionType.Expense,
+                    amount = 649_00L,
+                    merchantNormalised = "Netflix",
+                    dateTime = dateToMillis(2026, 9, 15),
+                ),
+                Transaction(
+                    id = 2L,
+                    accountId = 1L,
+                    type = TransactionType.Expense,
+                    amount = 799_00L,
+                    merchantNormalised = "Netflix",
+                    dateTime = dateToMillis(2026, 10, 15), // 30 days interval -> Monthly
+                ),
+            )
+
+        val subscriptions = InsightsAnalyticsHelper.detectRecurringSubscriptions(txns)
+        assertEquals(1, subscriptions.size)
+        val sub = subscriptions.first()
+        assertEquals("Netflix", sub.merchantName)
+        assertEquals("Monthly", sub.cadenceLabel)
+        assertEquals(799_00L, sub.amountMinor)
+        assertEquals(150_00L, sub.priceDiffMinor) // Price hike from 649 to 799
+    }
 }

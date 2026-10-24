@@ -42,6 +42,23 @@ data class MerchantSpendShare(
     val count: Int,
 )
 
+data class DaySpendIntensity(
+    val date: LocalDate,
+    val totalExpenseMinor: Long,
+    val count: Int,
+    val intensityLevel: Int,
+)
+
+data class SubscriptionItemUiModel(
+    val id: Long,
+    val merchantName: String,
+    val categoryName: String,
+    val amountMinor: Long,
+    val cadenceLabel: String,
+    val nextChargeDate: LocalDate,
+    val priceDiffMinor: Long? = null,
+)
+
 object InsightsAnalyticsHelper {
     fun calculateSafeToSpend(
         transactions: List<Transaction>,
@@ -189,6 +206,91 @@ object InsightsAnalyticsHelper {
             }
             TimePeriod.ALL_TIME -> transactions
         }
+    }
+
+    fun calculateSpendingHeatmap(
+        transactions: List<Transaction>,
+        referenceDate: LocalDate = LocalDate.now(),
+        daysCount: Int = 35,
+    ): List<DaySpendIntensity> {
+        val expenses = transactions.filter { it.type == TransactionType.Expense }
+        val zone = ZoneId.systemDefault()
+        val expenseByDate =
+            expenses.groupBy {
+                Instant.ofEpochMilli(it.dateTime).atZone(zone).toLocalDate()
+            }
+
+        val startDate = referenceDate.minusDays((daysCount - 1).toLong())
+        return (0 until daysCount).map { offset ->
+            val date = startDate.plusDays(offset.toLong())
+            val dayTxns = expenseByDate[date] ?: emptyList()
+            val totalMinor = dayTxns.sumOf { it.amount }
+            val level =
+                when {
+                    totalMinor == 0L -> 0
+                    totalMinor <= 500_00L -> 1
+                    totalMinor <= 2000_00L -> 2
+                    totalMinor <= 5000_00L -> 3
+                    else -> 4
+                }
+            DaySpendIntensity(
+                date = date,
+                totalExpenseMinor = totalMinor,
+                count = dayTxns.size,
+                intensityLevel = level,
+            )
+        }
+    }
+
+    fun detectRecurringSubscriptions(
+        transactions: List<Transaction>,
+    ): List<SubscriptionItemUiModel> {
+        val expenses = transactions.filter { it.type == TransactionType.Expense }
+        val zone = ZoneId.systemDefault()
+
+        return expenses
+            .groupBy { it.merchantNormalised ?: it.merchantRaw ?: "Unknown" }
+            .filter { (merchant, list) ->
+                merchant != "Unknown" && list.size >= 2
+            }
+            .mapNotNull { (merchant, list) ->
+                val sorted = list.sortedBy { it.dateTime }
+                val latest = sorted.last()
+                val previous = sorted[sorted.size - 2]
+
+                val latestDate = Instant.ofEpochMilli(latest.dateTime).atZone(zone).toLocalDate()
+                val prevDate = Instant.ofEpochMilli(previous.dateTime).atZone(zone).toLocalDate()
+                val daysDiff = java.time.temporal.ChronoUnit.DAYS.between(prevDate, latestDate)
+
+                val (isRecurring, cadence, nextDate) =
+                    when (daysDiff) {
+                        in 6..9 -> Triple(true, "Weekly", latestDate.plusWeeks(1))
+                        in 25..35 -> Triple(true, "Monthly", latestDate.plusMonths(1))
+                        in 85..95 -> Triple(true, "Quarterly", latestDate.plusMonths(3))
+                        else -> Triple(false, "", latestDate)
+                    }
+
+                if (isRecurring) {
+                    val priceDiff =
+                        if (latest.amount != previous.amount) {
+                            latest.amount - previous.amount
+                        } else {
+                            null
+                        }
+
+                    SubscriptionItemUiModel(
+                        id = latest.id,
+                        merchantName = merchant,
+                        categoryName = latest.categorySource ?: "Bills & Utilities",
+                        amountMinor = latest.amount,
+                        cadenceLabel = cadence,
+                        nextChargeDate = nextDate,
+                        priceDiffMinor = priceDiff,
+                    )
+                } else {
+                    null
+                }
+            }.sortedBy { it.nextChargeDate }
     }
 }
 

@@ -21,4 +21,14 @@
     <string name="insights_time_this_month">This Month</string>
     <string name="insights_time_last_month">Last Month</string>
     <string name="insights_time_all">All Time</string>
+    <string name="insights_heatmap_title">Spending Intensity Heatmap</string>
+    <string name="insights_heatmap_subtitle">Last 35 days daily spend density</string>
+    <string name="insights_heatmap_day_summary">%1$s (%2$d txns)</string>
+    <string name="insights_heatmap_cell_desc">Day %1$d, %2$s spent</string>
+    <string name="insights_recurring_title">Recurring Bills &amp; Subscriptions</string>
+    <string name="insights_recurring_monthly_total">%1$s projected per month</string>
+    <string name="insights_due_today">Due Today</string>
+    <string name="insights_due_tomorrow">Due Tomorrow</string>
+    <string name="insights_due_in_days">Due in %1$d days</string>
+    <string name="insights_price_hike_alert">+%1$s alert</string>
 </resources>

@@ -15,11 +15,14 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -33,13 +36,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionRepository
+import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.designsystem.component.AddTransactionDialog
 import com.kharcha.core.designsystem.component.ReviewQueueDialog
 import com.kharcha.core.designsystem.component.TransactionDetailDialog
@@ -69,6 +72,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var transactionRepository: TransactionRepository
 
+    @Inject
+    lateinit var userPreferences: UserPreferences
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -77,14 +83,26 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    var isOnboardingCompleted by rememberSaveable { mutableStateOf(false) }
+                    var isOnboardingCompleted by rememberSaveable {
+                        mutableStateOf(userPreferences.isOnboardingCompleted)
+                    }
 
                     if (!isOnboardingCompleted) {
                         OnboardingRoute(
-                            onOnboardingComplete = { isOnboardingCompleted = true },
+                            onOnboardingComplete = {
+                                userPreferences.isOnboardingCompleted = true
+                                isOnboardingCompleted = true
+                            },
                         )
                     } else {
-                        MainAppShell(transactionRepository = transactionRepository)
+                        MainAppShell(
+                            transactionRepository = transactionRepository,
+                            userPreferences = userPreferences,
+                            onResetOnboarding = {
+                                userPreferences.isOnboardingCompleted = false
+                                isOnboardingCompleted = false
+                            },
+                        )
                     }
                 }
             }
@@ -93,7 +111,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainAppShell(transactionRepository: TransactionRepository) {
+fun MainAppShell(
+    transactionRepository: TransactionRepository,
+    userPreferences: UserPreferences,
+    onResetOnboarding: () -> Unit,
+) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
     val snackbarHostState = remember { SnackbarHostState() }
@@ -139,9 +161,11 @@ fun MainAppShell(transactionRepository: TransactionRepository) {
         BoxDestinationContent(
             destination = currentDestination,
             transactions = transactions,
+            userPreferences = userPreferences,
             onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
             onReviewClick = { showReviewQueue = true },
             onTransactionClick = { txn -> selectedTransactionForDetail = txn },
+            onResetOnboarding = onResetOnboarding,
             modifier = Modifier.padding(innerPadding),
         )
     }
@@ -205,9 +229,11 @@ fun MainAppShell(transactionRepository: TransactionRepository) {
 fun BoxDestinationContent(
     destination: AppDestination,
     transactions: List<Transaction>,
+    userPreferences: UserPreferences,
     onNavigateToTransactions: () -> Unit,
     onReviewClick: () -> Unit,
     onTransactionClick: (Transaction) -> Unit,
+    onResetOnboarding: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -232,6 +258,7 @@ fun BoxDestinationContent(
                 totalExpense = totalExpense,
                 needsReviewCount = needsReviewCount,
                 recentTransactions = transactions.take(10),
+                monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onSeeAllClick = onNavigateToTransactions,
                 onReviewClick = onReviewClick,
                 onTransactionClick = onTransactionClick,
@@ -251,9 +278,9 @@ fun BoxDestinationContent(
             )
         }
         AppDestination.MORE -> {
-            PlaceholderDestination(
-                title = stringResource(id = R.string.more_coming_soon),
-                subtitle = stringResource(id = R.string.more_subtitle),
+            MoreSettingsScreen(
+                userPreferences = userPreferences,
+                onResetOnboarding = onResetOnboarding,
                 modifier = modifier,
             )
         }
@@ -261,30 +288,93 @@ fun BoxDestinationContent(
 }
 
 @Composable
-fun PlaceholderDestination(
-    title: String,
-    subtitle: String,
+fun MoreSettingsScreen(
+    userPreferences: UserPreferences,
+    onResetOnboarding: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier =
             modifier
                 .fillMaxSize()
-                .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+                .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = title,
+            text = stringResource(id = R.string.nav_more),
             style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center,
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(id = R.string.app_name),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(id = R.string.more_privacy_badge),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(id = R.string.more_budget_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = MoneyFormatter.formatMinorUnits(userPreferences.monthlyBudgetMinor),
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(id = R.string.more_budget_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(id = R.string.more_rerun_onboarding),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(id = R.string.more_rerun_onboarding_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(onClick = onResetOnboarding) {
+                    Text(text = stringResource(id = R.string.more_rerun_onboarding))
+                }
+            }
+        }
     }
 }

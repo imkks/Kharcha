@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 
 private val LightColors =
     lightColorScheme(
@@ -32,8 +33,17 @@ fun KharchaTheme(
             DarkColors
         }
 
-    MaterialTheme(
-        colorScheme = colors,
-        content = content,
-    )
+    val financialColors =
+        if (!useDarkTheme) {
+            LightFinancialColors
+        } else {
+            DarkFinancialColors
+        }
+
+    CompositionLocalProvider(LocalFinancialColors provides financialColors) {
+        MaterialTheme(
+            colorScheme = colors,
+            content = content,
+        )
+    }
 }

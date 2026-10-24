@@ -13,4 +13,9 @@
     <string name="more_subtitle">Accounts, category rules, export and settings.</string>
     <string name="add_transaction_coming_soon">Add transaction manual entry coming soon</string>
     <string name="txn_added">Transaction added</string>
+    <string name="more_privacy_badge">100% Offline • Zero Internet • On-Device Privacy</string>
+    <string name="more_budget_title">Monthly Budget</string>
+    <string name="more_budget_subtitle">Used to calculate daily Safe-to-Spend pacing</string>
+    <string name="more_rerun_onboarding">Re-run Onboarding &amp; SMS Scan</string>
+    <string name="more_rerun_onboarding_desc">Scan device SMS inbox again for new or missed bank alerts</string>
 </resources>

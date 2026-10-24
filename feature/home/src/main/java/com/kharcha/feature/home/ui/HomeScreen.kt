@@ -30,11 +30,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -43,9 +43,11 @@ import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.AmountText
 import com.kharcha.core.designsystem.component.TransactionRow
+import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.feature.home.R
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +57,7 @@ fun HomeScreen(
     totalExpense: Long = 0L,
     needsReviewCount: Int = 0,
     recentTransactions: List<Transaction> = emptyList(),
+    monthlyBudgetMinor: Long = 30_000_00L,
     onSeeAllClick: () -> Unit = {},
     onReviewClick: () -> Unit = {},
     onTransactionClick: (Transaction) -> Unit = {},
@@ -66,6 +69,34 @@ fun HomeScreen(
             stringResource(id = R.string.home_period_last_month),
             stringResource(id = R.string.home_period_all),
         )
+
+    val today = LocalDate.now()
+    val daysInMonth = today.lengthOfMonth()
+    val currentDay = today.dayOfMonth
+    val daysRemaining = (daysInMonth - currentDay + 1).coerceAtLeast(1)
+
+    val safeToSpendUiModel =
+        remember(totalExpense, monthlyBudgetMinor, daysRemaining, currentDay) {
+            val remainingBudget = (monthlyBudgetMinor - totalExpense).coerceAtLeast(0L)
+            val dailySafe = remainingBudget / daysRemaining
+            val currentDailyBurn = if (currentDay > 0) totalExpense / currentDay else 0L
+
+            val status =
+                when {
+                    totalExpense > monthlyBudgetMinor -> PacingStatus.EXCEEDED
+                    dailySafe > 0 && currentDailyBurn > (dailySafe * 5 / 4) -> PacingStatus.WARNING
+                    else -> PacingStatus.ON_TRACK
+                }
+
+            SafeToSpendUiModel(
+                dailySafeMinor = dailySafe,
+                currentDailyBurnMinor = currentDailyBurn,
+                totalSpentMinor = totalExpense,
+                monthlyBudgetMinor = monthlyBudgetMinor,
+                daysRemaining = daysRemaining,
+                pacingStatus = status,
+            )
+        }
 
     Scaffold(
         topBar = {
@@ -101,6 +132,10 @@ fun HomeScreen(
                     totalIncome = totalIncome,
                     totalExpense = totalExpense,
                 )
+            }
+
+            item {
+                SafeToSpendGaugeCard(data = safeToSpendUiModel)
             }
 
             if (needsReviewCount > 0) {
@@ -187,7 +222,7 @@ fun SummaryCard(
                         Icon(
                             painter = painterResource(id = DesignR.drawable.ic_trending_up),
                             contentDescription = null,
-                            tint = Color(0xFF2E7D32),
+                            tint = MaterialTheme.financialColors.income,
                             modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -208,7 +243,7 @@ fun SummaryCard(
                         Icon(
                             painter = painterResource(id = DesignR.drawable.ic_trending_down),
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
+                            tint = MaterialTheme.financialColors.expense,
                             modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))

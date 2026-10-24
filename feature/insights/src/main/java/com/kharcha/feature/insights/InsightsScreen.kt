@@ -94,6 +94,16 @@ fun InsightsScreen(
         }
     val netSavings = totalIncome - totalExpense
 
+    val heatmapDays =
+        remember(transactions) {
+            InsightsAnalyticsHelper.calculateSpendingHeatmap(transactions)
+        }
+
+    val recurringSubscriptions =
+        remember(transactions) {
+            InsightsAnalyticsHelper.detectRecurringSubscriptions(transactions)
+        }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -129,6 +139,16 @@ fun InsightsScreen(
                     expenseMinor = totalExpense,
                     netSavingsMinor = netSavings,
                 )
+            }
+
+            item {
+                SpendCalendarHeatmap(days = heatmapDays)
+            }
+
+            if (recurringSubscriptions.isNotEmpty()) {
+                item {
+                    RecurringSubscriptionsSection(subscriptions = recurringSubscriptions)
+                }
             }
 
             if (expenses.isEmpty()) {

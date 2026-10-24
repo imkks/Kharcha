@@ -13,4 +13,11 @@
     <string name="home_see_all">See all</string>
     <string name="home_empty_title">No transactions yet</string>
     <string name="home_empty_subtitle">New SMS from your banks will appear here automatically.</string>
+    <string name="home_safe_to_spend_title">Safe-to-Spend</string>
+    <string name="home_safe_daily_subtitle">Daily Safe Allowance</string>
+    <string name="home_status_on_track">On Track</string>
+    <string name="home_status_warning">Pacing High</string>
+    <string name="home_status_exceeded">Exceeded</string>
+    <string name="home_daily_burn_rate">Daily burn: %1$s/day</string>
+    <string name="home_days_remaining">%1$d days left</string>
 </resources>

@@ -2,7 +2,9 @@ package com.kharcha.di
 
 import android.content.Context
 import com.kharcha.core.common.DefaultTransactionRepository
+import com.kharcha.core.common.DefaultUserPreferences
 import com.kharcha.core.common.TransactionRepository
+import com.kharcha.core.common.UserPreferences
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,5 +19,11 @@ object RepositoryModule {
     @Singleton
     fun provideTransactionRepository(@ApplicationContext context: Context): TransactionRepository {
         return DefaultTransactionRepository.getInstance(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserPreferences(@ApplicationContext context: Context): UserPreferences {
+        return DefaultUserPreferences(context)
     }
 }

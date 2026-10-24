@@ -912,4 +912,48 @@ class SmsParserTest {
         assertTrue(result is ParseResult.Ignored)
         assertEquals(IgnoreReason.PROMO, (result as ParseResult.Ignored).reason)
     }
+
+    @Test
+    fun testIdfcCreditCardSpendTemplate() {
+        val sms =
+            RawSms(
+                id = 43,
+                sender = "VM-IDFCFB-S",
+                body =
+                    "Transaction Successful! INR 18596.70 spent on your IDFC FIRST Bank Credit Card " +
+                        "ending XX5625 at RAZ*Optick Labs Inc on 27 SEP 2026 at 12:08 AM Avbl Limit: " +
+                        "INR 389646.5 If not done by you, call 180010888 for dispute or to block your " +
+                        "card SMS CCBLOCK 5625 to 5676732",
+                receivedAt = 1790447880000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1859670L, txn.amountMinor)
+        assertEquals("IDFC", txn.bankName)
+        assertEquals("5625", txn.accountLast4)
+        assertEquals("RAZ*Optick Labs Inc", txn.merchantRaw)
+        assertEquals("idfc_card_spend_v1", txn.templateId)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals(38964650L, txn.balanceAfterMinor)
+    }
+
+    @Test
+    fun testPreDebitEmandateNoticeIsIgnored() {
+        val sms =
+            RawSms(
+                id = 44,
+                sender = "VM-HDFCBK",
+                body =
+                    "E-Mandate!\nRs.199.00 will be deducted on 30/09/26, 00:00:00\n" +
+                        "For NETFLIX COM mandate\nUMN 151aa7f6a9d248c4ba545e5b303eefc6@ptyes\n" +
+                        "Maintain Balance\n-HDFC Bank",
+                receivedAt = 1790447880000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Ignored)
+        assertEquals(IgnoreReason.REMINDER, (result as ParseResult.Ignored).reason)
+    }
 }

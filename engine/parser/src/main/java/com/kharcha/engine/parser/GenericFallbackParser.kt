@@ -26,7 +26,9 @@ class GenericFallbackParser {
             bodyLower.contains("power cash") || bodyLower.contains("bonus cash") ||
             bodyLower.contains("brand cash") || bodyLower.contains("store credit") ||
             bodyLower.contains("cash wallet") || bodyLower.contains("reward wallet") ||
-            bodyLower.contains("access your wallet")
+            bodyLower.contains("access your wallet") || bodyLower.contains("will be deducted") ||
+            bodyLower.contains("will be debited") || bodyLower.contains("scheduled for") ||
+            bodyLower.contains("maintain balance") || bodyLower.contains("e-mandate")
         ) {
             return null
         }
@@ -91,7 +93,7 @@ class GenericFallbackParser {
         if (merchantRaw == null) {
             val merchantPattern =
                 Regex(
-                    "(?i)\\b(?:to|at|towards|for)\\s+([A-Za-z0-9.\\-_@/& ]{2,35}?)" +
+                    "(?i)\\b(?:to|at|towards|for)\\s+([A-Za-z0-9.\\-_@/&* ]{2,35}?)" +
                         "(\\s+(?:on|ref|vpa|via|upi|bal|balance|avl|a/c|acct|using|with|" +
                         "credited|debited|is|was|\\d{2}[\\-/])|[.,;]|$)",
                 ).find(body)
@@ -101,7 +103,7 @@ class GenericFallbackParser {
         if (merchantRaw == null && direction == Direction.CREDIT) {
             val creditSenderPattern =
                 Regex(
-                    "(?i)\\b(?:by|from)\\s+([A-Za-z0-9.\\-_@/& ]{2,35}?)" +
+                    "(?i)\\b(?:by|from)\\s+([A-Za-z0-9.\\-_@/&* ]{2,35}?)" +
                         "(\\s+(?:on|ref|via|upi|bal|balance|avl|a/c|acct|[.,;]|$))",
                 ).find(body)
             merchantRaw = creditSenderPattern?.groupValues?.get(1)?.trim()

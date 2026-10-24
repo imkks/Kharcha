@@ -22,6 +22,18 @@ object NoiseFilter {
     private val winCongratRegex = Regex("(?i)\\b(congratulations|congrats|won|win)\\b")
     private val reminderRegex =
         Regex("(?i)\\b(reminder|due date|minimum due|overdue)\\b")
+    private val preDebitMandateRegex =
+        Regex(
+            "(?i)\\b(e-?mandate!?|mandate\\s+(?:alert|notification|details?)|" +
+                "pre-?debit\\s+(?:alert|notification)|auto-?debit\\s+scheduled)\\b",
+        )
+    private val futureDebitRegex =
+        Regex(
+            "(?i)\\b(?:will\\s+be\\s+(?:deducted|debited)|scheduled\\s+(?:for|to\\s+be)\\s+(?:deducted|debited)|" +
+                "to\\s+be\\s+debited\\s+on)\\b",
+        )
+    private val maintainBalanceRegex =
+        Regex("(?i)\\bmaintain\\s+(?:sufficient\\s+)?(?:balance|funds)\\b")
     private val failedRegex =
         Regex("(?i)\\b(declined|failed|insufficient funds|unsuccessful)\\b")
     private val mandateRegex =
@@ -58,8 +70,13 @@ object NoiseFilter {
             return ParseResult.Ignored(IgnoreReason.PROMO)
         }
 
-        // 3. Reminder
-        if (reminderRegex.containsMatchIn(body)) {
+        // 3. Reminder & Pre-debit e-mandate notices
+        if (reminderRegex.containsMatchIn(body) ||
+            preDebitMandateRegex.containsMatchIn(body) ||
+            futureDebitRegex.containsMatchIn(body) ||
+            maintainBalanceRegex.containsMatchIn(body) ||
+            (bodyLower.contains("mandate") && (bodyLower.contains("umn") || bodyLower.contains("will be")))
+        ) {
             return ParseResult.Ignored(IgnoreReason.REMINDER)
         }
 

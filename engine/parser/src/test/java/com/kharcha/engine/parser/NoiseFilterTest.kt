@@ -201,4 +201,34 @@ class NoiseFilterTest {
         assertNotNull(brandResult)
         assertEquals(IgnoreReason.PROMO, (brandResult as ParseResult.Ignored).reason)
     }
+
+    @Test
+    fun ignoresPreDebitMandateNotices() {
+        val mandateSms =
+            RawSms(
+                id = 15,
+                sender = "XX-HDFCBK",
+                body =
+                    "E-Mandate!\nRs.199.00 will be deducted on 30/09/26, 00:00:00\n" +
+                        "For NETFLIX COM mandate\nUMN 151aa7f6a9d248c4ba545e5b303eefc6@ptyes\n" +
+                        "Maintain Balance\n-HDFC Bank",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val result = NoiseFilter.filter(mandateSms)
+        assertNotNull(result)
+        assertEquals(IgnoreReason.REMINDER, (result as ParseResult.Ignored).reason)
+
+        val autoDebitNotice =
+            RawSms(
+                id = 16,
+                sender = "XX-ICICIB",
+                body = "Pre-debit notification: Rs. 1500 will be deducted from a/c XX1234 on 05-Nov for SIP.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val autoDebitResult = NoiseFilter.filter(autoDebitNotice)
+        assertNotNull(autoDebitResult)
+        assertEquals(IgnoreReason.REMINDER, (autoDebitResult as ParseResult.Ignored).reason)
+    }
 }

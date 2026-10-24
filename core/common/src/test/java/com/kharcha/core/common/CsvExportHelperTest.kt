@@ -60,6 +60,7 @@ class CsvExportHelperTest {
                     accountId = 1L,
                     type = TransactionType.Expense,
                     amount = 250_00L,
+                    dateTime = 1790447880000L,
                     merchantNormalised = "Unknown Cafe",
                     categorySource = "Other",
                     channel = Channel.UPI,
@@ -71,6 +72,7 @@ class CsvExportHelperTest {
                     accountId = 1L,
                     type = TransactionType.Expense,
                     amount = 350_00L,
+                    dateTime = 1790447880000L,
                     merchantNormalised = "Unknown Cafe",
                     categorySource = "Other",
                     channel = Channel.UPI,
@@ -82,6 +84,7 @@ class CsvExportHelperTest {
                     accountId = 1L,
                     type = TransactionType.Expense,
                     amount = 500_00L,
+                    dateTime = 1790447880000L,
                     merchantNormalised = "Swiggy",
                     categorySource = "Food & Dining",
                     isReviewed = true, // Reviewed -> should NOT be in LLM unreviewed batch

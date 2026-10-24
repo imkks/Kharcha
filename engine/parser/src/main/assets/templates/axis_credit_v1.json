@@ -1,0 +1,10 @@
+{
+  "id": "axis_credit_v1",
+  "bank": "AXIS",
+  "senderPatterns": ["^[A-Za-z]{2}-?(AXISBK|AXISBN|AXISPG)$"],
+  "direction": "CREDIT",
+  "channel": "NEFT",
+  "regex": "(?i)Your\\s+Axis\\s+Bank\\s+A/[Cc]\\s+(?:ending\\s+with|ending|no\\.?|X+|\\*+)?\\s*(?<last4>\\d{4})\\s+is\\s+credited\\s+with\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})\\s+by\\s+(?:(?:NEFT|IMPS|RTGS|UPI)(?:/(?:Ref:?\\s*|UTR)?\\w+)?(?:\\s+transfer\\s+from\\s+|\\s+from\\s+)?)?(?<merchant>[^.]+?)(?:\\.\\s+Avl\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*)|\\.?$)",
+  "dateFormats": ["dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

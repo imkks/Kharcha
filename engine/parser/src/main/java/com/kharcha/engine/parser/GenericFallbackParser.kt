@@ -20,6 +20,13 @@ class GenericFallbackParser {
         val body = sms.body
         val bodyLower = body.lowercase()
 
+        if (bodyLower.contains("coupon") || bodyLower.contains("voucher") ||
+            bodyLower.contains("discount") || bodyLower.contains("to shop") ||
+            bodyLower.contains("shop now") || bodyLower.contains("credit limit")
+        ) {
+            return null
+        }
+
         val amountMatch = amountRegex.find(bodyLower) ?: fallbackAmountRegex.find(bodyLower) ?: return null
         val amountMinor = AmountParser.parseMinorUnits(amountMatch.groupValues[1]) ?: return null
 

@@ -109,6 +109,23 @@ fun TransactionDetailDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+
+                        val noteText = transaction.note
+                        if (!noteText.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(id = R.string.txn_detail_message),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = noteText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
                     }
                 }
 

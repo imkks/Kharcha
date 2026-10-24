@@ -103,6 +103,7 @@ class ImportWorker
                                                 refNumber = parsed.refNumber,
                                                 upiId = parsed.upiId,
                                                 balanceAfter = parsed.balanceAfterMinor,
+                                                note = sms.body.trim(),
                                                 parseConfidence = parsed.confidence,
                                                 isReviewed = true,
                                             )

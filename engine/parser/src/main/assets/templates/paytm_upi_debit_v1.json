@@ -1,0 +1,10 @@
+{
+  "id": "paytm_upi_debit_v1",
+  "bank": "PAYTM",
+  "senderPatterns": ["^[A-Za-z]{2}-?(PAYTMB|PYTMTR|PAYTM)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)Paid\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+to\\s+(?<merchant>[^.]+?)\\s+from\\s+Paytm\\s+Payments\\s+Bank\\s+A/[Cc]\\s+(?:ending\\s+with|ending|no\\.?|X+|\\*+)?\\s*(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})(?:\\.\\s+UPI\\s+Ref:?\\s*(?<ref>\\w+))?",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy"],
+  "confidence": 0.95
+}

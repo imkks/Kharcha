@@ -16,6 +16,8 @@
     <string name="txn_detail_channel">Channel: %1$s</string>
     <string name="txn_detail_ref">Ref: %1$s</string>
     <string name="txn_detail_upi">UPI ID: %1$s</string>
+    <string name="txn_detail_message">Original Message</string>
+    <string name="txn_detail_no_message">No message available</string>
     <string name="txn_detail_save">Save</string>
     <string name="txn_detail_close">Close</string>
     <string name="add_txn_title">Add Transaction</string>

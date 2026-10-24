@@ -120,4 +120,58 @@ class NoiseFilterTest {
             )
         assertNull(NoiseFilter.filter(paidSms))
     }
+
+    @Test
+    fun ignoresCouponAndVoucherOffers() {
+        val couponSms =
+            RawSms(
+                id = 9,
+                sender = "XX-TATACL",
+                body = "Tata CliQ has added 2000 coupon to shop for a watch",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val result = NoiseFilter.filter(couponSms)
+        assertNotNull(result)
+        assertEquals(IgnoreReason.PROMO, (result as ParseResult.Ignored).reason)
+
+        val voucherSms =
+            RawSms(
+                id = 10,
+                sender = "XX-MYNTRA",
+                body = "Congratulations! Rs. 500 voucher added to your account to shop on Myntra.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val voucherResult = NoiseFilter.filter(voucherSms)
+        assertNotNull(voucherResult)
+        assertEquals(IgnoreReason.PROMO, (voucherResult as ParseResult.Ignored).reason)
+    }
+
+    @Test
+    fun ignoresCreditLimitAndLoanOffers() {
+        val limitSms =
+            RawSms(
+                id = 11,
+                sender = "XX-HDFCBK",
+                body = "Your credit limit has been increased to Rs. 2,00,000 on your HDFC card.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val result = NoiseFilter.filter(limitSms)
+        assertNotNull(result)
+        assertEquals(IgnoreReason.PROMO, (result as ParseResult.Ignored).reason)
+
+        val loanSms =
+            RawSms(
+                id = 12,
+                sender = "XX-AXISBK",
+                body = "Pre-approved personal loan of Rs 5,00,000 is ready for you. Apply now!",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val loanResult = NoiseFilter.filter(loanSms)
+        assertNotNull(loanResult)
+        assertEquals(IgnoreReason.PROMO, (loanResult as ParseResult.Ignored).reason)
+    }
 }

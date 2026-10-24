@@ -98,6 +98,7 @@ class SmsReceiver : BroadcastReceiver() {
                                 refNumber = parsed.refNumber,
                                 upiId = parsed.upiId,
                                 balanceAfter = parsed.balanceAfterMinor,
+                                note = body.trim(),
                                 parseConfidence = parsed.confidence,
                                 isReviewed = false,
                             )

@@ -212,6 +212,7 @@ class OnboardingViewModel
                                     refNumber = parsedTxn.refNumber,
                                     upiId = parsedTxn.upiId,
                                     balanceAfter = parsedTxn.balanceAfterMinor,
+                                    note = sms.body.trim(),
                                     parseConfidence = parsedTxn.confidence,
                                     isReviewed = isHighConf && category != "Other",
                                 )

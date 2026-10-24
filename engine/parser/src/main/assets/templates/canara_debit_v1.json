@@ -1,0 +1,10 @@
+{
+  "id": "canara_debit_v1",
+  "bank": "CANARA",
+  "senderPatterns": ["^[A-Za-z]{2}-?(CANBNK|CANARA)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)Your\\s+A/[Cc]\\s+[.*X]*(?<last4>\\d{4})\\s+debited\\s+(?:by|for)\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})(?:\\s+(?<time>\\d{2}:\\d{2}:\\d{2}))?(?:\\s+via\\s+UPI\\s+Ref\\s*(?<ref>\\w+))?\\s+to\\s+(?<merchant>[^.\\n]+?)(?:\\s*\\.?\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*)|\\.?$)",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy"],
+  "confidence": 0.95
+}

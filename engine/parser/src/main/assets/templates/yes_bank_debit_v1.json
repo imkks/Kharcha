@@ -1,0 +1,10 @@
+{
+  "id": "yes_bank_debit_v1",
+  "bank": "YESBANK",
+  "senderPatterns": ["^[A-Za-z]{2}-?(YESBNK|YESBK)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)Sent\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+from\\s+YES\\s+BANK\\s+A/C\\s+[*X]*(?<last4>\\d{4})\\s+to\\s+(?<merchant>[^.\\n]+?)\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})(?:\\s*\\.?\\s+UPI\\s+Ref:?\\s*(?<ref>\\w+))?(?:\\s*\\.?\\s+Avl\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*)|\\.?$)",
+  "dateFormats": ["dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

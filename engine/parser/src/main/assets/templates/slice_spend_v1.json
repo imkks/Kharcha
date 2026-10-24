@@ -1,0 +1,10 @@
+{
+  "id": "slice_spend_v1",
+  "bank": "SLICE",
+  "senderPatterns": ["^[A-Za-z]{2}-?(SLICEC|SLICET|SLICE)$"],
+  "direction": "DEBIT",
+  "channel": "CARD",
+  "regex": "(?i)Spent\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+at\\s+(?<merchant>[^.\\n]+?)\\s+via\\s+slice\\s+card\\s+(?:ending|X+|\\*+)\\s*(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})",
+  "dateFormats": ["dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

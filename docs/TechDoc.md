@@ -111,7 +111,7 @@ Layer order and confidence defaults:
 2. LearnedMappingLayer (0.9): MerchantMapping keyed on the normalised merchant or UPI ID, with a minimum confirmedCount of 1.
 3. DictionaryLayer (0.85): bundled merchants.json with names, aliases and regex hints mapped to a category id.
 4. HeuristicLayer (0.7): keyword and channel rules (ATM = Cash Withdrawal, EMI = Loans and EMI, and similar).
-5. MlLayer (model dependent, accept at or above 0.75): optional, behind a feature flag.
+5. MlLayer (model dependent, accept at or above 0.75): on-device TFLite model, optional, behind a feature flag (see [ML_CATEGORIZER_PLAN.md](ML_CATEGORIZER_PLAN.md)).
 6. Fallback: Uncategorised, confidence 0, flagged for the Review Queue.
 Merchant normaliser steps: lowercase, strip prefixes (upi/, vpa, pos, ecom), remove digits and order ids, remove city and bank suffixes, collapse whitespace, then alias lookup.
 Learning: when the user recategorises, write a MerchantMapping and optionally a Rule (if the user chose apply to all), increment confirmedCount, and re-run categorisation over matching uncorrected transactions in a background worker.
@@ -155,7 +155,7 @@ T5.1 Transactions UI. List, filters, search, detail, edit, manual add, multi-sel
 T6.1 Dashboard. Summary, period selector with custom month start, charts and drill-down. Requirements: FR-8.1 to 8.4. Acceptance: totals match the database queries in tests.
 T7.1 Budgets and notifications. Budget CRUD, progress, threshold alerts, transaction notifications with actions. Requirements: FR-9.1, 9.2, FR-11. Acceptance: alerts fire once per threshold per period.
 T8.1 Security and data. App lock, export (CSV and JSON), encrypted backup and restore, delete all. Requirements: FR-12. Acceptance: backup and restore round-trips identical data.
-T9.x Post-MVP. Recurring detection, insights cards, split transactions, goals, widget, TFLite layer.
+T9.x Post-MVP. Recurring detection, insights cards, split transactions, goals, widget, TFLite layer (see [PENNYWISE_BENCHMARK_ANALYSIS.md](PENNYWISE_BENCHMARK_ANALYSIS.md) for benchmark exploration and task breakdown).
 13. AGENTS.md (place in the repository root)
 The following content is intended to be committed as AGENTS.md so Jules follows project rules on every task:
 • Read the SRS, UI/UX spec and this design doc in /docs before starting. Cite requirement IDs in the PR description.

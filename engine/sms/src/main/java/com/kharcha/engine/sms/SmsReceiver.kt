@@ -9,11 +9,11 @@ import androidx.work.WorkManager
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.model.Direction
+import com.kharcha.core.model.ParseResult
 import com.kharcha.core.model.RawSms
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
-import com.kharcha.engine.parser.GenericFallbackParser
-import com.kharcha.engine.parser.NoiseFilter
+import com.kharcha.engine.parser.TemplateLoader
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +22,6 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class SmsReceiver : BroadcastReceiver() {
     private val senderFilter = SenderFilter()
-    private val fallbackParser = GenericFallbackParser()
 
     override fun onReceive(
         context: Context,
@@ -41,6 +40,7 @@ class SmsReceiver : BroadcastReceiver() {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val repo = DefaultTransactionRepository.getInstance(context)
+                    val parser = TemplateLoader.createParser(context)
                     for (msg in messages) {
                         val sender = msg.displayOriginatingAddress ?: msg.originatingAddress ?: continue
                         val body = msg.displayMessageBody ?: msg.messageBody ?: continue
@@ -57,9 +57,9 @@ class SmsReceiver : BroadcastReceiver() {
                                 subId = null,
                             )
 
-                        if (NoiseFilter.filter(rawSms) != null) continue
-
-                        val parsed = fallbackParser.parse(rawSms) ?: continue
+                        val parseResult = parser.parse(rawSms)
+                        if (parseResult !is ParseResult.Success) continue
+                        val parsed = parseResult.txn
                         val isCredit = parsed.direction == Direction.CREDIT
                         val rawMerchant = parsed.merchantRaw ?: parsed.upiId
                         val normMerchant =

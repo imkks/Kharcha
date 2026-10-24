@@ -9,10 +9,11 @@ import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.model.Direction
+import com.kharcha.core.model.ParseResult
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
-import com.kharcha.engine.parser.GenericFallbackParser
 import com.kharcha.engine.parser.NoiseFilter
+import com.kharcha.engine.parser.TemplateLoader
 import com.kharcha.engine.sms.Deduplicator
 import com.kharcha.engine.sms.ImportWorker
 import com.kharcha.engine.sms.InboxReader
@@ -77,7 +78,13 @@ class OnboardingViewModel
         private val _uiState = MutableStateFlow(OnboardingUiState())
         val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
-        private val fallbackParser = GenericFallbackParser()
+        private val parser by lazy {
+            try {
+                TemplateLoader.createParser(context)
+            } catch (_: Throwable) {
+                TemplateLoader.createParser(null)
+            }
+        }
 
         fun moveToState(state: OnboardingState) {
             _uiState.update { it.copy(currentState = state) }
@@ -157,8 +164,9 @@ class OnboardingViewModel
                             continue
                         }
 
-                        val parsedTxn = fallbackParser.parse(sms)
-                        if (parsedTxn != null) {
+                        val parseResult = parser.parse(sms)
+                        if (parseResult is ParseResult.Success) {
+                            val parsedTxn = parseResult.txn
                             val ref = parsedTxn.refNumber?.trim()
                             if (!ref.isNullOrEmpty() && !seenRefs.add(ref)) {
                                 continue

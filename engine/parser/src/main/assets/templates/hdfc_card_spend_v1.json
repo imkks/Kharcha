@@ -1,0 +1,10 @@
+{
+  "id": "hdfc_card_spend_v1",
+  "bank": "HDFC",
+  "senderPatterns": ["^[A-Za-z]{2}-?(HDFCBK|HDFCSMS)$"],
+  "direction": "DEBIT",
+  "channel": "CARD",
+  "regex": "(?i)(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+spent\\s+on\\s+HDFC\\s+Bank\\s+(?:Credit|Debit)?\\s*Card\\s+(?:ending|X+|\\*+)\\s*(?<last4>\\d{4})\\s+at\\s+(?<merchant>[^.]+?)\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})",
+  "dateFormats": ["dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

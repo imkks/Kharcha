@@ -10,9 +10,10 @@ import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.IgnoreReason
 import com.kharcha.core.model.IgnoredMessage
+import com.kharcha.core.model.ParseResult
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
-import com.kharcha.engine.parser.GenericFallbackParser
+import com.kharcha.engine.parser.TemplateLoader
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +41,8 @@ class ImportWorker
                     val totalSms = inboxReader.getSmsCount()
                     setProgress(workDataOf("progress" to 0.0f, "processedCount" to 0))
 
+                    val parser = TemplateLoader.createParser(applicationContext)
+
                     while (true) {
                         val batch = inboxReader.readSmsBatch(lastProcessedId, batchSize)
                         if (batch.isEmpty()) break
@@ -56,8 +59,9 @@ class ImportWorker
                             } else if (!deduplicator.isDuplicate(sms.sender, sms.body, sms.receivedAt)) {
                                 smsRepository.saveRawSms(sms)
                                 try {
-                                    val parsed = GenericFallbackParser().parse(sms)
-                                    if (parsed != null) {
+                                    val parseResult = parser.parse(sms)
+                                    if (parseResult is ParseResult.Success) {
+                                        val parsed = parseResult.txn
                                         val isCredit = parsed.direction == Direction.CREDIT
                                         val rawMerchant = parsed.merchantRaw ?: parsed.upiId
                                         val normMerchant =

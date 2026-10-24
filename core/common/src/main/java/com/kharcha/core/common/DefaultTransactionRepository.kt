@@ -66,6 +66,64 @@ class DefaultTransactionRepository(
         }
     }
 
+    override suspend fun updateTransactionAndPropagateMerchant(
+        transaction: Transaction,
+        newCategory: String,
+        newType: TransactionType?,
+        userPreferences: UserPreferences?,
+    ): Int {
+        return withContext(ioDispatcher) {
+            val normTarget = transaction.merchantNormalised?.trim()?.lowercase()
+            val rawTarget = transaction.merchantRaw?.trim()?.lowercase()
+
+            val primaryMerchant = if (!normTarget.isNullOrBlank()) normTarget else rawTarget
+            if (!primaryMerchant.isNullOrBlank() && userPreferences != null) {
+                userPreferences.setMerchantCategory(primaryMerchant, newCategory)
+                if (!normTarget.isNullOrBlank()) userPreferences.setMerchantCategory(normTarget, newCategory)
+                if (!rawTarget.isNullOrBlank()) userPreferences.setMerchantCategory(rawTarget, newCategory)
+            }
+
+            val current = _transactions.value.toMutableList()
+            var updateCount = 0
+            val now = System.currentTimeMillis()
+
+            for (i in current.indices) {
+                val t = current[i]
+                val tNorm = t.merchantNormalised?.trim()?.lowercase()
+                val tRaw = t.merchantRaw?.trim()?.lowercase()
+
+                val matches =
+                    t.id == transaction.id ||
+                        (!primaryMerchant.isNullOrBlank() && (tNorm == primaryMerchant || tRaw == primaryMerchant))
+
+                if (matches) {
+                    val targetType =
+                        newType
+                            ?: if (newCategory.equals("Transfer", ignoreCase = true)) {
+                                TransactionType.Transfer
+                            } else {
+                                t.type
+                            }
+
+                    current[i] =
+                        t.copy(
+                            categorySource = newCategory,
+                            type = targetType,
+                            isReviewed = true,
+                            updatedAt = now,
+                        )
+                    updateCount++
+                }
+            }
+
+            reconcileTransfers(current)
+            val updated = current.sortedByDescending { it.dateTime }
+            _transactions.value = updated
+            saveToDisk(updated)
+            updateCount
+        }
+    }
+
     override suspend fun clearTransactions() {
         withContext(ioDispatcher) {
             _transactions.value = emptyList()

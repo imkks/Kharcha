@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.kharcha.core.common.DefaultTransactionRepository
+import com.kharcha.core.common.DefaultUserPreferences
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.model.Direction
@@ -135,6 +136,7 @@ class OnboardingViewModel
                 val seenHashes = mutableSetOf<String>()
                 val seenBodyKeys = mutableSetOf<String>()
                 val seenRefs = mutableSetOf<String>()
+                val userRules = DefaultUserPreferences(context).getMerchantCategoryRules()
 
                 while (true) {
                     val batch = inboxReader.readSmsBatch(lastProcessedId, batchSize, sinceTimestamp)
@@ -188,13 +190,17 @@ class OnboardingViewModel
                                     normMerchant,
                                 )
                             val isTransfer = type == TransactionType.Transfer
+                            val normLower = normMerchant.lowercase().trim()
+                            val isUserCategorized = userRules.containsKey(normLower)
                             val category =
                                 TransactionClassifierHelper.guessCategory(
                                     normMerchant,
                                     isCredit,
                                     isTransfer,
+                                    userRules = userRules,
                                 )
                             val isHighConf = (parsedTxn.confidence >= 0.8f) && (rawMerchant != null)
+                            val isReviewed = isUserCategorized || (isHighConf && category != "Other")
 
                             val txn =
                                 Transaction(
@@ -214,7 +220,7 @@ class OnboardingViewModel
                                     balanceAfter = parsedTxn.balanceAfterMinor,
                                     note = if (storeRaw) sms.body.trim() else null,
                                     parseConfidence = parsedTxn.confidence,
-                                    isReviewed = isHighConf && category != "Other",
+                                    isReviewed = isReviewed,
                                 )
                             batchTxns.add(txn)
                         }

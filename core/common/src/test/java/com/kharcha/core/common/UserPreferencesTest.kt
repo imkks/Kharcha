@@ -50,6 +50,22 @@ class UserPreferencesTest {
     }
 
     @Test
+    fun testMerchantCategoryRules() {
+        every { sharedPreferences.getString("key_merchant_rules_json", null) } returns null
+        assertTrue(userPreferences.getMerchantCategoryRules().isEmpty())
+
+        userPreferences.setMerchantCategory("swiggy", "Food & Dining")
+        verify { editor.putString("key_merchant_rules_json", any()) }
+
+        every { sharedPreferences.getString("key_merchant_rules_json", null) } returns
+            """{"swiggy":"Food & Dining","netflix":"Entertainment"}"""
+        val rules = userPreferences.getMerchantCategoryRules()
+        assertEquals(2, rules.size)
+        assertEquals("Food & Dining", userPreferences.getCategoryForMerchant("Swiggy"))
+        assertEquals("Entertainment", userPreferences.getCategoryForMerchant("Netflix"))
+    }
+
+    @Test
     fun testClear() {
         userPreferences.clear()
         verify { editor.clear() }

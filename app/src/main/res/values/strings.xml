@@ -18,4 +18,12 @@
     <string name="more_budget_subtitle">Used to calculate daily Safe-to-Spend pacing</string>
     <string name="more_rerun_onboarding">Re-run Onboarding &amp; SMS Scan</string>
     <string name="more_rerun_onboarding_desc">Scan device SMS inbox again for new or missed bank alerts</string>
+    <string name="more_export_title">Data Export &amp; ML Training</string>
+    <string name="more_export_csv_desc">Export full CSV with SMS notes for dataset analysis, new parser creation and model training.</string>
+    <string name="more_export_csv_btn">Export CSV (%1$d transactions)</string>
+    <string name="more_export_llm_title">LLM Batch Categorization</string>
+    <string name="more_export_llm_desc">Export leftover unreviewed merchants in compact JSON format for periodic 15-day LLM classification.</string>
+    <string name="more_export_llm_btn">Export Leftover for LLM (%1$d merchants)</string>
+    <string name="more_rules_count">Custom Merchant Rules: %1$d active</string>
+    <string name="txn_propagated_toast">Updated %1$d transactions for %2$s</string>
 </resources>

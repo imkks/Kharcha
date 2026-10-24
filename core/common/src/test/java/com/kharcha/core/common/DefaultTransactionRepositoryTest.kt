@@ -123,4 +123,51 @@ class DefaultTransactionRepositoryTest {
             assertEquals(TransactionType.Transfer, list[0].type)
             assertEquals(TransactionType.Transfer, list[1].type)
         }
+
+    @Test
+    fun propagatesCategoryToAllMerchantTransactionsAndSavesRule() =
+        runTest(testDispatcher) {
+            val prefs: UserPreferences = mockk(relaxed = true)
+            val txn1 =
+                Transaction(
+                    id = 1L,
+                    accountId = 1L,
+                    amount = 50000L,
+                    merchantNormalised = "Blue Tokai",
+                    categorySource = "Other",
+                    type = TransactionType.Expense,
+                    dateTime = 1000L,
+                    isReviewed = false,
+                )
+            val txn2 =
+                Transaction(
+                    id = 2L,
+                    accountId = 1L,
+                    amount = 65000L,
+                    merchantNormalised = "Blue Tokai",
+                    categorySource = "Other",
+                    type = TransactionType.Expense,
+                    dateTime = 2000L,
+                    isReviewed = false,
+                )
+
+            repository.insertTransactions(listOf(txn1, txn2))
+            testScheduler.advanceUntilIdle()
+
+            val updatedCount =
+                repository.updateTransactionAndPropagateMerchant(
+                    transaction = txn1,
+                    newCategory = "Food & Dining",
+                    userPreferences = prefs,
+                )
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(2, updatedCount)
+            val list = repository.getTransactions().first()
+            assertEquals("Food & Dining", list[0].categorySource)
+            assertEquals("Food & Dining", list[1].categorySource)
+            org.junit.Assert.assertTrue(list[0].isReviewed)
+            org.junit.Assert.assertTrue(list[1].isReviewed)
+            io.mockk.verify { prefs.setMerchantCategory("blue tokai", "Food & Dining") }
+        }
 }

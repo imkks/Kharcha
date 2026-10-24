@@ -40,10 +40,25 @@ object TransactionClassifierHelper {
         return if (direction == Direction.CREDIT) TransactionType.Income else TransactionType.Expense
     }
 
-    fun guessCategory(merchant: String, isCredit: Boolean, isTransfer: Boolean = false): String {
+    fun guessCategory(
+        merchant: String,
+        isCredit: Boolean,
+        isTransfer: Boolean = false,
+        userRules: Map<String, String> = emptyMap(),
+    ): String {
         if (isTransfer) return "Transfer"
+        val m = merchant.trim().lowercase()
+
+        val exactMatch = userRules[m]
+        if (exactMatch != null) return exactMatch
+
+        val partialMatch =
+            userRules.entries.firstOrNull { (ruleKey, _) ->
+                ruleKey.isNotBlank() && (m.contains(ruleKey) || ruleKey.contains(m))
+            }?.value
+        if (partialMatch != null) return partialMatch
+
         if (isCredit) return "Salary"
-        val m = merchant.lowercase()
         return when {
             m.contains("swiggy") || m.contains("zomato") || m.contains("mcdonald") ||
                 m.contains("kfc") || m.contains("domino") || m.contains("pizza") ||

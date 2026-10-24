@@ -7,6 +7,7 @@ import android.provider.Telephony
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.kharcha.core.common.DefaultTransactionRepository
+import com.kharcha.core.common.DefaultUserPreferences
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.ParseResult
@@ -75,11 +76,14 @@ class SmsReceiver : BroadcastReceiver() {
                                 normMerchant,
                             )
                         val isTransfer = type == TransactionType.Transfer
+                        val userRules = DefaultUserPreferences(context).getMerchantCategoryRules()
+                        val isUserCategorized = userRules.containsKey(normMerchant.trim().lowercase())
                         val category =
                             TransactionClassifierHelper.guessCategory(
                                 normMerchant,
                                 isCredit,
                                 isTransfer,
+                                userRules = userRules,
                             )
 
                         val txn =
@@ -100,7 +104,7 @@ class SmsReceiver : BroadcastReceiver() {
                                 balanceAfter = parsed.balanceAfterMinor,
                                 note = body.trim(),
                                 parseConfidence = parsed.confidence,
-                                isReviewed = false,
+                                isReviewed = isUserCategorized,
                             )
                         repo.insertTransaction(txn)
                     }

@@ -8,14 +8,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -30,10 +34,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.MoneyFormatter
+import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.AmountText
 import com.kharcha.core.designsystem.component.TransactionRow
 import com.kharcha.core.model.Transaction
@@ -176,10 +183,19 @@ fun SummaryCard(
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = stringResource(id = R.string.home_summary_income),
-                        style = MaterialTheme.typography.labelMedium,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = DesignR.drawable.ic_trending_up),
+                            contentDescription = null,
+                            tint = Color(0xFF2E7D32),
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(id = R.string.home_summary_income),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     AmountText(
                         amountMinor = totalIncome,
@@ -188,10 +204,19 @@ fun SummaryCard(
                     )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = stringResource(id = R.string.home_summary_expense),
-                        style = MaterialTheme.typography.labelMedium,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = DesignR.drawable.ic_trending_down),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(id = R.string.home_summary_expense),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     AmountText(
                         amountMinor = totalExpense,
@@ -225,6 +250,13 @@ fun ReviewCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = stringResource(id = R.string.home_review_title, count),
                 style = MaterialTheme.typography.bodyMedium,
@@ -248,6 +280,13 @@ fun EmptyHomeState(modifier: Modifier = Modifier) {
                 .padding(vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Icon(
+            painter = painterResource(id = DesignR.drawable.ic_category_other),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(48.dp),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = stringResource(id = R.string.home_empty_title),
             style = MaterialTheme.typography.titleMedium,

@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -25,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -68,6 +71,12 @@ fun TransactionDetailDialog(
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                        CategoryBadge(
+                            categoryName = selectedCategory,
+                            size = 48.dp,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         val merchantName =
                             transaction.merchantNormalised
                                 ?: transaction.merchantRaw
@@ -136,10 +145,22 @@ fun TransactionDetailDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     listOf(
-                        TransactionType.Expense to stringResource(id = R.string.add_txn_type_expense),
-                        TransactionType.Income to stringResource(id = R.string.add_txn_type_income),
-                        TransactionType.Transfer to stringResource(id = R.string.add_txn_type_transfer),
-                    ).forEach { (type, label) ->
+                        Triple(
+                            TransactionType.Expense,
+                            stringResource(id = R.string.add_txn_type_expense),
+                            R.drawable.ic_trending_down,
+                        ),
+                        Triple(
+                            TransactionType.Income,
+                            stringResource(id = R.string.add_txn_type_income),
+                            R.drawable.ic_trending_up,
+                        ),
+                        Triple(
+                            TransactionType.Transfer,
+                            stringResource(id = R.string.add_txn_type_transfer),
+                            R.drawable.ic_category_transfer,
+                        ),
+                    ).forEach { (type, label, iconRes) ->
                         FilterChip(
                             selected = selectedType == type,
                             onClick = {
@@ -149,6 +170,13 @@ fun TransactionDetailDialog(
                                 }
                             },
                             label = { Text(text = label) },
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(id = iconRes),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            },
                         )
                     }
                 }
@@ -175,6 +203,15 @@ fun TransactionDetailDialog(
                                 }
                             },
                             label = { Text(text = category) },
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = CategoryIconHelper.getCategoryIcon(category),
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            },
                         )
                     }
                 }

@@ -31,7 +31,7 @@ import com.kharcha.feature.transactions.R
 
 @Composable
 fun MultiSelectBottomBar(
-    selectedCount: Int,
+    @Suppress("UNUSED_PARAMETER") selectedCount: Int,
     onCategorizeClick: () -> Unit,
     onChangeTypeClick: () -> Unit,
     onMarkReviewedClick: () -> Unit,

@@ -91,7 +91,7 @@ private enum class FilterDateOption {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AdvancedFilterSheet(
-    transactions: List<Transaction>,
+    @Suppress("UNUSED_PARAMETER") transactions: List<Transaction>,
     initialFilter: TransactionFilter,
     onApply: (TransactionFilter) -> Unit,
     onDismiss: () -> Unit,

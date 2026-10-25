@@ -1022,7 +1022,7 @@ fun TransactionDetailScreen(
 internal fun CategoryPickerSheetContent(
     selectedCategory: String,
     onCategorySelected: (String) -> Unit,
-    onDismiss: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var searchQuery by remember { mutableStateOf("") }

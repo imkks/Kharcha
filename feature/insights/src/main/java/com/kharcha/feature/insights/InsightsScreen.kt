@@ -62,7 +62,7 @@ enum class InsightsTab(val labelRes: Int) {
 @Composable
 fun InsightsScreen(
     transactions: List<Transaction>,
-    onTransactionClick: (Transaction) -> Unit,
+    @Suppress("UNUSED_PARAMETER") onTransactionClick: (Transaction) -> Unit,
     modifier: Modifier = Modifier,
     monthlyBudgetMinor: Long = 30_000_00L,
     onUpdateMonthlyBudget: (Long) -> Unit = {},
@@ -78,11 +78,6 @@ fun InsightsScreen(
     val expenses =
         remember(periodTxns) {
             periodTxns.filter { it.type == TransactionType.Expense }
-        }
-
-    val safeToSpend =
-        remember(transactions) {
-            InsightsAnalyticsHelper.calculateSafeToSpend(transactions)
         }
 
     val categoryShares =

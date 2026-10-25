@@ -1,7 +1,8 @@
 package com.kharcha.core.designsystem.component
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,11 +33,15 @@ import com.kharcha.core.designsystem.R
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TransactionRow(
     transaction: Transaction,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
 ) {
     val merchantDisplay =
         transaction.merchantNormalised
@@ -64,11 +70,21 @@ fun TransactionRow(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(vertical = 10.dp),
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                )
+                .padding(vertical = 10.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
+        if (isSelectionMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onClick() },
+                modifier = Modifier.padding(end = 4.dp),
+            )
+        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f),

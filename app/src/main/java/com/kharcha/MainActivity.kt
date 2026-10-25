@@ -232,6 +232,28 @@ fun MainAppShell(
                     },
                     filterCategory = filterCategoryForTransactions,
                     onClearCategoryFilter = { filterCategoryForTransactions = null },
+                    onDeleteTransaction = { toDelete ->
+                        scope.launch {
+                            transactionRepository.updateTransaction(
+                                toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
+                            )
+                        }
+                    },
+                    onRestoreTransaction = { toRestore ->
+                        scope.launch {
+                            transactionRepository.updateTransaction(toRestore)
+                        }
+                    },
+                    onReviewTransaction = { toReview ->
+                        scope.launch {
+                            transactionRepository.updateTransaction(toReview)
+                        }
+                    },
+                    onUpdateTransactions = { updatedList ->
+                        scope.launch {
+                            transactionRepository.updateTransactions(updatedList)
+                        }
+                    },
                     onResetOnboarding = onResetOnboarding,
                     onPrivacyToggle = onTogglePrivacyMode,
                     modifier = Modifier.padding(innerPadding),
@@ -301,6 +323,10 @@ fun BoxDestinationContent(
     onCategoryClick: (String) -> Unit = {},
     filterCategory: String? = null,
     onClearCategoryFilter: () -> Unit = {},
+    onDeleteTransaction: (Transaction) -> Unit = {},
+    onRestoreTransaction: (Transaction) -> Unit = {},
+    onReviewTransaction: (Transaction) -> Unit = {},
+    onUpdateTransactions: (List<Transaction>) -> Unit = {},
     onResetOnboarding: () -> Unit,
     onPrivacyToggle: () -> Unit,
     modifier: Modifier = Modifier,
@@ -324,6 +350,10 @@ fun BoxDestinationContent(
                 onPrivacyToggle = onPrivacyToggle,
                 initialCategory = filterCategory,
                 onClearInitialCategory = onClearCategoryFilter,
+                onDeleteTransaction = onDeleteTransaction,
+                onRestoreTransaction = onRestoreTransaction,
+                onReviewTransaction = onReviewTransaction,
+                onUpdateTransactions = onUpdateTransactions,
             )
         }
         AppDestination.INSIGHTS -> {

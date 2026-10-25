@@ -12,6 +12,8 @@ interface TransactionRepository {
 
     suspend fun updateTransaction(transaction: Transaction)
 
+    suspend fun updateTransactions(transactions: List<Transaction>)
+
     suspend fun updateTransactionAndPropagateMerchant(
         transaction: Transaction,
         newCategory: String,

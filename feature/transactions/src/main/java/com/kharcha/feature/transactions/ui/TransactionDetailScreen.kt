@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -442,7 +441,7 @@ fun TransactionDetailScreen(
                                     modifier = Modifier.size(32.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.ContentCopy,
+                                        painter = painterResource(id = DesignR.drawable.ic_copy),
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
                                     )
@@ -773,7 +772,7 @@ private fun MetadataRow(
 }
 
 @Composable
-private fun CategoryPickerSheetContent(
+internal fun CategoryPickerSheetContent(
     selectedCategory: String,
     onCategorySelected: (String) -> Unit,
     onDismiss: () -> Unit,

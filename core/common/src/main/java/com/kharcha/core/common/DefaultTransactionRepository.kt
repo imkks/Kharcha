@@ -66,6 +66,28 @@ class DefaultTransactionRepository(
         }
     }
 
+    override suspend fun updateTransactions(transactions: List<Transaction>) {
+        if (transactions.isEmpty()) return
+        withContext(ioDispatcher) {
+            val current = _transactions.value.toMutableList()
+            val map = transactions.associateBy { it.id }
+            var changed = false
+            for (i in current.indices) {
+                val updated = map[current[i].id]
+                if (updated != null) {
+                    current[i] = updated.copy(updatedAt = System.currentTimeMillis())
+                    changed = true
+                }
+            }
+            if (changed) {
+                reconcileTransfers(current)
+                val sorted = current.sortedByDescending { it.dateTime }
+                _transactions.value = sorted
+                saveToDisk(sorted)
+            }
+        }
+    }
+
     override suspend fun updateTransactionAndPropagateMerchant(
         transaction: Transaction,
         newCategory: String,

@@ -77,7 +77,6 @@ fun BudgetsTabContent(
         }
 
     var showEditBudgetDialog by remember { mutableStateOf(false) }
-    var selectedCategoryForEdit by remember { mutableStateOf<String?>(null) }
     val isPrivacy = LocalPrivacyMode.current
 
     Column(

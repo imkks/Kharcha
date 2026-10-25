@@ -78,7 +78,11 @@ fun buildCategorySlices(
             .groupBy { it.categorySource?.trim().takeUnless { s -> s.isNullOrEmpty() } ?: otherLabel }
             .mapValues { (_, txns) -> txns.sumOf { it.amount } }
             .toList()
-            .sortedByDescending { it.second }
+            .sortedWith(
+                compareByDescending<Pair<String, Long>> { it.second }
+                    .thenBy { it.first == otherLabel }
+                    .thenBy { it.first },
+            )
 
     val top5 = grouped.take(5)
     val remainder = grouped.drop(5)

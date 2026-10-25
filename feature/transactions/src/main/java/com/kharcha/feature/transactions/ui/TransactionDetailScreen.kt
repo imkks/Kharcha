@@ -873,7 +873,83 @@ fun TransactionDetailScreen(
                 }
             }
 
-            // 6. Other Info Card (Location, Ref No, SMS)
+            // 6. Original Full SMS Message Card (Exact verbatim message)
+            val rawSms = transaction.note?.takeIf { it.isNotBlank() }
+            if (!rawSms.isNullOrBlank()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
+                    ) {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = DesignR.drawable.ic_notes),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                    Text(
+                                        text = stringResource(id = R.string.detail_original_sms),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                                val copiedMsg = stringResource(id = R.string.detail_copied)
+                                IconButton(
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(rawSms))
+                                        scope.launch { snackbarHostState.showSnackbar(copiedMsg) }
+                                    },
+                                    modifier = Modifier.size(32.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = DesignR.drawable.ic_copy),
+                                        contentDescription = stringResource(id = R.string.detail_copy_ref),
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = rawSms,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(14.dp),
+                                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.3,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 7. Other Info Card (Location, Ref No)
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -978,53 +1054,6 @@ fun TransactionDetailScreen(
                                     modifier = Modifier.size(16.dp),
                                 )
                             }
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-
-                        // Verbatim SMS Row
-                        val rawSms =
-                            transaction.note?.takeIf { it.isNotBlank() }
-                                ?: buildString {
-                                    append("[HDFC-BANK] Sent Rs.")
-                                    append(MoneyFormatter.formatMinorUnits(transaction.amount).removePrefix("₹"))
-                                    append("\nFrom HDFC Bank A/C *1999")
-                                    append("\nTo ")
-                                    append(merchantName.uppercase())
-                                    transaction.refNumber?.let { append("\nRef $it") }
-                                }
-
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = stringResource(id = R.string.detail_original_sms),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                val copiedMsg = stringResource(id = R.string.detail_copied)
-                                IconButton(
-                                    onClick = {
-                                        clipboardManager.setText(AnnotatedString(rawSms))
-                                        scope.launch { snackbarHostState.showSnackbar(copiedMsg) }
-                                    },
-                                    modifier = Modifier.size(32.dp),
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = DesignR.drawable.ic_copy),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            }
-                            Text(
-                                text = rawSms,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                         }
                     }
                 }

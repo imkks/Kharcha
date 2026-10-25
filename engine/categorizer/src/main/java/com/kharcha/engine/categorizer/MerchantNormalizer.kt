@@ -5,7 +5,7 @@ object MerchantNormalizer {
         listOf(
             "UPI/", "POS/", "VPA/", "NEFT/", "IMPS/", "RTGS/", "ATM/", "BIL/", "MATM/",
             "ACH/", "ECS/", "PUR/", "INB/", "SI/", "NFS/", "CASH/", "CHQ/", "ECOM/",
-            "UPI ", "POS ", "VPA ", "ECOM ",
+            "UPI ", "POS ", "VPA ", "ECOM ", "RSP*", "RSP ", "RAZ*", "RAZ ",
         )
 
     private val NOISE_WORDS =

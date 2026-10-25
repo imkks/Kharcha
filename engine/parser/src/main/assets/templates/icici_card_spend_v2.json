@@ -1,0 +1,10 @@
+{
+  "id": "icici_card_spend_v2",
+  "bank": "ICICI",
+  "senderPatterns": ["^[A-Za-z]{2}-?(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$", "^(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$"],
+  "direction": "DEBIT",
+  "channel": "CARD",
+  "regex": "(?i)(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+spent\\s+using\\s+ICICI\\s+Bank\\s+(?:Credit\\s+|Debit\\s+)?Card\\s+(?:ending\\s+with|ending|no\\.?|X+|\\*+)?\\s*(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{2}-[A-Za-z]{3}-\\d{2,4})\\s+(?:on|at)\\s+(?<merchant>[^.]+?)(?:\\s*\\.\\s+Avl(?:[\\s.]*)Limit:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*)|\\.?$)",
+  "dateFormats": ["dd-MMM-yy", "dd-MMM-yyyy"],
+  "confidence": 0.95
+}

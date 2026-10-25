@@ -956,4 +956,49 @@ class SmsParserTest {
         assertTrue(result is ParseResult.Ignored)
         assertEquals(IgnoreReason.REMINDER, (result as ParseResult.Ignored).reason)
     }
+
+    @Test
+    fun testIciciBankCardSpendV2Template() {
+        val sms =
+            RawSms(
+                id = 45,
+                sender = "BG-ICICIT-S",
+                body =
+                    "INR 323.00 spent using ICICI Bank Card XX3006 on 24-Oct-26 on RSP*SWIGGY PVT . " +
+                        "Avl Limit: INR 6,93,384.00. If not you, call 1800 2662/SMS BLOCK 3006 to 9215676766.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(32300L, txn.amountMinor)
+        assertEquals("ICICI", txn.bankName)
+        assertEquals("3006", txn.accountLast4)
+        assertEquals("RSP*SWIGGY PVT", txn.merchantRaw?.trim())
+        assertEquals("icici_card_spend_v2", txn.templateId)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals(69338400L, txn.balanceAfterMinor)
+    }
+
+    @Test
+    fun testFallbackParserDoesNotParseHelplineAsMerchant() {
+        val fallback = GenericFallbackParser()
+        val sms =
+            RawSms(
+                id = 46,
+                sender = "UNKNOWN-S",
+                body =
+                    "INR 323.00 spent on Card XX3006 on 24-Oct-26 on RSP*SWIGGY PVT . " +
+                        "Avl Limit: INR 6,93,384.00. If not you, call 1800 2662/SMS BLOCK 3006 to 9215676766.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val txn = fallback.parse(sms)
+        org.junit.Assert.assertNotNull(txn)
+        assertEquals(32300L, txn?.amountMinor)
+        assertEquals("3006", txn?.accountLast4)
+        assertEquals("RSP*SWIGGY PVT", txn?.merchantRaw?.trim())
+        org.junit.Assert.assertNotEquals("9215676766", txn?.merchantRaw?.trim())
+    }
 }

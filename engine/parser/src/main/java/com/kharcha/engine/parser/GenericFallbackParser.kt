@@ -85,19 +85,38 @@ class GenericFallbackParser {
 
         var merchantRaw: String? = null
 
-        val vpaPattern = Regex("(?i)\\bvpa\\s+([a-zA-Z0-9.\\-_@]+)").find(body)
+        val contentBody =
+            body.replace(
+                Regex("(?i)\\b(?:if\\s+(?:not\\s+you|this\\s+was\\s+not\\s+you|not\\s+done\\s+by\\s+you)|to\\s+block|call\\s+\\d+|sms\\s+block|report\\s+(?:fraud|to)|forward\\s+(?:this)?\\s*sms).*$"),
+                "",
+            )
+
+        val vpaPattern = Regex("(?i)\\bvpa\\s+([a-zA-Z0-9.\\-_@]+)").find(contentBody)
         if (vpaPattern != null) {
             merchantRaw = vpaPattern.groupValues[1].trim()
         }
 
         if (merchantRaw == null) {
-            val merchantPattern =
+            val merchantMatches =
                 Regex(
-                    "(?i)\\b(?:to|at|towards|for)\\s+([A-Za-z0-9.\\-_@/&* ]{2,35}?)" +
-                        "(\\s+(?:on|ref|vpa|via|upi|bal|balance|avl|a/c|acct|using|with|" +
+                    "(?i)\\b(?:to|at|towards|for|on)\\s+([A-Za-z0-9.\\-_@/&* ]{2,35}?)" +
+                        "(?=\\s+(?:on|ref|vpa|via|upi|bal|balance|avl|a/c|acct|using|with|" +
                         "credited|debited|is|was|\\d{2}[\\-/])|[.,;]|$)",
-                ).find(body)
-            merchantRaw = merchantPattern?.groupValues?.get(1)?.trim()
+                ).findAll(contentBody)
+
+            for (m in merchantMatches) {
+                val candidate = m.groupValues[1].trim()
+                val isDate =
+                    candidate.matches(Regex("(?i)^\\d{1,2}[-/][A-Za-z0-9]{3}(?:[-/]\\d{2,4})?$")) ||
+                        candidate.matches(Regex("^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$"))
+                val isDigitsOnly = candidate.matches(Regex("^[0-9+\\- ]+$"))
+                val isBankWord =
+                    candidate.matches(Regex("(?i)^(?:card|account|a/c|acct|bank(?:\\s+card)?|icici\\s+bank(?:\\s+card)?)$"))
+                if (!isDate && !isDigitsOnly && !isBankWord) {
+                    merchantRaw = candidate
+                    break
+                }
+            }
         }
 
         if (merchantRaw == null && direction == Direction.CREDIT) {
@@ -105,12 +124,12 @@ class GenericFallbackParser {
                 Regex(
                     "(?i)\\b(?:by|from)\\s+([A-Za-z0-9.\\-_@/&* ]{2,35}?)" +
                         "(\\s+(?:on|ref|via|upi|bal|balance|avl|a/c|acct|[.,;]|$))",
-                ).find(body)
+                ).find(contentBody)
             merchantRaw = creditSenderPattern?.groupValues?.get(1)?.trim()
         }
 
         if (merchantRaw == null) {
-            val infoPattern = Regex("(?i)\\binfo[*: ]+([a-zA-Z0-9.\\-_* ]{2,30})").find(body)
+            val infoPattern = Regex("(?i)\\binfo[*: ]+([a-zA-Z0-9.\\-_* ]{2,30})").find(contentBody)
             merchantRaw = infoPattern?.groupValues?.get(1)?.trim()
         }
 
@@ -150,6 +169,7 @@ class GenericFallbackParser {
     private fun cleanMerchant(raw: String?): String? {
         if (raw.isNullOrBlank()) return null
         var cleaned = raw.trim().trim('.', ',', '-', ':', ';')
+        if (cleaned.matches(Regex("^[0-9+\\- ]+$"))) return null
         val dropPrefixes = listOf("a/c", "acct", "vpa", "upi", "vps*", "pos*")
         for (p in dropPrefixes) {
             if (cleaned.startsWith(p, ignoreCase = true)) {

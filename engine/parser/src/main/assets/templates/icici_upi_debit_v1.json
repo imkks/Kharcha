@@ -1,10 +1,10 @@
 {
   "id": "icici_upi_debit_v1",
   "bank": "ICICI",
-  "senderPatterns": ["^[A-Z]{2}-ICICI$"],
+  "senderPatterns": ["^[A-Za-z]{2}-?(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$", "^(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$"],
   "direction": "DEBIT",
   "channel": "UPI",
-  "regex": "(?i)Rs\\.?\\s?(?<amount>[\\d,]+\\.?\\d*)\\s+debited from A/c (?:X+|\\*+)(?<last4>\\d{4}) on (?<date>\\d{2}-\\d{2}-\\d{2}) to VPA (?<upi>\\S+) \\(UPI Ref (?<ref>\\d+).*\\)",
-  "dateFormats": ["dd-MM-yy", "dd-MMM-yy"],
+  "regex": "(?i)Rs\\.?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+debited from A/c (?:ending\\s+with|ending|no\\.?|X+|\\*+)?\\s*(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{2}-[a-zA-Z]{3}-\\d{2,4})\\s+(?:towards|to)\\s+(?<merchant>.*?)\\s*\\(UPI\\s+Ref\\s+(?<ref>\\w+)\\)",
+  "dateFormats": ["dd-MMM-yy", "dd-MMM-yyyy"],
   "confidence": 0.95
 }

@@ -64,7 +64,6 @@ fun SplitExpenseSheet(
     val context = LocalContext.current
 
     val defaultYou = stringResource(id = R.string.split_default_you)
-    val defaultPersonTemplate = stringResource(id = R.string.split_default_person, 2)
 
     var participantCount by remember {
         mutableIntStateOf(

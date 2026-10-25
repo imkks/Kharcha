@@ -87,7 +87,11 @@ class GenericFallbackParser {
 
         val contentBody =
             body.replace(
-                Regex("(?i)\\b(?:if\\s+(?:not\\s+you|this\\s+was\\s+not\\s+you|not\\s+done\\s+by\\s+you)|to\\s+block|call\\s+\\d+|sms\\s+block|report\\s+(?:fraud|to)|forward\\s+(?:this)?\\s*sms).*$"),
+                Regex(
+                    "(?i)\\b(?:if\\s+(?:not\\s+you|this\\s+was\\s+not\\s+you|not\\s+done\\s+by\\s+you)|" +
+                        "to\\s+block|call\\s+\\d+|sms\\s+block|report\\s+(?:fraud|to)|" +
+                        "forward\\s+(?:this)?\\s*sms).*$",
+                ),
                 "",
             )
 
@@ -110,9 +114,14 @@ class GenericFallbackParser {
                     candidate.matches(Regex("(?i)^\\d{1,2}[-/][A-Za-z0-9]{3}(?:[-/]\\d{2,4})?$")) ||
                         candidate.matches(Regex("^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$"))
                 val isDigitsOnly = candidate.matches(Regex("^[0-9+\\- ]+$"))
-                val isBankWord =
-                    candidate.matches(Regex("(?i)^(?:card|account|a/c|acct|bank(?:\\s+card)?|icici\\s+bank(?:\\s+card)?)$"))
-                if (!isDate && !isDigitsOnly && !isBankWord) {
+                val isAccountOrCard =
+                    candidate.matches(
+                        Regex(
+                            "(?i)^(?:card|account|a/c|acct|credit\\s+card|debit\\s+card|" +
+                                "bank(?:\\s+card)?|icici\\s+bank(?:\\s+card)?)(?:\\s+.*)?$",
+                        ),
+                    )
+                if (!isDate && !isDigitsOnly && !isAccountOrCard) {
                     merchantRaw = candidate
                     break
                 }

@@ -274,9 +274,10 @@ private fun ReviewCardContent(
                 // Hero Amount
                 val amountColor =
                     when (transaction.type) {
-                        TransactionType.Income -> MaterialTheme.financialColors.income
+                        TransactionType.Income, TransactionType.Refund -> MaterialTheme.financialColors.income
                         TransactionType.Expense -> MaterialTheme.financialColors.expense
-                        TransactionType.Transfer -> MaterialTheme.colorScheme.primary
+                        TransactionType.Transfer -> MaterialTheme.financialColors.transfer
+                        TransactionType.Investment -> MaterialTheme.colorScheme.primary
                         TransactionType.Ignored -> MaterialTheme.colorScheme.outline
                     }
 
@@ -284,8 +285,14 @@ private fun ReviewCardContent(
                     if (isPrivacy) {
                         "₹ ••••••"
                     } else {
-                        val sign = if (transaction.type == TransactionType.Expense) "- " else "+ "
-                        sign + MoneyFormatter.formatMinorUnits(transaction.amount)
+                        when (transaction.type) {
+                            TransactionType.Expense ->
+                                MoneyFormatter.formatMinorUnits(transaction.amount, showSign = true, isCredit = false)
+                            TransactionType.Income, TransactionType.Refund ->
+                                MoneyFormatter.formatMinorUnits(transaction.amount, showSign = true, isCredit = true)
+                            else ->
+                                MoneyFormatter.formatMinorUnits(transaction.amount, showSign = false)
+                        }
                     }
 
                 Text(
@@ -327,14 +334,14 @@ private fun ReviewCardContent(
                             text = stringResource(id = R.string.review_low_confidence_badge, pct),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.financialColors.onWarningContainer,
+                            color = MaterialTheme.financialColors.warning,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         )
                     }
                 }
 
                 // Raw SMS Snippet if present
-                val rawSms = transaction.smsRawBody
+                val rawSms = transaction.note
                 if (!rawSms.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Surface(

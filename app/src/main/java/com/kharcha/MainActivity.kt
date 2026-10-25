@@ -142,6 +142,7 @@ fun MainAppShell(
             val txn = selectedTransactionForDetail!!
             TransactionDetailScreen(
                 transaction = txn,
+                allTransactions = allTransactions,
                 onBack = { selectedTransactionForDetail = null },
                 onSave = { updated, propagate ->
                     scope.launch {

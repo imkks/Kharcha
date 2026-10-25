@@ -115,4 +115,12 @@
     <string name="detail_other_info_title">Other info</string>
     <string name="detail_debit_title">Debit transaction</string>
     <string name="detail_credit_title">Credit transaction</string>
+    <string name="detail_split_title">Split expense with friends or family</string>
+    <string name="detail_split_action">Split</string>
+    <string name="detail_attach_title">Add a photo of a receipt/warranty</string>
+    <string name="detail_attach_action">Attach</string>
+    <string name="detail_location_label">Location</string>
+    <string name="detail_location_action">See map</string>
+    <string name="detail_notes_tap_to_add">Tap to add</string>
+    <string name="detail_account_expense">Expense</string>
 </resources>

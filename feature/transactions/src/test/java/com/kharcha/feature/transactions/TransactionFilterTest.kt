@@ -7,10 +7,12 @@ import com.kharcha.feature.transactions.ui.TransactionFilterType
 import com.kharcha.feature.transactions.ui.filterTransactions
 import com.kharcha.feature.transactions.ui.formatDate
 import com.kharcha.feature.transactions.ui.groupTransactionsByDay
+import com.kharcha.feature.transactions.ui.groupTransactionsByMonth
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 
 class TransactionFilterTest {
@@ -123,5 +125,13 @@ class TransactionFilterTest {
                 .toEpochMilli()
         val yesterdayStr = formatDate(yesterdayEpoch, "Today", "Yesterday")
         assertEquals("Yesterday", yesterdayStr)
+    }
+
+    @Test
+    fun testGroupTransactionsByMonth() {
+        val grouped = groupTransactionsByMonth(testTxns)
+        assertTrue(grouped.isNotEmpty())
+        val currentYm = YearMonth.now()
+        assertTrue(grouped.containsKey(currentYm))
     }
 }

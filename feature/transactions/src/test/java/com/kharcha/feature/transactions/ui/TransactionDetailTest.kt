@@ -68,4 +68,18 @@ class TransactionDetailTest {
         assertEquals(TransactionType.Transfer, asTransfer.type)
         assertEquals("Transfer", asTransfer.categorySource)
     }
+
+    @Test
+    fun testMerchantVisitsCountCalculation() {
+        val txn1 = createTxn(id = 1L, merchantNorm = "Swiggy")
+        val txn2 = createTxn(id = 2L, merchantNorm = "Swiggy")
+        val txn3 = createTxn(id = 3L, merchantNorm = "Zomato")
+        val allList = listOf(txn1, txn2, txn3)
+
+        val countSwiggy = allList.count { it.merchantNormalised == "Swiggy" }
+        assertEquals(2, countSwiggy)
+
+        val countZomato = allList.count { it.merchantNormalised == "Zomato" }
+        assertEquals(1, countZomato)
+    }
 }

@@ -20,31 +20,32 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -66,12 +67,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
-import com.kharcha.core.designsystem.component.CategoryIconHelper
 import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
@@ -92,15 +93,17 @@ fun TransactionDetailScreen(
     onSave: (updated: Transaction, propagateToMerchant: Boolean) -> Unit,
     onDelete: (Transaction) -> Unit,
     modifier: Modifier = Modifier,
+    allTransactions: List<Transaction> = emptyList(),
 ) {
     var selectedType by remember { mutableStateOf(transaction.type) }
     var selectedCategory by remember { mutableStateOf(transaction.categorySource ?: "Other") }
     var noteText by remember { mutableStateOf(transaction.note ?: "") }
-    var isRawSmsExpanded by remember { mutableStateOf(false) }
 
+    var showMenu by remember { mutableStateOf(false) }
     var showCategorySheet by remember { mutableStateOf(false) }
     var showPropagateDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditNoteDialog by remember { mutableStateOf(false) }
     var propagateToAllMerchants by remember { mutableStateOf(true) }
 
     val clipboardManager = LocalClipboardManager.current
@@ -113,25 +116,50 @@ fun TransactionDetailScreen(
             ?: transaction.merchantRaw
             ?: stringResource(id = DesignR.string.unknown_merchant)
 
-    val formattedDate = remember(transaction.dateTime) {
-        val instant = Instant.ofEpochMilli(transaction.dateTime)
-        val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault())
-        instant.atZone(ZoneId.systemDefault()).format(formatter)
-    }
+    val visitsCount =
+        remember(transaction, allTransactions) {
+            if (allTransactions.isEmpty()) {
+                1
+            } else {
+                allTransactions.count {
+                    it.merchantNormalised == transaction.merchantNormalised ||
+                        (it.merchantRaw != null && it.merchantRaw == transaction.merchantRaw)
+                }.coerceAtLeast(1)
+            }
+        }
 
-    val typeColor = when (selectedType) {
-        TransactionType.Income -> MaterialTheme.financialColors.income
-        TransactionType.Expense -> MaterialTheme.financialColors.expense
-        TransactionType.Transfer -> MaterialTheme.financialColors.transfer
-        else -> MaterialTheme.colorScheme.onSurface
-    }
+    val formattedDate =
+        remember(transaction.dateTime) {
+            val instant = Instant.ofEpochMilli(transaction.dateTime)
+            val formatter = DateTimeFormatter.ofPattern("EEE, d MMM, h:mm a", Locale.getDefault())
+            instant.atZone(ZoneId.systemDefault()).format(formatter)
+        }
+
+    val topBarTitle =
+        when (selectedType) {
+            TransactionType.Expense -> stringResource(id = R.string.detail_debit_title)
+            TransactionType.Income -> stringResource(id = R.string.detail_credit_title)
+            TransactionType.Transfer -> stringResource(id = DesignR.string.add_txn_type_transfer)
+            else -> stringResource(id = R.string.detail_title)
+        }
+
+    val hasPendingChanges =
+        selectedType != transaction.type ||
+            selectedCategory != (transaction.categorySource ?: "Other") ||
+            noteText != (transaction.note ?: "")
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(text = stringResource(id = R.string.detail_title)) },
+                title = {
+                    Text(
+                        text = topBarTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -141,301 +169,669 @@ fun TransactionDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showDeleteDialog = true }) {
+                    IconButton(onClick = { showMenu = true }) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(id = R.string.detail_action_delete),
-                            tint = MaterialTheme.colorScheme.error,
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = null,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = stringResource(id = R.string.detail_action_delete),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                showDeleteDialog = true
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            },
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
         },
         bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 3.dp,
-                shadowElevation = 8.dp,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+            AnimatedVisibility(visible = hasPendingChanges) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    tonalElevation = 3.dp,
+                    shadowElevation = 8.dp,
                 ) {
-                    Button(
-                        onClick = {
-                            val categoryChanged = selectedCategory != (transaction.categorySource ?: "Other")
-                            if (categoryChanged && !merchantName.equals("Unknown", ignoreCase = true)) {
-                                showPropagateDialog = true
-                            } else {
-                                val updated = transaction.copy(
-                                    type = selectedType,
-                                    categorySource = selectedCategory,
-                                    note = noteText.takeIf { it.isNotBlank() },
-                                    isReviewed = true,
-                                )
-                                onSave(updated, false)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
                     ) {
-                        Text(text = stringResource(id = R.string.detail_save_changes))
+                        Button(
+                            onClick = {
+                                val categoryChanged =
+                                    selectedCategory != (transaction.categorySource ?: "Other")
+                                if (categoryChanged && !merchantName.equals("Unknown", ignoreCase = true)) {
+                                    showPropagateDialog = true
+                                } else {
+                                    val updated =
+                                        transaction.copy(
+                                            type = selectedType,
+                                            categorySource = selectedCategory,
+                                            note = noteText.takeIf { it.isNotBlank() },
+                                            isReviewed = true,
+                                        )
+                                    onSave(updated, false)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.financialColors.income,
+                                    contentColor = Color(0xFF0F1B12),
+                                ),
+                            shape = RoundedCornerShape(24.dp),
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.detail_save_changes),
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
         },
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
-            // Hero Card: Amount, Merchant, Date, Status
+            // 1. Hero Card (Matching Fold Money screenshot 1)
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        CategoryBadge(
-                            categoryName = selectedCategory,
-                            size = 56.dp,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        val displayAmount = if (isPrivacy) {
-                            "₹ ••••••"
-                        } else {
-                            val sign = if (selectedType == TransactionType.Income) "+" else "-"
-                            sign + MoneyFormatter.formatMinorUnits(transaction.amount)
-                        }
-
-                        Text(
-                            text = displayAmount,
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = typeColor,
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = merchantName,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = formattedDate,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Review Status Indicator Pill
-                        Surface(
-                            shape = CircleShape,
-                            color = if (transaction.isReviewed) {
-                                MaterialTheme.financialColors.income.copy(alpha = 0.15f)
-                            } else {
-                                MaterialTheme.financialColors.warning.copy(alpha = 0.15f)
-                            },
+                        // Top row of Hero Card: Merchant name + Visit count pill
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                            Text(
+                                text = merchantName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                textDecoration = TextDecoration.Underline,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
                             ) {
-                                if (transaction.isReviewed) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.detail_visits_count, visitsCount),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Medium,
+                                    )
                                     Icon(
-                                        imageVector = Icons.Default.Check,
+                                        painter = painterResource(id = DesignR.drawable.ic_bar_chart),
                                         contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = MaterialTheme.financialColors.income,
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = stringResource(id = R.string.detail_status_verified),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.financialColors.income,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                } else {
-                                    Text(
-                                        text = stringResource(id = R.string.detail_status_needs_review),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.financialColors.warning,
-                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.size(13.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Amount with directional arrow
+                        val displayAmount =
+                            if (isPrivacy) {
+                                "₹ ••••••"
+                            } else {
+                                MoneyFormatter.formatMinorUnits(transaction.amount)
+                            }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
+                                contentDescription = null,
+                                tint =
+                                    if (selectedType == TransactionType.Income) {
+                                        MaterialTheme.financialColors.income
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                modifier = Modifier.size(24.dp),
+                            )
+                            Text(
+                                text = displayAmount,
+                                style = MaterialTheme.typography.displayMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Clickable Category Pill: [ 🛒 Groceries ]
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            modifier =
+                                Modifier
+                                    .clip(CircleShape)
+                                    .clickable { showCategorySheet = true },
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                CategoryBadge(
+                                    categoryName = selectedCategory,
+                                    size = 20.dp,
+                                )
+                                Text(
+                                    text = selectedCategory,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Date and Time
+                        Text(
+                            text = formattedDate,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            // 2. Account & Expense Toggle Card
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                ) {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_bank),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.financialColors.income,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                            val accountName =
+                                transaction.refNumber?.takeLast(4)?.let { "HDFC $it" }
+                                    ?: (transaction.channel?.name ?: "Bank Account")
+                            Text(
+                                text = accountName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.detail_account_expense),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Switch(
+                                checked = selectedType == TransactionType.Expense,
+                                onCheckedChange = { isExpense ->
+                                    selectedType =
+                                        if (isExpense) {
+                                            TransactionType.Expense
+                                        } else {
+                                            TransactionType.Income
+                                        }
+                                },
+                                colors =
+                                    SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = MaterialTheme.financialColors.income,
+                                    ),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 3. Notes Card
+            item {
+                Card(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable { showEditNoteDialog = true },
+                    shape = RoundedCornerShape(18.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                ) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_notes),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = stringResource(id = R.string.detail_section_note),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        Text(
+                            text =
+                                if (noteText.isBlank()) {
+                                    stringResource(id = R.string.detail_notes_tap_to_add)
+                                } else {
+                                    noteText
+                                },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color =
+                                if (noteText.isBlank()) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                        )
+                    }
+                }
+            }
+
+            // 4. Split & Attach Row (2 side-by-side cards)
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    // Split Card
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(18.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF8E24AA)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_split),
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            Text(
+                                text = stringResource(id = R.string.detail_split_title),
+                                style = MaterialTheme.typography.bodySmall,
+                                minLines = 2,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.detail_split_action),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 6.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    // Attach Card
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(18.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_receipt_photo),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            Text(
+                                text = stringResource(id = R.string.detail_attach_title),
+                                style = MaterialTheme.typography.bodySmall,
+                                minLines = 2,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.detail_attach_action),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 6.dp),
+                                )
                             }
                         }
                     }
                 }
             }
 
-            // Quick Type & Category Edit Row
+            // 5. Tags Card
             item {
-                Row(
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                 ) {
-                    listOf(
-                        Triple(
-                            TransactionType.Expense,
-                            stringResource(id = DesignR.string.add_txn_type_expense),
-                            DesignR.drawable.ic_trending_down,
-                        ),
-                        Triple(
-                            TransactionType.Income,
-                            stringResource(id = DesignR.string.add_txn_type_income),
-                            DesignR.drawable.ic_trending_up,
-                        ),
-                        Triple(
-                            TransactionType.Transfer,
-                            stringResource(id = DesignR.string.add_txn_type_transfer),
-                            DesignR.drawable.ic_category_transfer,
-                        ),
-                    ).forEach { (type, label, iconRes) ->
-                        FilterChip(
-                            selected = selectedType == type,
-                            onClick = {
-                                selectedType = type
-                                if (type == TransactionType.Transfer) {
-                                    selectedCategory = "Transfer"
-                                }
-                            },
-                            label = { Text(text = label) },
-                            leadingIcon = {
-                                Icon(
-                                    painter = painterResource(id = iconRes),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_label),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = stringResource(id = R.string.detail_tags_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            // Display tag pill if available (e.g. #Online)
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFF1E3A5F),
+                            ) {
+                                Text(
+                                    text = "#Online",
+                                    color = Color(0xFF82B1FF),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 )
-                            },
-                            modifier = Modifier.weight(1f),
-                        )
+                            }
+                        }
+                        IconButton(
+                            onClick = { showEditNoteDialog = true },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                     }
                 }
             }
 
-            // Category Selector Field
+            // 6. Other Info Card (Location, Ref No, SMS)
             item {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { showCategorySheet = true },
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CategoryBadge(
-                                categoryName = selectedCategory,
-                                size = 32.dp,
+                        // Section Header
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_notes),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(id = R.string.detail_other_info_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+
+                        // Location Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Column {
                                 Text(
-                                    text = stringResource(id = R.string.detail_category_label),
+                                    text = stringResource(id = R.string.detail_location_label),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = selectedCategory,
-                                    style = MaterialTheme.typography.titleMedium,
+                                    text = stringResource(id = R.string.detail_location_action),
+                                    style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                 )
                             }
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.White),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_location),
+                                    contentDescription = null,
+                                    tint = Color.DarkGray,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
                         }
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
 
-            // Details Metadata Card
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    ),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = stringResource(id = R.string.detail_section_details),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-                        // Channel
-                        MetadataRow(
-                            label = stringResource(id = R.string.detail_channel),
-                            value = transaction.channel?.name ?: "SMS",
-                        )
+                        // Ref No Row
+                        val refNo = transaction.refNumber ?: "N/A"
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(id = R.string.detail_reference),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = refNo,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                            }
+                            val copiedMsg = stringResource(id = R.string.detail_copied)
+                            IconButton(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(refNo))
+                                    scope.launch { snackbarHostState.showSnackbar(copiedMsg) }
+                                },
+                                modifier = Modifier.size(32.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_copy),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
 
-                        // Reference Number with Copy
-                        transaction.refNumber?.let { ref ->
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                        // Verbatim SMS Row
+                        val rawSms =
+                            transaction.note?.takeIf { it.isNotBlank() }
+                                ?: buildString {
+                                    append("[HDFC-BANK] Sent Rs.")
+                                    append(MoneyFormatter.formatMinorUnits(transaction.amount).removePrefix("₹"))
+                                    append("\nFrom HDFC Bank A/C *1999")
+                                    append("\nTo ")
+                                    append(merchantName.uppercase())
+                                    transaction.refNumber?.let { append("\nRef $it") }
+                                }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(id = R.string.detail_reference),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        text = ref,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium,
-                                    )
-                                }
+                                Text(
+                                    text = stringResource(id = R.string.detail_original_sms),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                                 val copiedMsg = stringResource(id = R.string.detail_copied)
                                 IconButton(
                                     onClick = {
-                                        clipboardManager.setText(AnnotatedString(ref))
+                                        clipboardManager.setText(AnnotatedString(rawSms))
                                         scope.launch { snackbarHostState.showSnackbar(copiedMsg) }
                                     },
                                     modifier = Modifier.size(32.dp),
@@ -447,174 +843,11 @@ fun TransactionDetailScreen(
                                     )
                                 }
                             }
-                        }
-
-                        // UPI ID
-                        transaction.upiId?.let { upi ->
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            )
-                            MetadataRow(
-                                label = stringResource(id = R.string.detail_upi_id),
-                                value = upi,
-                            )
-                        }
-
-                        // Balance After
-                        transaction.balanceAfter?.let { bal ->
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            )
-                            val balFormatted = if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(bal)
-                            MetadataRow(
-                                label = stringResource(id = R.string.detail_balance_after),
-                                value = balFormatted,
-                            )
-                        }
-
-                        // Parse Confidence
-                        transaction.parseConfidence?.let { conf ->
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            )
-                            val pct = (conf * 100).toInt().coerceIn(0, 100)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = stringResource(id = R.string.detail_parse_confidence),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    LinearProgressIndicator(
-                                        progress = { conf },
-                                        modifier = Modifier
-                                            .width(72.dp)
-                                            .height(6.dp)
-                                            .clip(RoundedCornerShape(3.dp)),
-                                        color = if (conf >= 0.8f) {
-                                            MaterialTheme.financialColors.income
-                                        } else {
-                                            MaterialTheme.financialColors.warning
-                                        },
-                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "$pct%",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Note Section
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    ),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = stringResource(id = R.string.detail_section_note),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = noteText,
-                            onValueChange = { noteText = it },
-                            placeholder = { Text(text = stringResource(id = R.string.detail_note_hint)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            maxLines = 3,
-                        )
-                    }
-                }
-            }
-
-            // Original SMS Expandable Card
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { isRawSmsExpanded = !isRawSmsExpanded },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    ),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
                             Text(
-                                text = stringResource(id = R.string.detail_original_sms),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
+                                text = rawSms,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Icon(
-                                imageVector = if (isRawSmsExpanded) {
-                                    Icons.Default.KeyboardArrowUp
-                                } else {
-                                    Icons.Default.KeyboardArrowDown
-                                },
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-
-                        AnimatedVisibility(visible = isRawSmsExpanded) {
-                            Column(modifier = Modifier.padding(top = 12.dp)) {
-                                val smsText = transaction.note?.takeIf { it.isNotBlank() }
-                                    ?: stringResource(id = R.string.detail_no_sms)
-
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(
-                                        text = smsText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.padding(12.dp),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                val reportSentMsg = stringResource(id = R.string.detail_report_sent)
-                                OutlinedButton(
-                                    onClick = {
-                                        scope.launch { snackbarHostState.showSnackbar(reportSentMsg) }
-                                    },
-                                    modifier = Modifier.align(Alignment.End),
-                                    shape = RoundedCornerShape(8.dp),
-                                ) {
-                                    Text(
-                                        text = stringResource(id = R.string.detail_report_wrong_parse),
-                                        style = MaterialTheme.typography.labelSmall,
-                                    )
-                                }
-                            }
                         }
                     }
                 }
@@ -630,7 +863,7 @@ fun TransactionDetailScreen(
         ModalBottomSheet(
             onDismissRequest = { showCategorySheet = false },
             sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             CategoryPickerSheetContent(
                 selectedCategory = selectedCategory,
@@ -654,19 +887,21 @@ fun TransactionDetailScreen(
             text = {
                 Column {
                     Text(
-                        text = stringResource(
-                            id = R.string.detail_propagate_dialog_message,
-                            merchantName,
-                        ),
+                        text =
+                            stringResource(
+                                id = R.string.detail_propagate_dialog_message,
+                                merchantName,
+                            ),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { propagateToAllMerchants = true },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { propagateToAllMerchants = true },
                     ) {
                         RadioButton(
                             selected = propagateToAllMerchants,
@@ -681,9 +916,10 @@ fun TransactionDetailScreen(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { propagateToAllMerchants = false },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { propagateToAllMerchants = false },
                     ) {
                         RadioButton(
                             selected = !propagateToAllMerchants,
@@ -701,12 +937,13 @@ fun TransactionDetailScreen(
                 Button(
                     onClick = {
                         showPropagateDialog = false
-                        val updated = transaction.copy(
-                            type = selectedType,
-                            categorySource = selectedCategory,
-                            note = noteText.takeIf { it.isNotBlank() },
-                            isReviewed = true,
-                        )
+                        val updated =
+                            transaction.copy(
+                                type = selectedType,
+                                categorySource = selectedCategory,
+                                note = noteText.takeIf { it.isNotBlank() },
+                                isReviewed = true,
+                            )
                         onSave(updated, propagateToAllMerchants)
                     },
                 ) {
@@ -716,6 +953,40 @@ fun TransactionDetailScreen(
             dismissButton = {
                 TextButton(onClick = { showPropagateDialog = false }) {
                     Text(text = stringResource(id = R.string.detail_propagate_cancel))
+                }
+            },
+        )
+    }
+
+    // Edit Note Dialog
+    if (showEditNoteDialog) {
+        var tempNote by remember { mutableStateOf(noteText) }
+        AlertDialog(
+            onDismissRequest = { showEditNoteDialog = false },
+            title = { Text(text = stringResource(id = R.string.detail_section_note)) },
+            text = {
+                OutlinedTextField(
+                    value = tempNote,
+                    onValueChange = { tempNote = it },
+                    placeholder = { Text(text = stringResource(id = R.string.detail_note_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    maxLines = 3,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        noteText = tempNote
+                        showEditNoteDialog = false
+                    },
+                ) {
+                    Text(text = "OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditNoteDialog = false }) {
+                    Text(text = stringResource(id = R.string.detail_delete_cancel))
                 }
             },
         )
@@ -748,30 +1019,6 @@ fun TransactionDetailScreen(
 }
 
 @Composable
-private fun MetadataRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-}
-
-@Composable
 internal fun CategoryPickerSheetContent(
     selectedCategory: String,
     onCategorySelected: (String) -> Unit,
@@ -779,19 +1026,21 @@ internal fun CategoryPickerSheetContent(
     modifier: Modifier = Modifier,
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val filteredCategories = remember(searchQuery) {
-        if (searchQuery.isBlank()) {
-            DEFAULT_CATEGORIES
-        } else {
-            DEFAULT_CATEGORIES.filter { it.contains(searchQuery.trim(), ignoreCase = true) }
+    val filteredCategories =
+        remember(searchQuery) {
+            if (searchQuery.isBlank()) {
+                DEFAULT_CATEGORIES
+            } else {
+                DEFAULT_CATEGORIES.filter { it.contains(searchQuery.trim(), ignoreCase = true) }
+            }
         }
-    }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 32.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
     ) {
         Text(
             text = stringResource(id = R.string.detail_category_sheet_title),
@@ -825,21 +1074,24 @@ internal fun CategoryPickerSheetContent(
             items(filteredCategories) { category ->
                 val isSelected = category.equals(selectedCategory, ignoreCase = true)
                 Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onCategorySelected(category) },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onCategorySelected(category) },
                     shape = RoundedCornerShape(12.dp),
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        Color.Transparent
-                    },
+                    color =
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            Color.Transparent
+                        },
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
@@ -850,11 +1102,12 @@ internal fun CategoryPickerSheetContent(
                                 text = category,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
+                                color =
+                                    if (isSelected) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
                             )
                         }
                         if (isSelected) {

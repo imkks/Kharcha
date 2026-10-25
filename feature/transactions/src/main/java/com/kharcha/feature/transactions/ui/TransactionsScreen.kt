@@ -149,6 +149,8 @@ fun TransactionsScreen(
     onAllMonthsSelectedChange: ((Boolean) -> Unit)? = null,
     subTabState: TransactionsSubTab? = null,
     onSubTabChange: ((TransactionsSubTab) -> Unit)? = null,
+    onCategoryClick: ((String) -> Unit)? = null,
+    onMerchantClick: ((String) -> Unit)? = null,
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var internalFilter by remember {
@@ -759,8 +761,12 @@ fun TransactionsScreen(
                             },
                             onCategoriseUnknown = onCategoriseUnknown,
                             onCategoryClick = { category ->
-                                updateFilter(currentFilter.copy(categories = setOf(category)))
-                                updateSubTab(TransactionsSubTab.TRANSACTIONS)
+                                if (onCategoryClick != null) {
+                                    onCategoryClick(category)
+                                } else {
+                                    updateFilter(currentFilter.copy(categories = setOf(category)))
+                                    updateSubTab(TransactionsSubTab.TRANSACTIONS)
+                                }
                             },
                         )
                     }
@@ -768,8 +774,12 @@ fun TransactionsScreen(
                         MerchantsTabContent(
                             transactions = monthTransactions,
                             onMerchantClick = { merchant ->
-                                searchQuery = merchant
-                                updateSubTab(TransactionsSubTab.TRANSACTIONS)
+                                if (onMerchantClick != null) {
+                                    onMerchantClick(merchant)
+                                } else {
+                                    searchQuery = merchant
+                                    updateSubTab(TransactionsSubTab.TRANSACTIONS)
+                                }
                             },
                         )
                     }

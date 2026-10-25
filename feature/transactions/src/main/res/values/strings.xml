@@ -181,4 +181,20 @@
     <string name="tags_empty_hint">No tags added</string>
     <string name="tags_remove_tag">Remove %1$s</string>
     <string name="tags_done_action">Done</string>
+    <string name="propagate_sheet_title">Update similar transactions?</string>
+    <string name="propagate_sheet_subtitle">
+        Found %1$d other transactions for %2$s. Uncheck any to keep as %3$s:
+    </string>
+    <string name="propagate_select_all">Select All</string>
+    <string name="propagate_deselect_all">Deselect All</string>
+    <string name="propagate_update_rule_checkbox">Always categorize %1$s as %2$s</string>
+    <string name="propagate_apply_selected">Apply (%1$d selected)</string>
+    <string name="propagate_update_single_only">Update this transaction only</string>
+    <string name="propagate_current_category">Current: %1$s</string>
+    <string name="entity_screen_all_time">All Time</string>
+    <string name="entity_screen_empty_title">No transactions found</string>
+    <string name="entity_screen_empty_subtitle">No transactions recorded for %1$s in %2$s.</string>
+    <string name="entity_bar_chart_title">Monthly Spending</string>
+    <string name="entity_bar_chart_hint">Tap any month to filter transactions</string>
+    <string name="entity_total_spent">%1$s total spent</string>
 </resources>

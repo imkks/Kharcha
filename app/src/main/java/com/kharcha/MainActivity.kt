@@ -54,6 +54,7 @@ import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.review.ui.ReviewQueueScreen
 import com.kharcha.feature.settings.ui.MoreScreen
+import com.kharcha.feature.transactions.ui.EntityTransactionsScreen
 import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import com.kharcha.feature.transactions.ui.TransactionsSubTab
@@ -61,6 +62,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import java.time.YearMonth
 import javax.inject.Inject
 import kotlinx.coroutines.launch
+
+data class SelectedEntity(
+    val title: String,
+    val isMerchant: Boolean,
+)
 
 enum class AppDestination(
     val labelRes: Int,
@@ -127,6 +133,7 @@ fun MainAppShell(
     val scope = rememberCoroutineScope()
     var showReviewQueue by rememberSaveable { mutableStateOf(false) }
     var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
+    var selectedEntityForDetail by remember { mutableStateOf<SelectedEntity?>(null) }
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
     var transactionsFilter by remember { mutableStateOf(TransactionFilter()) }
@@ -175,6 +182,27 @@ fun MainAppShell(
                     }
                     selectedTransactionForDetail = null
                 },
+                onSaveTransactions = { updatedList, updateRule ->
+                    scope.launch {
+                        transactionRepository.updateTransactions(updatedList)
+                        if (updateRule) {
+                            val merchant =
+                                updatedList.firstOrNull()?.merchantNormalised
+                                    ?: updatedList.firstOrNull()?.merchantRaw
+                            val category = updatedList.firstOrNull()?.categorySource
+                            if (!merchant.isNullOrBlank() && !category.isNullOrBlank()) {
+                                userPreferences.setMerchantCategory(merchant, category)
+                            }
+                        }
+                        val count = updatedList.size
+                        if (count > 1) {
+                            snackbarHostState.showSnackbar("Updated $count transactions")
+                        } else {
+                            snackbarHostState.showSnackbar("Transaction updated")
+                        }
+                    }
+                    selectedTransactionForDetail = null
+                },
                 onDelete = { toDelete ->
                     scope.launch {
                         transactionRepository.updateTransaction(
@@ -184,6 +212,16 @@ fun MainAppShell(
                     }
                     selectedTransactionForDetail = null
                 },
+            )
+        } else if (selectedEntityForDetail != null) {
+            val entity = selectedEntityForDetail!!
+            BackHandler { selectedEntityForDetail = null }
+            EntityTransactionsScreen(
+                title = entity.title,
+                isMerchant = entity.isMerchant,
+                allTransactions = transactions,
+                onBack = { selectedEntityForDetail = null },
+                onTransactionClick = { selectedTransactionForDetail = it },
             )
         } else {
             Scaffold(
@@ -226,8 +264,10 @@ fun MainAppShell(
                     onReviewClick = { showReviewQueue = true },
                     onTransactionClick = { txn -> selectedTransactionForDetail = txn },
                     onCategoryClick = { cat ->
-                        filterCategoryForTransactions = cat
-                        currentDestination = AppDestination.TRANSACTIONS
+                        selectedEntityForDetail = SelectedEntity(cat, isMerchant = false)
+                    },
+                    onMerchantClick = { merchant ->
+                        selectedEntityForDetail = SelectedEntity(merchant, isMerchant = true)
                     },
                     filterCategory = filterCategoryForTransactions,
                     onClearCategoryFilter = { filterCategoryForTransactions = null },
@@ -342,6 +382,7 @@ fun BoxDestinationContent(
     onReviewClick: () -> Unit,
     onTransactionClick: (Transaction) -> Unit,
     onCategoryClick: (String) -> Unit = {},
+    onMerchantClick: (String) -> Unit = {},
     filterCategory: String? = null,
     onClearCategoryFilter: () -> Unit = {},
     onDeleteTransaction: (Transaction) -> Unit = {},
@@ -397,6 +438,8 @@ fun BoxDestinationContent(
                 onAllMonthsSelectedChange = onAllMonthsSelectedChange,
                 subTabState = transactionsSubTab,
                 onSubTabChange = onSubTabChange,
+                onCategoryClick = onCategoryClick,
+                onMerchantClick = onMerchantClick,
             )
         }
         AppDestination.INSIGHTS -> {
@@ -405,6 +448,8 @@ fun BoxDestinationContent(
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 onTransactionClick = onTransactionClick,
+                onCategoryClick = onCategoryClick,
+                onMerchantClick = onMerchantClick,
                 modifier = modifier,
             )
         }

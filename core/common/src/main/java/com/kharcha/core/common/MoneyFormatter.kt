@@ -51,6 +51,39 @@ object MoneyFormatter {
         }
     }
 
+    fun formatCompactAmount(amountMinor: Long): String {
+        val absPaise = kotlin.math.abs(amountMinor)
+        if (absPaise == 0L) return "0"
+        val rupees = absPaise / 100L
+        return when {
+            rupees >= 100_000L -> {
+                val lValue = rupees / 1000L
+                val wholeL = lValue / 100L
+                val remL = lValue % 100L
+                if (remL == 0L) {
+                    "${wholeL}L"
+                } else {
+                    val formatted = String.format(Locale.ROOT, "%.2f", rupees / 100_000.0)
+                        .trimEnd('0')
+                        .trimEnd('.')
+                    "${formatted}L"
+                }
+            }
+            rupees >= 1_000L -> {
+                val remHundred = (rupees % 1_000L) / 100L
+                if (remHundred == 0L) {
+                    "${rupees / 1_000L}K"
+                } else {
+                    String.format(Locale.ROOT, "%.1fK", rupees / 1_000.0)
+                }
+            }
+            rupees in 500L..899L -> {
+                String.format(Locale.ROOT, "%.1fK", rupees / 1_000.0)
+            }
+            else -> rupees.toString()
+        }
+    }
+
     private fun formatIndianNumber(number: Long): String {
         if (number < 1000L) return number.toString()
         val numStr = number.toString()

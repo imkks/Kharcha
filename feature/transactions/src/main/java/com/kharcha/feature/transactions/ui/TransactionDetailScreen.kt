@@ -18,11 +18,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,6 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -105,6 +109,7 @@ fun TransactionDetailScreen(
     onDelete: (Transaction) -> Unit,
     modifier: Modifier = Modifier,
     allTransactions: List<Transaction> = emptyList(),
+    onSaveTransactions: ((updatedList: List<Transaction>, updateMerchantRule: Boolean) -> Unit)? = null,
 ) {
     var selectedType by remember { mutableStateOf(transaction.type) }
     var selectedCategory by remember { mutableStateOf(transaction.categorySource ?: "Other") }
@@ -119,6 +124,30 @@ fun TransactionDetailScreen(
     var showAddTagDialog by remember { mutableStateOf(false) }
     var showReceiptViewDialog by remember { mutableStateOf(false) }
     var propagateToAllMerchants by remember { mutableStateOf(true) }
+
+    val merchantName =
+        transaction.merchantNormalised
+            ?: transaction.merchantRaw
+            ?: stringResource(id = R.string.detail_original_sms)
+
+    val similarTransactions =
+        remember(allTransactions, transaction, merchantName) {
+            if (merchantName.equals("Unknown", ignoreCase = true) || merchantName.isBlank()) {
+                emptyList()
+            } else {
+                allTransactions
+                    .filter { other ->
+                        other.id != transaction.id &&
+                            (other.merchantNormalised.equals(merchantName, ignoreCase = true) ||
+                                other.merchantRaw?.equals(merchantName, ignoreCase = true) == true)
+                    }
+                    .sortedByDescending { it.dateTime }
+            }
+        }
+
+    var checkedSimilarIds by remember(similarTransactions) {
+        mutableStateOf(similarTransactions.map { it.id }.toSet())
+    }
 
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -268,7 +297,8 @@ fun TransactionDetailScreen(
                             onClick = {
                                 val categoryChanged =
                                     selectedCategory != (transaction.categorySource ?: "Other")
-                                if (categoryChanged && !merchantName.equals("Unknown", ignoreCase = true)) {
+                                if (categoryChanged && similarTransactions.isNotEmpty()) {
+                                    checkedSimilarIds = similarTransactions.map { it.id }.toSet()
                                     showPropagateDialog = true
                                 } else {
                                     val updated =
@@ -278,7 +308,11 @@ fun TransactionDetailScreen(
                                             note = noteText.takeIf { it.isNotBlank() },
                                             isReviewed = true,
                                         )
-                                    onSave(updated, false)
+                                    if (onSaveTransactions != null) {
+                                        onSaveTransactions(listOf(updated), false)
+                                    } else {
+                                        onSave(updated, false)
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -1085,56 +1119,175 @@ fun TransactionDetailScreen(
         }
     }
 
-    // Merchant Rule Propagation Dialog
+    // Merchant Rule Propagation & Similar Transactions Dialog
     if (showPropagateDialog) {
+        val allChecked = checkedSimilarIds.size == similarTransactions.size
+        val zoneId = ZoneId.systemDefault()
+        val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault())
+
         AlertDialog(
             onDismissRequest = { showPropagateDialog = false },
-            title = { Text(text = stringResource(id = R.string.detail_propagate_dialog_title)) },
+            title = {
+                Text(
+                    text = stringResource(id = R.string.propagate_sheet_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     Text(
                         text =
                             stringResource(
-                                id = R.string.detail_propagate_dialog_message,
+                                id = R.string.propagate_sheet_subtitle,
+                                similarTransactions.size,
                                 merchantName,
+                                selectedCategory,
                             ),
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
 
+                    // Select All / Deselect All Toggle Row
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .clickable { propagateToAllMerchants = true },
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    checkedSimilarIds =
+                                        if (allChecked) {
+                                            emptySet()
+                                        } else {
+                                            similarTransactions.map { it.id }.toSet()
+                                        }
+                                }
+                                .padding(vertical = 4.dp),
                     ) {
-                        RadioButton(
-                            selected = propagateToAllMerchants,
-                            onClick = { propagateToAllMerchants = true },
+                        Checkbox(
+                            checked = allChecked,
+                            onCheckedChange = { isChecked ->
+                                checkedSimilarIds =
+                                    if (isChecked) {
+                                        similarTransactions.map { it.id }.toSet()
+                                    } else {
+                                        emptySet()
+                                    }
+                            },
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = stringResource(id = R.string.detail_propagate_option_all),
-                            style = MaterialTheme.typography.bodyMedium,
+                            text =
+                                stringResource(
+                                    if (allChecked) {
+                                        R.string.propagate_deselect_all
+                                    } else {
+                                        R.string.propagate_select_all
+                                    },
+                                ),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
 
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Scrollable List of Similar Transactions
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 220.dp)
+                                .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        similarTransactions.forEach { other ->
+                            val isChecked = checkedSimilarIds.contains(other.id)
+                            val dateStr =
+                                Instant.ofEpochMilli(other.dateTime).atZone(zoneId).format(dateFormatter)
+                            val amountStr = MoneyFormatter.formatMinorUnits(other.amount)
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            checkedSimilarIds =
+                                                if (isChecked) {
+                                                    checkedSimilarIds - other.id
+                                                } else {
+                                                    checkedSimilarIds + other.id
+                                                }
+                                        }
+                                        .padding(vertical = 2.dp),
+                            ) {
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = { checked ->
+                                        checkedSimilarIds =
+                                            if (checked) {
+                                                checkedSimilarIds + other.id
+                                            } else {
+                                                checkedSimilarIds - other.id
+                                            }
+                                    },
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = dateStr,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text =
+                                            stringResource(
+                                                id = R.string.propagate_current_category,
+                                                other.categorySource ?: "Other",
+                                            ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                }
+                                Text(
+                                    text = amountStr,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Merchant rule option
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .clickable { propagateToAllMerchants = false },
+                                .clickable { propagateToAllMerchants = !propagateToAllMerchants }
+                                .padding(vertical = 4.dp),
                     ) {
-                        RadioButton(
-                            selected = !propagateToAllMerchants,
-                            onClick = { propagateToAllMerchants = false },
+                        Checkbox(
+                            checked = propagateToAllMerchants,
+                            onCheckedChange = { propagateToAllMerchants = it },
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = stringResource(id = R.string.detail_propagate_option_single),
-                            style = MaterialTheme.typography.bodyMedium,
+                            text =
+                                stringResource(
+                                    id = R.string.propagate_update_rule_checkbox,
+                                    merchantName,
+                                    selectedCategory,
+                                ),
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
@@ -1150,15 +1303,51 @@ fun TransactionDetailScreen(
                                 note = noteText.takeIf { it.isNotBlank() },
                                 isReviewed = true,
                             )
-                        onSave(updated, propagateToAllMerchants)
+                        val updatedSimilar =
+                            similarTransactions
+                                .filter { checkedSimilarIds.contains(it.id) }
+                                .map { it.copy(categorySource = selectedCategory, isReviewed = true) }
+
+                        if (onSaveTransactions != null) {
+                            onSaveTransactions(listOf(updated) + updatedSimilar, propagateToAllMerchants)
+                        } else {
+                            onSave(updated, propagateToAllMerchants)
+                        }
                     },
                 ) {
-                    Text(text = stringResource(id = R.string.detail_propagate_apply))
+                    Text(
+                        text =
+                            stringResource(
+                                id = R.string.propagate_apply_selected,
+                                checkedSimilarIds.size + 1,
+                            ),
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showPropagateDialog = false }) {
-                    Text(text = stringResource(id = R.string.detail_propagate_cancel))
+                Row {
+                    TextButton(
+                        onClick = {
+                            showPropagateDialog = false
+                            val updated =
+                                transaction.copy(
+                                    type = selectedType,
+                                    categorySource = selectedCategory,
+                                    note = noteText.takeIf { it.isNotBlank() },
+                                    isReviewed = true,
+                                )
+                            if (onSaveTransactions != null) {
+                                onSaveTransactions(listOf(updated), false)
+                            } else {
+                                onSave(updated, false)
+                            }
+                        },
+                    ) {
+                        Text(text = stringResource(id = R.string.propagate_update_single_only))
+                    }
+                    TextButton(onClick = { showPropagateDialog = false }) {
+                        Text(text = stringResource(id = R.string.detail_propagate_cancel))
+                    }
                 }
             },
         )

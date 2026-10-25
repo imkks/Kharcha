@@ -1,11 +1,18 @@
 package com.kharcha.feature.transactions.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -61,7 +69,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -85,7 +96,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TransactionDetailScreen(
     transaction: Transaction,
@@ -104,12 +115,46 @@ fun TransactionDetailScreen(
     var showPropagateDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditNoteDialog by remember { mutableStateOf(false) }
+    var showSplitSheet by remember { mutableStateOf(false) }
+    var showAddTagDialog by remember { mutableStateOf(false) }
+    var showReceiptViewDialog by remember { mutableStateOf(false) }
     var propagateToAllMerchants by remember { mutableStateOf(true) }
 
+    val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val isPrivacy = LocalPrivacyMode.current
+
+    var receiptFile by remember(transaction.id) {
+        mutableStateOf(ReceiptAttachmentHelper.getReceiptFile(context, transaction.id))
+    }
+
+    val receiptThumbnail = remember(receiptFile) {
+        receiptFile?.let { ReceiptAttachmentHelper.loadBitmap(it, sampleSize = 4) }
+    }
+
+    val receiptFullBitmap = remember(receiptFile, showReceiptViewDialog) {
+        if (showReceiptViewDialog && receiptFile != null) {
+            ReceiptAttachmentHelper.loadBitmap(receiptFile!!, sampleSize = 1)
+        } else {
+            null
+        }
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val saved = ReceiptAttachmentHelper.saveReceipt(context, transaction.id, uri)
+            receiptFile = saved
+        }
+    }
+
+    val isSplitActive = remember(noteText) { SplitExpenseCalculator.isSplitActive(noteText) }
+    val activeTags = remember(noteText, transaction.channel) {
+        TagParser.extractTags(noteText, transaction.channel)
+    }
 
     val merchantName =
         transaction.merchantNormalised
@@ -240,7 +285,7 @@ fun TransactionDetailScreen(
                             colors =
                                 ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.financialColors.income,
-                                    contentColor = Color(0xFF0F1B12),
+                                    contentColor = MaterialTheme.financialColors.onIncome,
                                 ),
                             shape = RoundedCornerShape(24.dp),
                         ) {
@@ -534,31 +579,52 @@ fun TransactionDetailScreen(
                 ) {
                     // Split Card
                     Card(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable { showSplitSheet = true },
                         shape = RoundedCornerShape(18.dp),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Box(
-                                modifier =
-                                    Modifier
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
                                         .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF8E24AA)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = DesignR.drawable.ic_split),
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp),
-                                )
+                                        .background(MaterialTheme.colorScheme.tertiary),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = DesignR.drawable.ic_split),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onTertiary,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                                if (isSplitActive) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                    ) {
+                                        Text(
+                                            text = stringResource(id = R.string.split_active_pill),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        )
+                                    }
+                                }
                             }
                             Text(
                                 text = stringResource(id = R.string.detail_split_title),
@@ -573,7 +639,11 @@ fun TransactionDetailScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
-                                    text = stringResource(id = R.string.detail_split_action),
+                                    text = if (isSplitActive) {
+                                        stringResource(id = R.string.split_edit_action)
+                                    } else {
+                                        stringResource(id = R.string.detail_split_action)
+                                    },
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     textAlign = TextAlign.Center,
@@ -584,52 +654,121 @@ fun TransactionDetailScreen(
                     }
 
                     // Attach Card
+                    val hasAttachedPhoto = receiptFile != null && receiptThumbnail != null
                     Card(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable {
+                                if (hasAttachedPhoto) {
+                                    showReceiptViewDialog = true
+                                } else {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                        ),
+                                    )
+                                }
+                            },
                         shape = RoundedCornerShape(18.dp),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Box(
-                                modifier =
-                                    Modifier
+                            if (hasAttachedPhoto && receiptThumbnail != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(72.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Image(
+                                        bitmap = receiptThumbnail.asImageBitmap(),
+                                        contentDescription = stringResource(id = R.string.receipt_thumbnail_desc),
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.financialColors.income,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(4.dp),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.financialColors.onIncome,
+                                                modifier = Modifier.size(12.dp),
+                                            )
+                                            Text(
+                                                text = stringResource(id = R.string.receipt_attached_badge),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.financialColors.onIncome,
+                                            )
+                                        }
+                                    }
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.receipt_view_action),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(vertical = 6.dp),
+                                    )
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
                                         .size(36.dp)
                                         .clip(CircleShape)
                                         .background(MaterialTheme.colorScheme.surfaceVariant),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = DesignR.drawable.ic_receipt_photo),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                            Text(
-                                text = stringResource(id = R.string.detail_attach_title),
-                                style = MaterialTheme.typography.bodySmall,
-                                minLines = 2,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = DesignR.drawable.ic_receipt_photo),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
                                 Text(
-                                    text = stringResource(id = R.string.detail_attach_action),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(vertical = 6.dp),
+                                    text = stringResource(id = R.string.detail_attach_title),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    minLines = 2,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.detail_attach_action),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(vertical = 6.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -641,55 +780,93 @@ fun TransactionDetailScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
                 ) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Icon(
-                                painter = painterResource(id = DesignR.drawable.ic_label),
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = stringResource(id = R.string.detail_tags_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            // Display tag pill if available (e.g. #Online)
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFF1E3A5F),
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_label),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                                 Text(
-                                    text = "#Online",
-                                    color = Color(0xFF82B1FF),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    text = stringResource(id = R.string.detail_tags_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                            IconButton(
+                                onClick = { showAddTagDialog = true },
+                                modifier = Modifier.size(28.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
-                        IconButton(
-                            onClick = { showEditNoteDialog = true },
-                            modifier = Modifier.size(28.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
+
+                        if (activeTags.isNotEmpty()) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                activeTags.forEach { tag ->
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Text(
+                                                text = tag,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Medium,
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = stringResource(
+                                                    id = R.string.tags_remove_tag,
+                                                    tag,
+                                                ),
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                modifier = Modifier
+                                                    .size(12.dp)
+                                                    .clickable {
+                                                        noteText = TagParser.removeTag(noteText, tag)
+                                                    },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = stringResource(id = R.string.tags_empty_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -1014,6 +1191,49 @@ fun TransactionDetailScreen(
                     Text(text = stringResource(id = R.string.detail_delete_cancel))
                 }
             },
+        )
+    }
+
+    // Split Expense Sheet
+    if (showSplitSheet) {
+        SplitExpenseSheet(
+            totalAmountMinor = transaction.amount,
+            merchantName = merchantName,
+            onDismiss = { showSplitSheet = false },
+            onSaveSplit = { summary, _ ->
+                noteText = SplitExpenseCalculator.appendOrUpdateSplit(noteText, summary)
+            },
+        )
+    }
+
+    // Receipt View Dialog
+    if (showReceiptViewDialog) {
+        ReceiptViewDialog(
+            bitmap = receiptFullBitmap,
+            onDismiss = { showReceiptViewDialog = false },
+            onChangePhoto = {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
+            onRemovePhoto = {
+                ReceiptAttachmentHelper.removeReceipt(context, transaction.id)
+                receiptFile = null
+            },
+        )
+    }
+
+    // Add Tag Dialog
+    if (showAddTagDialog) {
+        AddTagDialog(
+            currentTags = activeTags,
+            onAddTag = { tag ->
+                noteText = TagParser.addTag(noteText, tag)
+            },
+            onRemoveTag = { tag ->
+                noteText = TagParser.removeTag(noteText, tag)
+            },
+            onDismiss = { showAddTagDialog = false },
         )
     }
 }

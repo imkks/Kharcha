@@ -99,9 +99,10 @@ class CategoryBudgetTest {
         val groups =
             txns.groupBy { txn ->
                 val last4 = txn.refNumber?.takeLast(4)?.trim()
+                val channel = txn.channel
                 when {
                     !last4.isNullOrEmpty() -> "HDFC $last4"
-                    txn.channel != null -> "${txn.channel.name} Account"
+                    channel != null -> "${channel.name} Account"
                     else -> "Account #${txn.accountId}"
                 }
             }

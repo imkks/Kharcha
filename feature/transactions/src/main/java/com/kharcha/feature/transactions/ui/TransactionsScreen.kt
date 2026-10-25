@@ -1036,7 +1036,11 @@ fun CategoriesTabContent(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             val totalFormatted =
-                                if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalExpense)
+                                if (isPrivacy) {
+                                    "₹ ••••••"
+                                } else {
+                                    MoneyFormatter.formatMinorUnits(totalExpense)
+                                }
                             Text(
                                 text = totalFormatted,
                                 style = MaterialTheme.typography.titleMedium,
@@ -1272,7 +1276,11 @@ fun CategoriesTabContent(
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(horizontalAlignment = Alignment.End) {
                             val amountFormatted =
-                                if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(slice.amountMinor)
+                                if (isPrivacy) {
+                                    "₹ ••••••"
+                                } else {
+                                    MoneyFormatter.formatMinorUnits(slice.amountMinor)
+                                }
                             Text(
                                 text = amountFormatted,
                                 style = MaterialTheme.typography.titleMedium,

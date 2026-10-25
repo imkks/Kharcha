@@ -191,11 +191,6 @@ fun TransactionDetailScreen(
         TagParser.extractTags(noteText, transaction.channel)
     }
 
-    val merchantName =
-        transaction.merchantNormalised
-            ?: transaction.merchantRaw
-            ?: stringResource(id = DesignR.string.unknown_merchant)
-
     val visitsCount =
         remember(transaction, allTransactions) {
             if (allTransactions.isEmpty()) {
@@ -1179,18 +1174,23 @@ fun TransactionDetailScreen(
                         similarTransactions.forEachIndexed { index, other ->
                             val isChecked = checkedSimilarIds.contains(other.id)
                             val otherCat = other.categorySource ?: "Other"
-                            val catColor = CategoryColors.forCategory(otherCat).color
                             val dateStr =
                                 Instant.ofEpochMilli(other.dateTime).atZone(zoneId).format(dateFormatter)
                             val amountStr = MoneyFormatter.formatMinorUnits(other.amount)
 
+                            val otherNote = other.note
                             val otherTag =
                                 when {
-                                    other.note?.contains("#") == true -> {
-                                        other.note.split("\\s+".toRegex())
+                                    otherNote != null && otherNote.contains("#") -> {
+                                        otherNote.split("\\s+".toRegex())
                                             .firstOrNull { it.startsWith("#") } ?: "#Online"
                                     }
-                                    other.channel in listOf(Channel.UPI, Channel.NET_BANKING, Channel.CARD) -> "#Online"
+                                    other.channel in listOf(
+                                        Channel.UPI,
+                                        Channel.NEFT,
+                                        Channel.IMPS,
+                                        Channel.CARD,
+                                    ) -> "#Online"
                                     else -> "#Offline"
                                 }
 
@@ -1228,24 +1228,7 @@ fun TransactionDetailScreen(
 
                                 Spacer(modifier = Modifier.width(8.dp))
 
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(catColor.copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        painter =
-                                            painterResource(
-                                                id = CategoryColors.forCategory(otherCat).iconRes,
-                                            ),
-                                        contentDescription = null,
-                                        tint = catColor,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
+                                CategoryBadge(categoryName = otherCat, size = 36.dp)
 
                                 Spacer(modifier = Modifier.width(12.dp))
 

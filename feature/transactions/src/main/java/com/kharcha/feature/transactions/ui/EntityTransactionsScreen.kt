@@ -159,7 +159,7 @@ fun EntityTransactionsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(id = DesignR.string.back),
+                            contentDescription = stringResource(id = DesignR.string.txn_detail_close),
                         )
                     }
                 },
@@ -376,7 +376,6 @@ fun EntityTransactionRow(
             ?: stringResource(id = R.string.detail_original_sms)
 
     val title = if (showMerchantAsTitle) merchantDisplay else categoryName
-    val categoryColor = CategoryColors.forCategory(categoryName).color
     val zoneId = ZoneId.systemDefault()
     val dateFormatted =
         remember(transaction.dateTime) {
@@ -384,13 +383,14 @@ fun EntityTransactionRow(
             date.format(DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault()))
         }
 
+    val note = transaction.note
     val tagText =
-        remember(transaction.note, transaction.channel) {
+        remember(note, transaction.channel) {
             when {
-                transaction.note?.contains("#") == true -> {
-                    transaction.note.split("\\s+".toRegex()).firstOrNull { it.startsWith("#") } ?: "#Online"
+                note != null && note.contains("#") -> {
+                    note.split("\\s+".toRegex()).firstOrNull { it.startsWith("#") } ?: "#Online"
                 }
-                transaction.channel in listOf(Channel.UPI, Channel.NET_BANKING, Channel.CARD) -> "#Online"
+                transaction.channel in listOf(Channel.UPI, Channel.NEFT, Channel.IMPS, Channel.CARD) -> "#Online"
                 else -> "#Offline"
             }
         }
@@ -406,22 +406,8 @@ fun EntityTransactionRow(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Icon Box
-        Box(
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(categoryColor.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(id = CategoryColors.forCategory(categoryName).iconRes),
-                contentDescription = null,
-                tint = categoryColor,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        // Icon Badge
+        CategoryBadge(categoryName = categoryName, size = 40.dp)
 
         Spacer(modifier = Modifier.width(14.dp))
 

@@ -1,6 +1,6 @@
 package com.kharcha.feature.transactions.ui
 
-import com.kharcha.core.designsystem.component.CategorySlice
+import com.kharcha.core.designsystem.component.DonutSliceData
 import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
@@ -32,23 +32,23 @@ class CategoryBudgetTest {
     fun testCategorySlices_partitionUnknownFromKnown() {
         val slices =
             listOf(
-                CategorySlice(
+                DonutSliceData(
                     categoryName = "Food & Dining",
                     amountMinor = 12_500_00L,
                     percentage = 50f,
-                    color = CategoryColors.Food,
+                    color = CategoryColors.forCategory("Food & Dining").color,
                 ),
-                CategorySlice(
+                DonutSliceData(
                     categoryName = "Others",
                     amountMinor = 5_000_00L,
                     percentage = 20f,
-                    color = CategoryColors.Other,
+                    color = CategoryColors.forCategory(null).color,
                 ),
-                CategorySlice(
+                DonutSliceData(
                     categoryName = "Shopping",
                     amountMinor = 7_500_00L,
                     percentage = 30f,
-                    color = CategoryColors.Shopping,
+                    color = CategoryColors.forCategory("Shopping").color,
                 ),
             )
 

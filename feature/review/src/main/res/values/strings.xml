@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="review_screen_title">Review Queue</string>
+    <string name="review_step_indicator">%1$d of %2$d</string>
+    <string name="review_progress_percent">Progress: %1$d%%</string>
+    <string name="review_original_sms">Original SMS snippet</string>
+    <string name="review_select_category">Select Category</string>
+    <string name="review_other_category">More Categories…</string>
+    <string name="review_not_an_expense">Not an Expense</string>
+    <string name="review_skip_for_now">Skip</string>
+    <string name="review_remember_rule">Remember this rule for future messages from %1$s</string>
+    <string name="review_remember_rule_generic">Remember this rule for future transactions</string>
+    <string name="review_completion_title">All Caught Up!</string>
+    <string name="review_completion_message">All transactions have been reviewed and categorized.</string>
+    <string name="review_completion_stats">Reviewed %1$d items • %2$d merchant rules learned</string>
+    <string name="review_done_button">Done</string>
+    <string name="review_low_confidence_badge">Low Confidence (%1$d%%)</string>
+    <string name="review_category_sheet_title">Select Category</string>
+    <string name="review_category_search_hint">Search category…</string>
+    <string name="review_back_content_description">Back</string>
+</resources>

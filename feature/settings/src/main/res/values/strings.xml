@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_screen_title">Settings &amp; More</string>
+    <string name="settings_section_general">General</string>
+    <string name="settings_section_rules">Rules &amp; Organization</string>
+    <string name="settings_section_data">Data &amp; Export</string>
+    <string name="settings_section_security">Security &amp; Privacy</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_budget_title">Monthly Budget</string>
+    <string name="settings_budget_subtitle">Target budget used for daily Safe-to-Spend pacing</string>
+    <string name="settings_budget_edit_dialog_title">Edit Monthly Budget</string>
+    <string name="settings_currency_title">Currency</string>
+    <string name="settings_currency_val">₹ Indian Rupee (INR)</string>
+    <string name="settings_privacy_mode_title">Privacy Mode</string>
+    <string name="settings_privacy_mode_subtitle">Mask monetary amounts on dashboard and list views</string>
+    <string name="settings_rescan_title">Re-scan SMS Inbox</string>
+    <string name="settings_rescan_subtitle">Re-run onboarding and import missed bank alerts</string>
+    <string name="settings_rules_title">Learned Merchant Rules</string>
+    <string name="settings_rules_subtitle">%1$d active automated merchant rules</string>
+    <string name="settings_rules_dialog_title">Configured Merchant Rules</string>
+    <string name="settings_rules_empty">No custom merchant rules learned yet.</string>
+    <string name="settings_export_csv_title">Export to CSV</string>
+    <string name="settings_export_csv_subtitle">Export all %1$d transactions to a CSV spreadsheet</string>
+    <string name="settings_export_llm_title">LLM Training Batch</string>
+    <string name="settings_export_llm_subtitle">Export %1$d unreviewed transactions in JSON format</string>
+    <string name="settings_offline_title">100% Offline &amp; Private</string>
+    <string name="settings_offline_subtitle">Zero INTERNET permission. Financial data never leaves your device.</string>
+    <string name="settings_app_version">Version 1.0.0 (Build 1)</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_close">Close</string>
+</resources>

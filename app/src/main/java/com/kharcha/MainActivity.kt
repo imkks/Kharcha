@@ -1,7 +1,5 @@
 package com.kharcha
 
-import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -13,22 +11,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -45,15 +38,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.kharcha.core.common.CsvExportHelper
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.designsystem.component.AddTransactionDialog
-import com.kharcha.core.designsystem.component.ReviewQueueDialog
 import com.kharcha.core.designsystem.theme.KharchaTheme
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.model.Transaction
@@ -61,10 +51,11 @@ import com.kharcha.core.model.TransactionType
 import com.kharcha.feature.home.ui.HomeScreen
 import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
+import com.kharcha.feature.review.ui.ReviewQueueScreen
+import com.kharcha.feature.settings.ui.MoreScreen
 import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import dagger.hilt.android.AndroidEntryPoint
-import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 
@@ -263,10 +254,10 @@ fun MainAppShell(
     }
 
     if (showReviewQueue) {
-        val unreviewed = transactions.filter { !it.isReviewed }
-        ReviewQueueDialog(
+        val unreviewed = remember(transactions) { transactions.filter { !it.isReviewed } }
+        ReviewQueueScreen(
             unreviewedTransactions = unreviewed,
-            onCategorize = { txn, category ->
+            onCategorize = { txn, category, propagate ->
                 val type =
                     if (category.equals("Transfer", ignoreCase = true)) {
                         TransactionType.Transfer
@@ -274,16 +265,22 @@ fun MainAppShell(
                         txn.type
                     }
                 scope.launch {
-                    val count =
-                        transactionRepository.updateTransactionAndPropagateMerchant(
-                            transaction = txn,
-                            newCategory = category,
-                            newType = type,
-                            userPreferences = userPreferences,
+                    if (propagate) {
+                        val count =
+                            transactionRepository.updateTransactionAndPropagateMerchant(
+                                transaction = txn,
+                                newCategory = category,
+                                newType = type,
+                                userPreferences = userPreferences,
+                            )
+                        val merchant = txn.merchantNormalised ?: txn.merchantRaw ?: "Merchant"
+                        if (count > 1) {
+                            snackbarHostState.showSnackbar("Updated $count transactions for $merchant")
+                        }
+                    } else {
+                        transactionRepository.updateTransaction(
+                            txn.copy(categorySource = category, type = type, isReviewed = true),
                         )
-                    val merchant = txn.merchantNormalised ?: txn.merchantRaw ?: "Merchant"
-                    if (count > 1) {
-                        snackbarHostState.showSnackbar("Updated $count transactions for $merchant")
                     }
                 }
             },
@@ -294,7 +291,7 @@ fun MainAppShell(
                     )
                 }
             },
-            onDismiss = { showReviewQueue = false },
+            onBack = { showReviewQueue = false },
         )
     }
 
@@ -354,6 +351,7 @@ fun BoxDestinationContent(
                 onRestoreTransaction = onRestoreTransaction,
                 onReviewTransaction = onReviewTransaction,
                 onUpdateTransactions = onUpdateTransactions,
+                monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
             )
         }
         AppDestination.INSIGHTS -> {
@@ -366,223 +364,13 @@ fun BoxDestinationContent(
             )
         }
         AppDestination.MORE -> {
-            MoreSettingsScreen(
+            MoreScreen(
                 transactions = transactions,
                 userPreferences = userPreferences,
                 onResetOnboarding = onResetOnboarding,
+                onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 modifier = modifier,
             )
         }
-    }
-}
-
-@Composable
-fun MoreSettingsScreen(
-    transactions: List<Transaction>,
-    userPreferences: UserPreferences,
-    onResetOnboarding: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    val rulesCount = userPreferences.getMerchantCategoryRules().size
-    val unreviewedCount =
-        transactions.count {
-            !it.isReviewed || it.categorySource == "Other" || (it.parseConfidence ?: 1.0f) < 0.8f
-        }
-
-    LazyColumn(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            Text(
-                text = stringResource(id = R.string.nav_more),
-                style = MaterialTheme.typography.headlineMedium,
-            )
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = stringResource(id = R.string.app_name),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(id = R.string.more_privacy_badge),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    if (rulesCount > 0) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = stringResource(id = R.string.more_rules_count, rulesCount),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = stringResource(id = R.string.more_budget_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = MoneyFormatter.formatMinorUnits(userPreferences.monthlyBudgetMinor),
-                        style = MaterialTheme.typography.headlineMedium,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(id = R.string.more_budget_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = stringResource(id = R.string.more_export_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(id = R.string.more_export_csv_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = {
-                            val csv = CsvExportHelper.generateTransactionsCsv(transactions)
-                            val filename = "kharcha_transactions_${System.currentTimeMillis()}.csv"
-                            shareTextFile(context, csv, filename, "text/csv")
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = stringResource(id = R.string.more_export_csv_btn, transactions.size))
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = stringResource(id = R.string.more_export_llm_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(id = R.string.more_export_llm_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = {
-                            val json = CsvExportHelper.generateLlmBatchExportJson(transactions)
-                            val filename = "kharcha_llm_batch_${System.currentTimeMillis()}.json"
-                            shareTextFile(context, json, filename, "application/json")
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = stringResource(id = R.string.more_export_llm_btn, unreviewedCount))
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = stringResource(id = R.string.more_rerun_onboarding),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(id = R.string.more_rerun_onboarding_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(onClick = onResetOnboarding) {
-                        Text(text = stringResource(id = R.string.more_rerun_onboarding))
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun shareTextFile(
-    context: Context,
-    content: String,
-    fileName: String,
-    mimeType: String,
-) {
-    try {
-        val exportDir = File(context.cacheDir, "exports")
-        if (!exportDir.exists()) exportDir.mkdirs()
-        val file = File(exportDir, fileName)
-        file.writeText(content)
-
-        val uri =
-            androidx.core.content.FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                file,
-            )
-
-        val intent =
-            Intent(Intent.ACTION_SEND).apply {
-                type = mimeType
-                putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, fileName)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-        context.startActivity(Intent.createChooser(intent, "Export $fileName"))
-    } catch (_: Exception) {
-        val fallbackIntent =
-            Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, content)
-                putExtra(Intent.EXTRA_SUBJECT, fileName)
-            }
-        context.startActivity(Intent.createChooser(fallbackIntent, "Export $fileName"))
     }
 }

@@ -3,6 +3,7 @@ package com.kharcha.feature.transactions.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -20,8 +21,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
@@ -33,6 +37,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,10 +51,15 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,17 +70,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionFilterMatcher
 import com.kharcha.core.common.TransactionSearchHelper
 import com.kharcha.core.designsystem.R as DesignR
+import com.kharcha.core.designsystem.component.CategoryBadge
+import com.kharcha.core.designsystem.component.DonutChart
 import com.kharcha.core.designsystem.component.SwipeableTransactionRow
+import com.kharcha.core.designsystem.component.buildCategorySlices
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.AmountRangeFilter
 import com.kharcha.core.model.DateRangeSelection
 import com.kharcha.core.model.ReviewStatusFilter
@@ -80,6 +98,7 @@ import com.kharcha.core.model.TransactionType
 import com.kharcha.feature.transactions.R
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -91,6 +110,12 @@ enum class TransactionFilterType {
     INCOME,
     TRANSFER,
     NEEDS_REVIEW,
+}
+
+enum class TransactionsSubTab(val titleRes: Int) {
+    TRANSACTIONS(R.string.transactions_tab_transactions),
+    CATEGORIES(R.string.transactions_tab_categories),
+    MERCHANTS(R.string.transactions_tab_merchants),
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -106,6 +131,8 @@ fun TransactionsScreen(
     onRestoreTransaction: (Transaction) -> Unit = {},
     onReviewTransaction: (Transaction) -> Unit = {},
     onUpdateTransactions: (List<Transaction>) -> Unit = {},
+    monthlyBudgetMinor: Long = 0L,
+    onSetBudgetClick: () -> Unit = {},
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var currentFilter by remember {
@@ -118,12 +145,36 @@ fun TransactionsScreen(
         )
     }
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showMonthPickerSheet by remember { mutableStateOf(false) }
     var selectedIds by rememberSaveable { mutableStateOf(emptySet<Long>()) }
     var showBulkCategorizeSheet by remember { mutableStateOf(false) }
     var showBulkTypeDialog by remember { mutableStateOf(false) }
+    var selectedSubTab by rememberSaveable { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    val availableMonths =
+        remember(transactions) {
+            val months =
+                transactions
+                    .map { txn ->
+                        val date =
+                            Instant.ofEpochMilli(txn.dateTime)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                        YearMonth.from(date)
+                    }
+                    .distinct()
+                    .sortedDescending()
+            if (months.isEmpty()) listOf(YearMonth.now()) else months
+        }
+
+    var selectedYearMonth by rememberSaveable {
+        mutableStateOf(availableMonths.firstOrNull() ?: YearMonth.now())
+    }
+    var isAllMonthsSelected by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(enabled = selectedIds.isNotEmpty()) {
         selectedIds = emptySet()
@@ -146,48 +197,39 @@ fun TransactionsScreen(
             transactions.filter { TransactionFilterMatcher.matches(it, activeFilter) }
         }
 
-    val totalIncome =
-        remember(filteredTransactions) {
-            filteredTransactions
+    // Filter by selected month
+    val monthTransactions =
+        remember(filteredTransactions, selectedYearMonth, isAllMonthsSelected) {
+            if (isAllMonthsSelected) {
+                filteredTransactions
+            } else {
+                filteredTransactions.filter { txn ->
+                    val date =
+                        Instant.ofEpochMilli(txn.dateTime)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate()
+                    YearMonth.from(date) == selectedYearMonth
+                }
+            }
+        }
+
+    val monthIncome =
+        remember(monthTransactions) {
+            monthTransactions
                 .filter { it.type == TransactionType.Income }
                 .sumOf { it.amount }
         }
 
-    val totalExpense =
-        remember(filteredTransactions) {
-            filteredTransactions
+    val monthExpense =
+        remember(monthTransactions) {
+            monthTransactions
                 .filter { it.type == TransactionType.Expense }
                 .sumOf { it.amount }
         }
 
-    val netTotal = totalIncome - totalExpense
-
-    val groupedByDay =
-        remember(filteredTransactions) {
-            groupTransactionsByDay(filteredTransactions)
-        }
-
-    val merchantSuggestions =
-        remember(transactions, searchQuery) {
-            if (searchQuery.isNotBlank()) {
-                TransactionSearchHelper.extractMerchantSuggestions(transactions, searchQuery)
-            } else {
-                emptyList()
-            }
-        }
-
-    val todayStr = stringResource(id = R.string.transactions_today)
-    val yesterdayStr = stringResource(id = R.string.transactions_yesterday)
-
-    val selectedQuickFilter =
-        when {
-            activeFilter.reviewStatus == ReviewStatusFilter.NeedsReviewOnly -> TransactionFilterType.NEEDS_REVIEW
-            activeFilter.types == setOf(TransactionType.Expense) -> TransactionFilterType.EXPENSE
-            activeFilter.types == setOf(TransactionType.Income) -> TransactionFilterType.INCOME
-            activeFilter.types == setOf(TransactionType.Transfer) -> TransactionFilterType.TRANSFER
-            activeFilter.types.isEmpty() && activeFilter.reviewStatus == ReviewStatusFilter.All ->
-                TransactionFilterType.ALL
-            else -> null
+    val sortedMonthTxns =
+        remember(monthTransactions) {
+            monthTransactions.sortedByDescending { it.dateTime }
         }
 
     Scaffold(
@@ -195,8 +237,8 @@ fun TransactionsScreen(
         topBar = {
             if (selectedIds.isNotEmpty()) {
                 val allVisibleSelected =
-                    filteredTransactions.isNotEmpty() &&
-                        filteredTransactions.all { selectedIds.contains(it.id) }
+                    monthTransactions.isNotEmpty() &&
+                        monthTransactions.all { selectedIds.contains(it.id) }
                 TopAppBar(
                     navigationIcon = {
                         IconButton(onClick = { selectedIds = emptySet() }) {
@@ -223,7 +265,7 @@ fun TransactionsScreen(
                                     if (allVisibleSelected) {
                                         emptySet()
                                     } else {
-                                        filteredTransactions.map { it.id }.toSet()
+                                        monthTransactions.map { it.id }.toSet()
                                     }
                             },
                         ) {
@@ -248,8 +290,51 @@ fun TransactionsScreen(
                 )
             } else {
                 TopAppBar(
-                    title = { Text(text = stringResource(id = R.string.transactions_title)) },
+                    title = {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { showMonthPickerSheet = true }
+                                    .padding(vertical = 4.dp, horizontal = 4.dp),
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.transactions_all_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val monthLabel =
+                                    if (isAllMonthsSelected) {
+                                        stringResource(id = R.string.transactions_all_months)
+                                    } else {
+                                        selectedYearMonth.format(
+                                            DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault()),
+                                        )
+                                    }
+                                Text(
+                                    text = monthLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.financialColors.income,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = stringResource(id = R.string.transactions_select_month),
+                                    tint = MaterialTheme.financialColors.income,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    },
                     actions = {
+                        IconButton(onClick = { showFilterSheet = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(id = R.string.filter_button_all_filters),
+                            )
+                        }
                         val isPrivacy = LocalPrivacyMode.current
                         IconButton(onClick = onPrivacyToggle) {
                             Icon(
@@ -331,117 +416,146 @@ fun TransactionsScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
         ) {
-            SearchAndFilterHeader(
-                searchQuery = searchQuery,
-                onSearchQueryChange = { searchQuery = it },
-                selectedFilter = selectedQuickFilter,
-                onFilterSelected = { quickFilter ->
-                    currentFilter =
-                        when (quickFilter) {
-                            TransactionFilterType.ALL ->
-                                currentFilter.copy(types = emptySet(), reviewStatus = ReviewStatusFilter.All)
-                            TransactionFilterType.EXPENSE ->
-                                currentFilter.copy(types = setOf(TransactionType.Expense))
-                            TransactionFilterType.INCOME ->
-                                currentFilter.copy(types = setOf(TransactionType.Income))
-                            TransactionFilterType.TRANSFER ->
-                                currentFilter.copy(types = setOf(TransactionType.Transfer))
-                            TransactionFilterType.NEEDS_REVIEW ->
-                                currentFilter.copy(reviewStatus = ReviewStatusFilter.NeedsReviewOnly)
-                        }
+            // 1. Sub-Tabs Row: Transactions | Categories | Merchants
+            TabRow(
+                selectedTabIndex = selectedSubTab.ordinal,
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.financialColors.income,
+                divider = {},
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedSubTab.ordinal]),
+                        color = MaterialTheme.financialColors.income,
+                        height = 3.dp,
+                    )
                 },
-                activeFilterCount = activeFilter.activeFilterCount,
-                onOpenFilterSheet = { showFilterSheet = true },
-                suggestions = merchantSuggestions,
-                onSuggestionClick = { selectedMerchant -> searchQuery = selectedMerchant },
-            )
-
-            if (activeFilter.isActive) {
-                ActiveFilterSummaryStrip(
-                    filter = activeFilter,
-                    onClearAll = {
-                        searchQuery = ""
-                        currentFilter = TransactionFilter()
-                    },
-                )
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                TransactionsSubTab.entries.forEach { tab ->
+                    val isSelected = selectedSubTab == tab
+                    Tab(
+                        selected = isSelected,
+                        onClick = { selectedSubTab = tab },
+                        text = {
+                            Text(
+                                text = stringResource(id = tab.titleRes),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color =
+                                    if (isSelected) {
+                                        MaterialTheme.financialColors.income
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                            )
+                        },
+                    )
+                }
             }
 
-            SummaryStrip(
-                incomeAmount = totalIncome,
-                expenseAmount = totalExpense,
-                netAmount = netTotal,
+            // 2. Hero Month Circular Ring & Stats Overview
+            HeroMonthSummary(
+                totalExpenseMinor = monthExpense,
+                totalIncomeMinor = monthIncome,
+                monthlyBudgetMinor = monthlyBudgetMinor,
+                onSetBudgetClick = onSetBudgetClick,
             )
 
-            if (filteredTransactions.isEmpty()) {
-                EmptyTransactionsState(
-                    onClearFilters = {
-                        searchQuery = ""
-                        currentFilter = TransactionFilter()
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                ) {
-                    groupedByDay.forEach { (dateEpoch, dayTxns) ->
-                        stickyHeader(key = dateEpoch) {
-                            DayHeader(
-                                dateEpoch = dateEpoch,
-                                transactions = dayTxns,
-                                todayText = todayStr,
-                                yesterdayText = yesterdayStr,
+            // 3. Tab Content in Rounded Container
+            Surface(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 2.dp,
+            ) {
+                when (selectedSubTab) {
+                    TransactionsSubTab.TRANSACTIONS -> {
+                        if (sortedMonthTxns.isEmpty()) {
+                            EmptyTransactionsState(
+                                onClearFilters = {
+                                    searchQuery = ""
+                                    currentFilter = TransactionFilter()
+                                    isAllMonthsSelected = true
+                                },
+                                modifier = Modifier.fillMaxSize(),
                             )
-                        }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            ) {
+                                items(sortedMonthTxns, key = { it.id }) { txn ->
+                                    val deletedMsg = stringResource(id = DesignR.string.swipe_deleted_message)
+                                    val undoMsg = stringResource(id = DesignR.string.swipe_undo)
+                                    val isSelected = selectedIds.contains(txn.id)
+                                    val isSelectionMode = selectedIds.isNotEmpty()
 
-                        items(dayTxns, key = { it.id }) { txn ->
-                            val deletedMsg = stringResource(id = DesignR.string.swipe_deleted_message)
-                            val undoMsg = stringResource(id = DesignR.string.swipe_undo)
-                            val isSelected = selectedIds.contains(txn.id)
-                            val isSelectionMode = selectedIds.isNotEmpty()
-
-                            SwipeableTransactionRow(
-                                transaction = txn,
-                                onClick = {
-                                    if (isSelectionMode) {
-                                        selectedIds =
-                                            if (isSelected) {
-                                                selectedIds - txn.id
+                                    SwipeableTransactionRow(
+                                        transaction = txn,
+                                        onClick = {
+                                            if (isSelectionMode) {
+                                                selectedIds =
+                                                    if (isSelected) {
+                                                        selectedIds - txn.id
+                                                    } else {
+                                                        selectedIds + txn.id
+                                                    }
                                             } else {
-                                                selectedIds + txn.id
+                                                onTransactionClick(txn)
                                             }
-                                    } else {
-                                        onTransactionClick(txn)
-                                    }
-                                },
-                                onLongClick = {
-                                    if (!isSelectionMode) {
-                                        selectedIds = setOf(txn.id)
-                                    }
-                                },
-                                isSelected = isSelected,
-                                isSelectionMode = isSelectionMode,
-                                enableSwipe = !isSelectionMode,
-                                onDelete = { toDelete ->
-                                    onDeleteTransaction(toDelete)
-                                    scope.launch {
-                                        val result =
-                                            snackbarHostState.showSnackbar(
-                                                message = deletedMsg,
-                                                actionLabel = undoMsg,
-                                                duration = SnackbarDuration.Short,
-                                            )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            onRestoreTransaction(toDelete)
-                                        }
-                                    }
-                                },
-                                onReview = { toReview ->
-                                    onReviewTransaction(toReview.copy(isReviewed = true))
-                                },
-                            )
+                                        },
+                                        onLongClick = {
+                                            if (!isSelectionMode) {
+                                                selectedIds = setOf(txn.id)
+                                            }
+                                        },
+                                        isSelected = isSelected,
+                                        isSelectionMode = isSelectionMode,
+                                        enableSwipe = !isSelectionMode,
+                                        onDelete = { toDelete ->
+                                            onDeleteTransaction(toDelete)
+                                            scope.launch {
+                                                val result =
+                                                    snackbarHostState.showSnackbar(
+                                                        message = deletedMsg,
+                                                        actionLabel = undoMsg,
+                                                        duration = SnackbarDuration.Short,
+                                                    )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    onRestoreTransaction(toDelete)
+                                                }
+                                            }
+                                        },
+                                        onReview = { toReview ->
+                                            onReviewTransaction(toReview.copy(isReviewed = true))
+                                        },
+                                    )
+
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                                        modifier = Modifier.padding(horizontal = 8.dp),
+                                    )
+                                }
+                            }
                         }
+                    }
+                    TransactionsSubTab.CATEGORIES -> {
+                        CategoriesTabContent(
+                            transactions = monthTransactions,
+                            onCategoryClick = { category ->
+                                currentFilter = currentFilter.copy(categories = setOf(category))
+                                selectedSubTab = TransactionsSubTab.TRANSACTIONS
+                            },
+                        )
+                    }
+                    TransactionsSubTab.MERCHANTS -> {
+                        MerchantsTabContent(
+                            transactions = monthTransactions,
+                            onMerchantClick = { merchant ->
+                                searchQuery = merchant
+                                selectedSubTab = TransactionsSubTab.TRANSACTIONS
+                            },
+                        )
                     }
                 }
             }
@@ -454,6 +568,25 @@ fun TransactionsScreen(
             initialFilter = currentFilter,
             onApply = { updatedFilter -> currentFilter = updatedFilter },
             onDismiss = { showFilterSheet = false },
+        )
+    }
+
+    if (showMonthPickerSheet) {
+        MonthPickerSheet(
+            availableMonths = availableMonths,
+            selectedYearMonth = selectedYearMonth,
+            isAllMonthsSelected = isAllMonthsSelected,
+            transactions = transactions,
+            onSelectMonth = { ym ->
+                selectedYearMonth = ym
+                isAllMonthsSelected = false
+                showMonthPickerSheet = false
+            },
+            onSelectAllMonths = {
+                isAllMonthsSelected = true
+                showMonthPickerSheet = false
+            },
+            onDismiss = { showMonthPickerSheet = false },
         )
     }
 
@@ -551,278 +684,436 @@ fun TransactionsScreen(
 }
 
 @Composable
-fun SearchAndFilterHeader(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    selectedFilter: TransactionFilterType?,
-    onFilterSelected: (TransactionFilterType) -> Unit,
-    activeFilterCount: Int = 0,
-    onOpenFilterSheet: () -> Unit = {},
+fun HeroMonthSummary(
+    totalExpenseMinor: Long,
+    totalIncomeMinor: Long,
+    monthlyBudgetMinor: Long,
+    onSetBudgetClick: () -> Unit,
     modifier: Modifier = Modifier,
-    suggestions: List<String> = emptyList(),
-    onSuggestionClick: (String) -> Unit = {},
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            placeholder = { Text(text = stringResource(id = R.string.transactions_search_hint)) },
-            leadingIcon = {
+    val isPrivacy = LocalPrivacyMode.current
+    val expenseFormatted =
+        if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalExpenseMinor)
+    val incomeFormatted =
+        if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalIncomeMinor)
+    val budgetFormatted =
+        if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(monthlyBudgetMinor)
+
+    Column(
+        modifier = modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        // Hero Circular Ring Gauge
+        Box(
+            modifier =
+                Modifier
+                    .size(176.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f))
+                    .border(
+                        width = 8.dp,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = CircleShape,
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
                 Icon(
-                    imageVector = Icons.Default.Search,
+                    painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
                     contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(22.dp),
                 )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = null,
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = expenseFormatted,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Bottom Stats Row: Income | Monthly Budget
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Income
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = stringResource(id = R.string.transactions_hero_income),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = incomeFormatted,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+
+            VerticalDivider(
+                modifier = Modifier.height(32.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
+            // Monthly budget
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .clickable(enabled = onSetBudgetClick != {}) { onSetBudgetClick() },
+            ) {
+                Text(
+                    text = stringResource(id = R.string.transactions_hero_budget),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                if (monthlyBudgetMinor > 0L) {
+                    Text(
+                        text = budgetFormatted,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                } else {
+                    Text(
+                        text = stringResource(id = R.string.transactions_hero_set_budget),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoriesTabContent(
+    transactions: List<Transaction>,
+    onCategoryClick: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    val totalExpense = expenses.sumOf { it.amount }
+    val slices = remember(transactions) { buildCategorySlices(transactions) }
+
+    if (expenses.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxSize().padding(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(id = R.string.transactions_empty_title),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item {
+                DonutChart(
+                    slices = slices,
+                    totalAmountMinor = totalExpense,
+                    onCategoryClick = onCategoryClick,
+                )
+            }
+            items(slices) { slice ->
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth().clickable { onCategoryClick(slice.categoryName) },
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CategoryBadge(categoryName = slice.categoryName, size = 32.dp)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = slice.categoryName,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    text = "${"%.1f".format(slice.percentage)}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        Text(
+                            text = MoneyFormatter.formatMinorUnits(slice.amountMinor),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
-            },
-            singleLine = true,
+            }
+        }
+    }
+}
+
+@Composable
+fun MerchantsTabContent(
+    transactions: List<Transaction>,
+    onMerchantClick: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    val topMerchants =
+        remember(expenses) {
+            expenses
+                .groupBy { it.merchantNormalised ?: it.merchantRaw ?: "Unknown" }
+                .map { (merchant, txns) ->
+                    Triple(merchant, txns.sumOf { it.amount }, txns.size)
+                }
+                .sortedByDescending { it.second }
+        }
+
+    if (topMerchants.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxSize().padding(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(id = R.string.transactions_empty_title),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(topMerchants) { (merchant, amountMinor, count) ->
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth().clickable { onMerchantClick(merchant) },
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = merchant,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = "$count transactions",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text(
+                            text = MoneyFormatter.formatMinorUnits(amountMinor),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.financialColors.expense,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MonthPickerSheet(
+    availableMonths: List<YearMonth>,
+    selectedYearMonth: YearMonth,
+    isAllMonthsSelected: Boolean,
+    transactions: List<Transaction>,
+    onSelectMonth: (YearMonth) -> Unit,
+    onSelectAllMonths: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+    ) {
+        Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-        )
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 32.dp),
+        ) {
+            Text(
+                text = stringResource(id = R.string.transactions_select_month),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
 
-        if (suggestions.isNotEmpty()) {
-            Row(
+            Surface(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                suggestions.forEach { suggestion ->
-                    SuggestionChip(
-                        onClick = { onSuggestionClick(suggestion) },
-                        label = { Text(text = suggestion) },
-                    )
-                }
-            }
-        }
-
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FilterChip(
-                selected = activeFilterCount > 0,
-                onClick = onOpenFilterSheet,
-                label = {
-                    Text(
-                        text =
-                            if (activeFilterCount > 0) {
-                                "${stringResource(id = R.string.filter_button_all_filters)} ($activeFilterCount)"
-                            } else {
-                                stringResource(id = R.string.filter_button_all_filters)
-                            },
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                },
-            )
-
-            TransactionFilterType.entries.forEach { filter ->
-                val label =
-                    when (filter) {
-                        TransactionFilterType.ALL -> stringResource(id = R.string.transactions_filter_all)
-                        TransactionFilterType.EXPENSE -> stringResource(id = R.string.transactions_filter_expense)
-                        TransactionFilterType.INCOME -> stringResource(id = R.string.transactions_filter_income)
-                        TransactionFilterType.TRANSFER -> stringResource(id = R.string.transactions_filter_transfer)
-                        TransactionFilterType.NEEDS_REVIEW ->
-                            stringResource(id = R.string.transactions_filter_needs_review)
-                    }
-                FilterChip(
-                    selected = selectedFilter == filter,
-                    onClick = { onFilterSelected(filter) },
-                    label = { Text(text = label) },
-                    leadingIcon =
-                        when (filter) {
-                            TransactionFilterType.EXPENSE -> {
-                                {
-                                    Icon(
-                                        painter = painterResource(id = DesignR.drawable.ic_trending_down),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            }
-                            TransactionFilterType.INCOME -> {
-                                {
-                                    Icon(
-                                        painter = painterResource(id = DesignR.drawable.ic_trending_up),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            }
-                            TransactionFilterType.TRANSFER -> {
-                                {
-                                    Icon(
-                                        painter = painterResource(id = DesignR.drawable.ic_category_transfer),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            }
-                            TransactionFilterType.NEEDS_REVIEW -> {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            }
-                            TransactionFilterType.ALL -> null
-                        },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ActiveFilterSummaryStrip(
-    filter: TransactionFilter,
-    onClearAll: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(8.dp),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            val parts = mutableListOf<String>()
-            if (filter.types.isNotEmpty()) {
-                parts.add(filter.types.joinToString("/") { it.name })
-            }
-            val range = filter.dateRange
-            if (range !is DateRangeSelection.AllTime) {
-                when (range) {
-                    DateRangeSelection.Today -> parts.add(stringResource(id = R.string.filter_date_today))
-                    DateRangeSelection.Yesterday -> parts.add(stringResource(id = R.string.transactions_yesterday))
-                    DateRangeSelection.ThisWeek -> parts.add(stringResource(id = R.string.filter_date_this_week))
-                    DateRangeSelection.ThisMonth -> parts.add(stringResource(id = R.string.filter_date_this_month))
-                    DateRangeSelection.LastMonth -> parts.add(stringResource(id = R.string.filter_date_last_month))
-                    is DateRangeSelection.LastNDays -> parts.add("Last ${range.days} Days")
-                    is DateRangeSelection.Custom -> parts.add("Custom Date")
-                    else -> Unit
-                }
-            }
-            if (filter.categories.isNotEmpty()) {
-                parts.add(filter.categories.joinToString(", "))
-            }
-            if (filter.amountRange !is AmountRangeFilter.Any) {
-                parts.add(stringResource(id = R.string.filter_section_amount))
-            }
-            if (filter.channels.isNotEmpty()) {
-                parts.add(filter.channels.joinToString(", ") { it.name })
-            }
-            val status = filter.reviewStatus
-            if (status != ReviewStatusFilter.All) {
-                val statusLabel =
-                    if (status == ReviewStatusFilter.NeedsReviewOnly) {
-                        stringResource(id = R.string.filter_status_needs_review)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onSelectAllMonths() },
+                color =
+                    if (isAllMonthsSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
                     } else {
-                        stringResource(id = R.string.filter_status_reviewed)
+                        Color.Transparent
+                    },
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.transactions_all_months),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (isAllMonthsSelected) FontWeight.Bold else FontWeight.Normal,
+                    )
+                    if (isAllMonthsSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
                     }
-                parts.add(statusLabel)
+                }
             }
 
-            Text(
-                text = "Active: ${parts.joinToString(" • ")}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(
-                onClick = onClearAll,
-                modifier = Modifier.size(24.dp),
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Icon(
-                    imageVector = Icons.Default.Clear,
-                    contentDescription = stringResource(id = R.string.transactions_clear_filters),
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(16.dp),
-                )
+                items(availableMonths) { ym ->
+                    val isSelected = !isAllMonthsSelected && ym == selectedYearMonth
+                    val monthLabel =
+                        ym.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
+                    val monthTxns =
+                        transactions.filter {
+                            val d =
+                                Instant.ofEpochMilli(it.dateTime)
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate()
+                            YearMonth.from(d) == ym
+                        }
+                    val monthSpent =
+                        monthTxns
+                            .filter { it.type == TransactionType.Expense }
+                            .sumOf { it.amount }
+                    val isPrivacy = LocalPrivacyMode.current
+                    val formattedSpent =
+                        if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(monthSpent)
+
+                    Surface(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onSelectMonth(ym) },
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                Color.Transparent
+                            },
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = monthLabel,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = formattedSpent,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                if (isSelected) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-@Composable
-fun SummaryStrip(
-    incomeAmount: Long,
-    expenseAmount: Long,
-    netAmount: Long,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            ),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val isPrivacy = LocalPrivacyMode.current
-            val masked = "₹ ••••••"
-            val incomeText = if (isPrivacy) masked else MoneyFormatter.formatMinorUnits(incomeAmount)
-            val expenseText = if (isPrivacy) masked else MoneyFormatter.formatMinorUnits(expenseAmount)
-            val netText = if (isPrivacy) masked else MoneyFormatter.formatMinorUnits(netAmount)
+fun groupTransactionsByMonth(transactions: List<Transaction>): Map<YearMonth, List<Transaction>> {
+    return transactions
+        .sortedByDescending { it.dateTime }
+        .groupBy { txn ->
+            val date = Instant.ofEpochMilli(txn.dateTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            YearMonth.from(date)
+        }
+        .toSortedMap(compareByDescending { it })
+}
 
-            Text(
-                text = stringResource(id = R.string.transactions_summary_income, incomeText),
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Text(
-                text = stringResource(id = R.string.transactions_summary_expense, expenseText),
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Text(
-                text = stringResource(id = R.string.transactions_summary_net, netText),
-                style = MaterialTheme.typography.labelMedium,
-            )
+fun groupTransactionsByDay(transactions: List<Transaction>): Map<Long, List<Transaction>> {
+    return transactions
+        .sortedByDescending { it.dateTime }
+        .groupBy { txn ->
+            val date = Instant.ofEpochMilli(txn.dateTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+}
+
+fun formatDate(
+    epochMillis: Long,
+    todayText: String,
+    yesterdayText: String,
+): String {
+    val date = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+    val today = LocalDate.now()
+    return when (date) {
+        today -> todayText
+        today.minusDays(1) -> yesterdayText
+        else -> {
+            val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.getDefault())
+            date.format(formatter)
         }
     }
 }
@@ -879,19 +1170,17 @@ fun EmptyTransactionsState(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier =
-            modifier
-                .padding(32.dp),
+        modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Icon(
             imageVector = Icons.Default.Search,
             contentDescription = null,
+            modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(48.dp),
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(id = R.string.transactions_empty_title),
             style = MaterialTheme.typography.titleMedium,
@@ -931,31 +1220,5 @@ fun filterTransactions(
             }
 
         matchesQuery && matchesFilter
-    }
-}
-
-fun groupTransactionsByDay(transactions: List<Transaction>): Map<Long, List<Transaction>> {
-    return transactions
-        .sortedByDescending { it.dateTime }
-        .groupBy { txn ->
-            val date = Instant.ofEpochMilli(txn.dateTime).atZone(ZoneId.systemDefault()).toLocalDate()
-            date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        }
-}
-
-fun formatDate(
-    epochMillis: Long,
-    todayText: String,
-    yesterdayText: String,
-): String {
-    val date = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate()
-    val today = LocalDate.now()
-    return when (date) {
-        today -> todayText
-        today.minusDays(1) -> yesterdayText
-        else -> {
-            val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.getDefault())
-            date.format(formatter)
-        }
     }
 }

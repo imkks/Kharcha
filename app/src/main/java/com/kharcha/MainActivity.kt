@@ -55,7 +55,9 @@ import com.kharcha.feature.review.ui.ReviewQueueScreen
 import com.kharcha.feature.settings.ui.MoreScreen
 import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
+import com.kharcha.feature.transactions.ui.TransactionsSubTab
 import dagger.hilt.android.AndroidEntryPoint
+import java.time.YearMonth
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 
@@ -126,6 +128,10 @@ fun MainAppShell(
     var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
+    var transactionsFilter by remember { mutableStateOf(TransactionFilter()) }
+    var transactionsYearMonth by remember { mutableStateOf<YearMonth?>(YearMonth.now()) }
+    var transactionsIsAllMonthsSelected by remember { mutableStateOf(false) }
+    var transactionsSubTab by remember { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
 
     val showFab = currentDestination == AppDestination.HOME || currentDestination == AppDestination.TRANSACTIONS
 
@@ -249,6 +255,14 @@ fun MainAppShell(
                     onResetOnboarding = onResetOnboarding,
                     onPrivacyToggle = onTogglePrivacyMode,
                     onCategoriseUnknown = { showReviewQueue = true },
+                    transactionsFilter = transactionsFilter,
+                    onFilterChange = { transactionsFilter = it },
+                    transactionsYearMonth = transactionsYearMonth,
+                    onYearMonthChange = { transactionsYearMonth = it },
+                    transactionsIsAllMonthsSelected = transactionsIsAllMonthsSelected,
+                    onAllMonthsSelectedChange = { transactionsIsAllMonthsSelected = it },
+                    transactionsSubTab = transactionsSubTab,
+                    onSubTabChange = { transactionsSubTab = it },
                     onUpdateBudget = { category, budgetMinor ->
                         if (category == null) {
                             userPreferences.monthlyBudgetMinor = budgetMinor
@@ -336,6 +350,14 @@ fun BoxDestinationContent(
     onResetOnboarding: () -> Unit,
     onPrivacyToggle: () -> Unit,
     onCategoriseUnknown: () -> Unit = {},
+    transactionsFilter: TransactionFilter = TransactionFilter(),
+    onFilterChange: (TransactionFilter) -> Unit = {},
+    transactionsYearMonth: YearMonth? = YearMonth.now(),
+    onYearMonthChange: (YearMonth?) -> Unit = {},
+    transactionsIsAllMonthsSelected: Boolean = false,
+    onAllMonthsSelectedChange: (Boolean) -> Unit = {},
+    transactionsSubTab: TransactionsSubTab = TransactionsSubTab.TRANSACTIONS,
+    onSubTabChange: (TransactionsSubTab) -> Unit = {},
     onUpdateBudget: (String?, Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
@@ -366,6 +388,14 @@ fun BoxDestinationContent(
                 categoryBudgets = userPreferences.getAllCategoryBudgets(),
                 onUpdateBudget = onUpdateBudget,
                 onCategoriseUnknown = onCategoriseUnknown,
+                filter = transactionsFilter,
+                onFilterChange = onFilterChange,
+                selectedYearMonthState = transactionsYearMonth,
+                onYearMonthChange = onYearMonthChange,
+                isAllMonthsSelectedState = transactionsIsAllMonthsSelected,
+                onAllMonthsSelectedChange = onAllMonthsSelectedChange,
+                subTabState = transactionsSubTab,
+                onSubTabChange = onSubTabChange,
             )
         }
         AppDestination.INSIGHTS -> {

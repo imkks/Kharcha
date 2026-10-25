@@ -141,9 +141,17 @@ fun TransactionsScreen(
     onUpdateBudget: (category: String?, budgetMinor: Long) -> Unit = { _, _ -> },
     onCategoriseUnknown: () -> Unit = {},
     onSetBudgetClick: () -> Unit = {},
+    filter: TransactionFilter? = null,
+    onFilterChange: ((TransactionFilter) -> Unit)? = null,
+    selectedYearMonthState: YearMonth? = null,
+    onYearMonthChange: ((YearMonth?) -> Unit)? = null,
+    isAllMonthsSelectedState: Boolean? = null,
+    onAllMonthsSelectedChange: ((Boolean) -> Unit)? = null,
+    subTabState: TransactionsSubTab? = null,
+    onSubTabChange: ((TransactionsSubTab) -> Unit)? = null,
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var currentFilter by remember {
+    var internalFilter by remember {
         mutableStateOf(
             if (initialCategory != null) {
                 TransactionFilter(categories = setOf(initialCategory))
@@ -152,6 +160,15 @@ fun TransactionsScreen(
             },
         )
     }
+    val currentFilter = filter ?: internalFilter
+    val updateFilter: (TransactionFilter) -> Unit = { newFilter ->
+        if (onFilterChange != null) {
+            onFilterChange(newFilter)
+        } else {
+            internalFilter = newFilter
+        }
+    }
+
     var showFilterSheet by remember { mutableStateOf(false) }
     var showMonthPickerSheet by remember { mutableStateOf(false) }
     var showSetBudgetSheet by remember { mutableStateOf(false) }
@@ -161,7 +178,15 @@ fun TransactionsScreen(
     var selectedIds by rememberSaveable { mutableStateOf(emptySet<Long>()) }
     var showBulkCategorizeSheet by remember { mutableStateOf(false) }
     var showBulkTypeDialog by remember { mutableStateOf(false) }
-    var selectedSubTab by rememberSaveable { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
+    var internalSubTab by rememberSaveable { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
+    val selectedSubTab = subTabState ?: internalSubTab
+    val updateSubTab: (TransactionsSubTab) -> Unit = { newTab ->
+        if (onSubTabChange != null) {
+            onSubTabChange(newTab)
+        } else {
+            internalSubTab = newTab
+        }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -183,10 +208,27 @@ fun TransactionsScreen(
             if (months.isEmpty()) listOf(YearMonth.now()) else months
         }
 
-    var selectedYearMonth by rememberSaveable {
+    var internalSelectedYearMonth by rememberSaveable {
         mutableStateOf(availableMonths.firstOrNull() ?: YearMonth.now())
     }
-    var isAllMonthsSelected by rememberSaveable { mutableStateOf(false) }
+    val selectedYearMonth = selectedYearMonthState ?: internalSelectedYearMonth
+    val updateSelectedYearMonth: (YearMonth) -> Unit = { ym ->
+        if (onYearMonthChange != null) {
+            onYearMonthChange(ym)
+        } else {
+            internalSelectedYearMonth = ym
+        }
+    }
+
+    var internalIsAllMonthsSelected by rememberSaveable { mutableStateOf(false) }
+    val isAllMonthsSelected = isAllMonthsSelectedState ?: internalIsAllMonthsSelected
+    val updateIsAllMonthsSelected: (Boolean) -> Unit = { isAll ->
+        if (onAllMonthsSelectedChange != null) {
+            onAllMonthsSelectedChange(isAll)
+        } else {
+            internalIsAllMonthsSelected = isAll
+        }
+    }
 
     BackHandler(enabled = selectedIds.isNotEmpty()) {
         selectedIds = emptySet()
@@ -194,7 +236,7 @@ fun TransactionsScreen(
 
     LaunchedEffect(initialCategory) {
         if (initialCategory != null) {
-            currentFilter = currentFilter.copy(categories = setOf(initialCategory))
+            updateFilter(currentFilter.copy(categories = setOf(initialCategory)))
             onClearInitialCategory()
         }
     }
@@ -497,7 +539,7 @@ fun TransactionsScreen(
                     val isSelected = selectedSubTab == tab
                     Tab(
                         selected = isSelected,
-                        onClick = { selectedSubTab = tab },
+                        onClick = { updateSubTab(tab) },
                         text = {
                             Text(
                                 text = stringResource(id = tab.titleRes),
@@ -526,7 +568,86 @@ fun TransactionsScreen(
                         showSetBudgetSheet = true
                         onSetBudgetClick()
                     },
+                    isExpenseSelected = currentFilter.types == setOf(TransactionType.Expense),
+                    isIncomeSelected = currentFilter.types == setOf(TransactionType.Income),
+                    onExpenseClick = {
+                        val newTypes =
+                            if (currentFilter.types == setOf(TransactionType.Expense)) {
+                                emptySet()
+                            } else {
+                                setOf(TransactionType.Expense)
+                            }
+                        updateFilter(currentFilter.copy(types = newTypes))
+                    },
+                    onIncomeClick = {
+                        val newTypes =
+                            if (currentFilter.types == setOf(TransactionType.Income)) {
+                                emptySet()
+                            } else {
+                                setOf(TransactionType.Income)
+                            }
+                        updateFilter(currentFilter.copy(types = newTypes))
+                    },
                 )
+
+                // Quick Type Filter Chips: All | Expense | Income
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val isAllSelected = currentFilter.types.isEmpty()
+                    val isExpenseSelected = currentFilter.types == setOf(TransactionType.Expense)
+                    val isIncomeSelected = currentFilter.types == setOf(TransactionType.Income)
+
+                    FilterChip(
+                        selected = isAllSelected,
+                        onClick = {
+                            if (!isAllSelected) {
+                                updateFilter(currentFilter.copy(types = emptySet()))
+                            }
+                        },
+                        label = {
+                            Text(
+                                text = stringResource(id = R.string.transactions_filter_all),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        },
+                    )
+
+                    FilterChip(
+                        selected = isExpenseSelected,
+                        onClick = {
+                            val newTypes =
+                                if (isExpenseSelected) emptySet() else setOf(TransactionType.Expense)
+                            updateFilter(currentFilter.copy(types = newTypes))
+                        },
+                        label = {
+                            Text(
+                                text = stringResource(id = R.string.transactions_filter_expense),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        },
+                    )
+
+                    FilterChip(
+                        selected = isIncomeSelected,
+                        onClick = {
+                            val newTypes =
+                                if (isIncomeSelected) emptySet() else setOf(TransactionType.Income)
+                            updateFilter(currentFilter.copy(types = newTypes))
+                        },
+                        label = {
+                            Text(
+                                text = stringResource(id = R.string.transactions_filter_income),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        },
+                    )
+                }
             }
 
             // 3. Tab Content
@@ -542,8 +663,8 @@ fun TransactionsScreen(
                             EmptyTransactionsState(
                                 onClearFilters = {
                                     searchQuery = ""
-                                    currentFilter = TransactionFilter()
-                                    isAllMonthsSelected = true
+                                    updateFilter(TransactionFilter())
+                                    updateIsAllMonthsSelected(true)
                                 },
                                 modifier = Modifier.fillMaxSize(),
                             )
@@ -638,8 +759,8 @@ fun TransactionsScreen(
                             },
                             onCategoriseUnknown = onCategoriseUnknown,
                             onCategoryClick = { category ->
-                                currentFilter = currentFilter.copy(categories = setOf(category))
-                                selectedSubTab = TransactionsSubTab.TRANSACTIONS
+                                updateFilter(currentFilter.copy(categories = setOf(category)))
+                                updateSubTab(TransactionsSubTab.TRANSACTIONS)
                             },
                         )
                     }
@@ -648,7 +769,7 @@ fun TransactionsScreen(
                             transactions = monthTransactions,
                             onMerchantClick = { merchant ->
                                 searchQuery = merchant
-                                selectedSubTab = TransactionsSubTab.TRANSACTIONS
+                                updateSubTab(TransactionsSubTab.TRANSACTIONS)
                             },
                         )
                     }
@@ -661,7 +782,7 @@ fun TransactionsScreen(
         AdvancedFilterSheet(
             transactions = transactions,
             initialFilter = currentFilter,
-            onApply = { updatedFilter -> currentFilter = updatedFilter },
+            onApply = { updatedFilter -> updateFilter(updatedFilter) },
             onDismiss = { showFilterSheet = false },
         )
     }
@@ -689,7 +810,7 @@ fun TransactionsScreen(
             selectedAccountIds = currentFilter.accountIds,
             selectedChannels = currentFilter.channels,
             onSelectAccount = { accIds, channels ->
-                currentFilter = currentFilter.copy(accountIds = accIds, channels = channels)
+                updateFilter(currentFilter.copy(accountIds = accIds, channels = channels))
             },
             onDismiss = { showAccountsSheet = false },
         )
@@ -721,12 +842,12 @@ fun TransactionsScreen(
             isAllMonthsSelected = isAllMonthsSelected,
             transactions = transactions,
             onSelectMonth = { ym ->
-                selectedYearMonth = ym
-                isAllMonthsSelected = false
+                updateSelectedYearMonth(ym)
+                updateIsAllMonthsSelected(false)
                 showMonthPickerSheet = false
             },
             onSelectAllMonths = {
-                isAllMonthsSelected = true
+                updateIsAllMonthsSelected(true)
                 showMonthPickerSheet = false
             },
             onDismiss = { showMonthPickerSheet = false },
@@ -833,6 +954,10 @@ fun HeroMonthSummary(
     monthlyBudgetMinor: Long,
     onSetBudgetClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isExpenseSelected: Boolean = false,
+    isIncomeSelected: Boolean = false,
+    onExpenseClick: (() -> Unit)? = null,
+    onIncomeClick: (() -> Unit)? = null,
 ) {
     val isPrivacy = LocalPrivacyMode.current
     val expenseFormatted =
@@ -854,10 +979,16 @@ fun HeroMonthSummary(
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f))
                     .border(
-                        width = 8.dp,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        width = if (isExpenseSelected) 3.dp else 8.dp,
+                        color =
+                            if (isExpenseSelected) {
+                                MaterialTheme.financialColors.expense
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
                         shape = CircleShape,
-                    ),
+                    )
+                    .clickable(enabled = onExpenseClick != null) { onExpenseClick?.invoke() },
             contentAlignment = Alignment.Center,
         ) {
             Column(
@@ -867,7 +998,12 @@ fun HeroMonthSummary(
                 Icon(
                     painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface,
+                    tint =
+                        if (isExpenseSelected) {
+                            MaterialTheme.financialColors.expense
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     modifier = Modifier.size(22.dp),
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -875,7 +1011,12 @@ fun HeroMonthSummary(
                     text = expenseFormatted,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color =
+                        if (isExpenseSelected) {
+                            MaterialTheme.financialColors.expense
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     textAlign = TextAlign.Center,
                 )
             }
@@ -892,19 +1033,32 @@ fun HeroMonthSummary(
             // Income
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.weight(1f),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .clickable(enabled = onIncomeClick != null) { onIncomeClick?.invoke() },
             ) {
                 Text(
                     text = stringResource(id = R.string.transactions_hero_income),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color =
+                        if (isIncomeSelected) {
+                            MaterialTheme.financialColors.income
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = incomeFormatted,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color =
+                        if (isIncomeSelected) {
+                            MaterialTheme.financialColors.income
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                 )
             }
 

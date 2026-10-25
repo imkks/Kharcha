@@ -183,12 +183,13 @@
     <string name="tags_done_action">Done</string>
     <string name="propagate_sheet_title">Update similar transactions?</string>
     <string name="propagate_sheet_subtitle">
-        Found %1$d other transactions for %2$s. Uncheck any to keep as %3$s:
+        Found %1$d below transactions at %2$s , do you wish to change their category to %3$s too?
     </string>
     <string name="propagate_select_all">Select All</string>
     <string name="propagate_deselect_all">Deselect All</string>
     <string name="propagate_update_rule_checkbox">Always categorize %1$s as %2$s</string>
     <string name="propagate_apply_selected">Apply (%1$d selected)</string>
+    <string name="propagate_change_button">Change</string>
     <string name="propagate_update_single_only">Update this transaction only</string>
     <string name="propagate_current_category">Current: %1$s</string>
     <string name="entity_screen_all_time">All Time</string>

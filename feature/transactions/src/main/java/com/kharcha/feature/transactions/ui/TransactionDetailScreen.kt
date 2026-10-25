@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +44,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -85,12 +88,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
+import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.feature.transactions.R
@@ -1119,104 +1125,80 @@ fun TransactionDetailScreen(
         }
     }
 
-    // Merchant Rule Propagation & Similar Transactions Dialog
+    // Merchant Rule Propagation & Similar Transactions Sheet
     if (showPropagateDialog) {
-        val allChecked = checkedSimilarIds.size == similarTransactions.size
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val zoneId = ZoneId.systemDefault()
-        val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault())
+        val dateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault())
 
-        AlertDialog(
+        ModalBottomSheet(
             onDismissRequest = { showPropagateDialog = false },
-            title = {
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+            ) {
+                // Header text matching screenshot
                 Text(
-                    text = stringResource(id = R.string.propagate_sheet_title),
-                    style = MaterialTheme.typography.titleLarge,
+                    text =
+                        stringResource(
+                            id = R.string.propagate_sheet_subtitle,
+                            similarTransactions.size,
+                            merchantName,
+                            selectedCategory,
+                        ),
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
-            },
-            text = {
-                Column(
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Grouped Card Container
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                        ),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
                 ) {
-                    Text(
-                        text =
-                            stringResource(
-                                id = R.string.propagate_sheet_subtitle,
-                                similarTransactions.size,
-                                merchantName,
-                                selectedCategory,
-                            ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-
-                    // Select All / Deselect All Toggle Row
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    checkedSimilarIds =
-                                        if (allChecked) {
-                                            emptySet()
-                                        } else {
-                                            similarTransactions.map { it.id }.toSet()
-                                        }
-                                }
-                                .padding(vertical = 4.dp),
-                    ) {
-                        Checkbox(
-                            checked = allChecked,
-                            onCheckedChange = { isChecked ->
-                                checkedSimilarIds =
-                                    if (isChecked) {
-                                        similarTransactions.map { it.id }.toSet()
-                                    } else {
-                                        emptySet()
-                                    }
-                            },
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text =
-                                stringResource(
-                                    if (allChecked) {
-                                        R.string.propagate_deselect_all
-                                    } else {
-                                        R.string.propagate_select_all
-                                    },
-                                ),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                    // Scrollable List of Similar Transactions
                     Column(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 220.dp)
+                                .heightIn(max = 300.dp)
                                 .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        similarTransactions.forEach { other ->
+                        similarTransactions.forEachIndexed { index, other ->
                             val isChecked = checkedSimilarIds.contains(other.id)
+                            val otherCat = other.categorySource ?: "Other"
+                            val catColor = CategoryColors.forCategory(otherCat).color
                             val dateStr =
                                 Instant.ofEpochMilli(other.dateTime).atZone(zoneId).format(dateFormatter)
                             val amountStr = MoneyFormatter.formatMinorUnits(other.amount)
+
+                            val otherTag =
+                                when {
+                                    other.note?.contains("#") == true -> {
+                                        other.note.split("\\s+".toRegex())
+                                            .firstOrNull { it.startsWith("#") } ?: "#Online"
+                                    }
+                                    other.channel in listOf(Channel.UPI, Channel.NET_BANKING, Channel.CARD) -> "#Online"
+                                    else -> "#Offline"
+                                }
 
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(8.dp))
                                         .clickable {
                                             checkedSimilarIds =
                                                 if (isChecked) {
@@ -1225,7 +1207,7 @@ fun TransactionDetailScreen(
                                                     checkedSimilarIds + other.id
                                                 }
                                         }
-                                        .padding(vertical = 2.dp),
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
                             ) {
                                 Checkbox(
                                     checked = isChecked,
@@ -1237,96 +1219,126 @@ fun TransactionDetailScreen(
                                                 checkedSimilarIds - other.id
                                             }
                                     },
+                                    colors =
+                                        CheckboxDefaults.colors(
+                                            checkedColor = Color(0xFF7C4DFF),
+                                            checkmarkColor = Color.White,
+                                        ),
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = dateStr,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        text =
-                                            stringResource(
-                                                id = R.string.propagate_current_category,
-                                                other.categorySource ?: "Other",
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(catColor.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        painter =
+                                            painterResource(
+                                                id = CategoryColors.forCategory(otherCat).iconRes,
                                             ),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.outline,
+                                        contentDescription = null,
+                                        tint = catColor,
+                                        modifier = Modifier.size(18.dp),
                                     )
                                 }
-                                Text(
-                                    text = amountStr,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = merchantName,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0xFF2C3248))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    ) {
+                                        Text(
+                                            text = otherTag,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF8CA3D8),
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = amountStr,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Icon(
+                                            painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(13.dp),
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = dateStr,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+
+                            if (index < similarTransactions.size - 1) {
+                                HorizontalDivider(
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    modifier = Modifier.padding(horizontal = 14.dp),
                                 )
                             }
                         }
                     }
+                }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                    // Merchant rule option
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { propagateToAllMerchants = !propagateToAllMerchants }
-                                .padding(vertical = 4.dp),
+                // Bottom Actions: ✕ Cancel & ✓ Change
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = { showPropagateDialog = false },
                     ) {
-                        Checkbox(
-                            checked = propagateToAllMerchants,
-                            onCheckedChange = { propagateToAllMerchants = it },
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = MaterialTheme.financialColors.income,
+                            modifier = Modifier.size(18.dp),
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text =
-                                stringResource(
-                                    id = R.string.propagate_update_rule_checkbox,
-                                    merchantName,
-                                    selectedCategory,
-                                ),
-                            style = MaterialTheme.typography.bodySmall,
+                            text = stringResource(id = android.R.string.cancel),
+                            color = MaterialTheme.financialColors.income,
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showPropagateDialog = false
-                        val updated =
-                            transaction.copy(
-                                type = selectedType,
-                                categorySource = selectedCategory,
-                                note = noteText.takeIf { it.isNotBlank() },
-                                isReviewed = true,
-                            )
-                        val updatedSimilar =
-                            similarTransactions
-                                .filter { checkedSimilarIds.contains(it.id) }
-                                .map { it.copy(categorySource = selectedCategory, isReviewed = true) }
 
-                        if (onSaveTransactions != null) {
-                            onSaveTransactions(listOf(updated) + updatedSimilar, propagateToAllMerchants)
-                        } else {
-                            onSave(updated, propagateToAllMerchants)
-                        }
-                    },
-                ) {
-                    Text(
-                        text =
-                            stringResource(
-                                id = R.string.propagate_apply_selected,
-                                checkedSimilarIds.size + 1,
-                            ),
-                    )
-                }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(
+                    Button(
                         onClick = {
                             showPropagateDialog = false
                             val updated =
@@ -1336,21 +1348,39 @@ fun TransactionDetailScreen(
                                     note = noteText.takeIf { it.isNotBlank() },
                                     isReviewed = true,
                                 )
+                            val updatedSimilar =
+                                similarTransactions
+                                    .filter { checkedSimilarIds.contains(it.id) }
+                                    .map { it.copy(categorySource = selectedCategory, isReviewed = true) }
+
                             if (onSaveTransactions != null) {
-                                onSaveTransactions(listOf(updated), false)
+                                onSaveTransactions(listOf(updated) + updatedSimilar, true)
                             } else {
-                                onSave(updated, false)
+                                onSave(updated, true)
                             }
                         },
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.financialColors.income,
+                                contentColor = MaterialTheme.financialColors.onIncome,
+                            ),
+                        shape = RoundedCornerShape(24.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp),
                     ) {
-                        Text(text = stringResource(id = R.string.propagate_update_single_only))
-                    }
-                    TextButton(onClick = { showPropagateDialog = false }) {
-                        Text(text = stringResource(id = R.string.detail_propagate_cancel))
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(id = R.string.propagate_change_button),
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
-            },
-        )
+            }
+        }
     }
 
     // Edit Note Dialog

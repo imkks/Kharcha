@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -136,6 +137,9 @@ fun TransactionsScreen(
     onReviewTransaction: (Transaction) -> Unit = {},
     onUpdateTransactions: (List<Transaction>) -> Unit = {},
     monthlyBudgetMinor: Long = 0L,
+    categoryBudgets: Map<String, Long> = emptyMap(),
+    onUpdateBudget: (category: String?, budgetMinor: Long) -> Unit = { _, _ -> },
+    onCategoriseUnknown: () -> Unit = {},
     onSetBudgetClick: () -> Unit = {},
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -150,6 +154,10 @@ fun TransactionsScreen(
     }
     var showFilterSheet by remember { mutableStateOf(false) }
     var showMonthPickerSheet by remember { mutableStateOf(false) }
+    var showSetBudgetSheet by remember { mutableStateOf(false) }
+    var budgetCategoryTarget by remember { mutableStateOf<String?>(null) }
+    var showAccountsSheet by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
     var selectedIds by rememberSaveable { mutableStateOf(emptySet<Long>()) }
     var showBulkCategorizeSheet by remember { mutableStateOf(false) }
     var showBulkTypeDialog by remember { mutableStateOf(false) }
@@ -333,10 +341,37 @@ fun TransactionsScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = { showAccountsSheet = true }) {
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_bank),
+                                contentDescription = stringResource(id = R.string.transactions_action_accounts),
+                                tint =
+                                    if (currentFilter.accountIds.isNotEmpty() ||
+                                        currentFilter.channels.isNotEmpty()
+                                    ) {
+                                        MaterialTheme.financialColors.income
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                            )
+                        }
                         IconButton(onClick = { showFilterSheet = true }) {
                             Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = stringResource(id = R.string.filter_button_all_filters),
+                                painter = painterResource(id = DesignR.drawable.ic_calendar),
+                                contentDescription = stringResource(id = R.string.transactions_action_filter),
+                                tint =
+                                    if (currentFilter.isActive) {
+                                        MaterialTheme.financialColors.income
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                            )
+                        }
+                        IconButton(onClick = { showExportSheet = true }) {
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
+                                contentDescription = stringResource(id = R.string.transactions_action_export),
+                                tint = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                         val isPrivacy = LocalPrivacyMode.current
@@ -486,7 +521,11 @@ fun TransactionsScreen(
                     totalExpenseMinor = monthExpense,
                     totalIncomeMinor = monthIncome,
                     monthlyBudgetMinor = monthlyBudgetMinor,
-                    onSetBudgetClick = onSetBudgetClick,
+                    onSetBudgetClick = {
+                        budgetCategoryTarget = null
+                        showSetBudgetSheet = true
+                        onSetBudgetClick()
+                    },
                 )
             }
 
@@ -587,7 +626,17 @@ fun TransactionsScreen(
                         CategoriesTabContent(
                             transactions = monthTransactions,
                             monthlyBudgetMinor = monthlyBudgetMinor,
-                            onSetBudgetClick = onSetBudgetClick,
+                            categoryBudgets = categoryBudgets,
+                            onSetBudgetClick = {
+                                budgetCategoryTarget = null
+                                showSetBudgetSheet = true
+                                onSetBudgetClick()
+                            },
+                            onSetCategoryBudgetClick = { category ->
+                                budgetCategoryTarget = category
+                                showSetBudgetSheet = true
+                            },
+                            onCategoriseUnknown = onCategoriseUnknown,
                             onCategoryClick = { category ->
                                 currentFilter = currentFilter.copy(categories = setOf(category))
                                 selectedSubTab = TransactionsSubTab.TRANSACTIONS
@@ -614,6 +663,54 @@ fun TransactionsScreen(
             initialFilter = currentFilter,
             onApply = { updatedFilter -> currentFilter = updatedFilter },
             onDismiss = { showFilterSheet = false },
+        )
+    }
+
+    if (showSetBudgetSheet) {
+        val currentTargetBudget =
+            if (budgetCategoryTarget == null) {
+                monthlyBudgetMinor
+            } else {
+                categoryBudgets[budgetCategoryTarget?.lowercase() ?: ""] ?: 0L
+            }
+        SetBudgetSheet(
+            targetCategory = budgetCategoryTarget,
+            currentBudgetMinor = currentTargetBudget,
+            onSaveBudget = { category, budgetMinor ->
+                onUpdateBudget(category, budgetMinor)
+            },
+            onDismiss = { showSetBudgetSheet = false },
+        )
+    }
+
+    if (showAccountsSheet) {
+        AccountsSheet(
+            transactions = transactions,
+            selectedAccountIds = currentFilter.accountIds,
+            selectedChannels = currentFilter.channels,
+            onSelectAccount = { accIds, channels ->
+                currentFilter = currentFilter.copy(accountIds = accIds, channels = channels)
+            },
+            onDismiss = { showAccountsSheet = false },
+        )
+    }
+
+    if (showExportSheet) {
+        val monthLabel =
+            if (isAllMonthsSelected) {
+                stringResource(id = R.string.transactions_all_months)
+            } else {
+                selectedYearMonth.format(
+                    DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault()),
+                )
+            }
+        ExportStatementSheet(
+            monthTransactions = monthTransactions,
+            allTransactions = transactions,
+            filteredTransactions = filteredTransactions,
+            isFilterActive = activeFilter.isActive,
+            selectedMonthLabel = monthLabel,
+            onDismiss = { showExportSheet = false },
         )
     }
 
@@ -854,7 +951,10 @@ fun HeroMonthSummary(
 fun CategoriesTabContent(
     transactions: List<Transaction>,
     monthlyBudgetMinor: Long = 0L,
+    categoryBudgets: Map<String, Long> = emptyMap(),
     onSetBudgetClick: () -> Unit = {},
+    onSetCategoryBudgetClick: (String) -> Unit = {},
+    onCategoriseUnknown: () -> Unit = {},
     onCategoryClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -871,6 +971,15 @@ fun CategoriesTabContent(
             expenses
                 .groupBy { it.categorySource?.trim().takeUnless { s -> s.isNullOrEmpty() } ?: "Others" }
                 .mapValues { it.value.size }
+        }
+
+    val (unknownSlices, knownSlices) =
+        remember(slices) {
+            slices.partition {
+                it.categoryName.equals("Others", ignoreCase = true) ||
+                    it.categoryName.equals("Unknown", ignoreCase = true) ||
+                    it.categoryName.equals("Uncategorized", ignoreCase = true)
+            }
         }
 
     if (expenses.isEmpty()) {
@@ -1001,8 +1110,8 @@ fun CategoriesTabContent(
                 }
             }
 
-            // 3. Category cards in dark rounded card
-            items(slices) { slice ->
+            // 3a. Prioritized Unknown / Others spends card (if present)
+            items(unknownSlices, key = { "unknown_${it.categoryName}" }) { slice ->
                 val count = categoryTxnCounts[slice.categoryName] ?: 0
                 val countText =
                     if (count == 1) {
@@ -1010,13 +1119,110 @@ fun CategoriesTabContent(
                     } else {
                         stringResource(id = R.string.transactions_spends_count, count)
                     }
-                val isOthers =
-                    slice.categoryName.equals("Others", ignoreCase = true) ||
-                        slice.categoryName.equals("Unknown", ignoreCase = true) ||
-                        slice.categoryName.equals("Uncategorized", ignoreCase = true)
-                val actionText =
-                    if (isOthers) {
-                        stringResource(id = R.string.transactions_action_categorise)
+                val amountFormatted =
+                    if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(slice.amountMinor)
+
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        ),
+                    border = BorderStroke(1.dp, MaterialTheme.financialColors.income.copy(alpha = 0.5f)),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onCategoriseUnknown() },
+                ) {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.financialColors.income.copy(alpha = 0.15f),
+                                modifier = Modifier.size(40.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription =
+                                        stringResource(id = R.string.transactions_unknown_category_alert),
+                                    tint = MaterialTheme.financialColors.income,
+                                    modifier = Modifier.padding(10.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = slice.categoryName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = countText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = amountFormatted,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Button(
+                                onClick = onCategoriseUnknown,
+                                shape = RoundedCornerShape(16.dp),
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.financialColors.income,
+                                        contentColor = Color(0xFF0F1B12),
+                                    ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                modifier = Modifier.height(30.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.transactions_action_categorise),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3b. Standard Category cards in dark rounded card
+            items(knownSlices, key = { it.categoryName }) { slice ->
+                val count = categoryTxnCounts[slice.categoryName] ?: 0
+                val countText =
+                    if (count == 1) {
+                        stringResource(id = R.string.transactions_spend_count_single)
+                    } else {
+                        stringResource(id = R.string.transactions_spends_count, count)
+                    }
+                val catBudget = categoryBudgets[slice.categoryName.lowercase()] ?: 0L
+                val budgetActionText =
+                    if (catBudget > 0L) {
+                        val budgetFmt =
+                            if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(catBudget)
+                        "$budgetFmt budget"
                     } else {
                         stringResource(id = R.string.transactions_action_set_budget)
                     }
@@ -1075,17 +1281,13 @@ fun CategoriesTabContent(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = actionText,
+                                text = budgetActionText,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.financialColors.income,
                                 modifier =
                                     Modifier.clickable {
-                                        if (isOthers) {
-                                            onCategoryClick(slice.categoryName)
-                                        } else {
-                                            onSetBudgetClick()
-                                        }
+                                        onSetCategoryBudgetClick(slice.categoryName)
                                     },
                             )
                         }

@@ -248,6 +248,14 @@ fun MainAppShell(
                     },
                     onResetOnboarding = onResetOnboarding,
                     onPrivacyToggle = onTogglePrivacyMode,
+                    onCategoriseUnknown = { showReviewQueue = true },
+                    onUpdateBudget = { category, budgetMinor ->
+                        if (category == null) {
+                            userPreferences.monthlyBudgetMinor = budgetMinor
+                        } else {
+                            userPreferences.setCategoryBudgetMinor(category, budgetMinor)
+                        }
+                    },
                     modifier = Modifier.padding(innerPadding),
                 )
             }
@@ -327,6 +335,8 @@ fun BoxDestinationContent(
     onUpdateTransactions: (List<Transaction>) -> Unit = {},
     onResetOnboarding: () -> Unit,
     onPrivacyToggle: () -> Unit,
+    onCategoriseUnknown: () -> Unit = {},
+    onUpdateBudget: (String?, Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -353,6 +363,9 @@ fun BoxDestinationContent(
                 onReviewTransaction = onReviewTransaction,
                 onUpdateTransactions = onUpdateTransactions,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
+                categoryBudgets = userPreferences.getAllCategoryBudgets(),
+                onUpdateBudget = onUpdateBudget,
+                onCategoriseUnknown = onCategoriseUnknown,
             )
         }
         AppDestination.INSIGHTS -> {

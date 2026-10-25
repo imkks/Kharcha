@@ -77,6 +77,23 @@ class UserPreferencesTest {
     }
 
     @Test
+    fun testCategoryBudgets() {
+        every { sharedPreferences.getString("key_category_budgets_json", null) } returns null
+        assertTrue(userPreferences.getAllCategoryBudgets().isEmpty())
+        assertEquals(0L, userPreferences.getCategoryBudgetMinor("Food & Dining"))
+
+        userPreferences.setCategoryBudgetMinor("Food & Dining", 15_000_00L)
+        verify { editor.putString("key_category_budgets_json", any()) }
+
+        every { sharedPreferences.getString("key_category_budgets_json", null) } returns
+            """{"food & dining":1500000,"shopping":800000}"""
+        val budgets = userPreferences.getAllCategoryBudgets()
+        assertEquals(2, budgets.size)
+        assertEquals(15_000_00L, userPreferences.getCategoryBudgetMinor("Food & Dining"))
+        assertEquals(8_000_00L, userPreferences.getCategoryBudgetMinor("Shopping"))
+    }
+
+    @Test
     fun testClear() {
         userPreferences.clear()
         verify { editor.clear() }

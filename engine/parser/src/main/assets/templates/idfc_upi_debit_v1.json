@@ -1,0 +1,10 @@
+{
+  "id": "idfc_upi_debit_v1",
+  "bank": "IDFC",
+  "senderPatterns": ["^[A-Za-z]{2}-?(IDFCFB|IDFCBK)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+debited\\s+from\\s+IDFC\\s+FIRST\\s+Bank\\s+A/C\\s+(?:ending|X+|\\*+)\\s*(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{2}-[A-Za-z]{3}-\\d{2,4})\\s+to\\s+(?<merchant>[^.\\n]+?)\\.(?:\\s+UPI\\s+Ref:?\\s*(?<ref>\\w+)\\.?)?(?:\\s+Available\\s+balance:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["dd-MMM-yy", "dd-MMM-yyyy", "dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="insights_title">Insights &amp; Analytics</string>
+    <string name="insights_safe_to_spend_title">Safe-to-Spend</string>
+    <string name="insights_safe_daily_label">Daily Safe Allowance</string>
+    <string name="insights_days_remaining">%1$d days left</string>
+    <string name="insights_status_on_track">On Track</string>
+    <string name="insights_status_warning">Pacing High</string>
+    <string name="insights_status_exceeded">Exceeded</string>
+    <string name="insights_daily_burn_rate">Daily burn: %1$s/day</string>
+    <string name="insights_budget_spent">Spent %1$s of %2$s budget</string>
+    <string name="insights_summary_title">Monthly Flow</string>
+    <string name="insights_summary_income">Income</string>
+    <string name="insights_summary_expense">Expenses</string>
+    <string name="insights_summary_net">Savings</string>
+    <string name="insights_category_breakdown_title">Top Spending Categories</string>
+    <string name="insights_payment_channel_title">Payment Modes</string>
+    <string name="insights_top_merchants_title">Top Merchants</string>
+    <string name="insights_empty_title">No Data for Selected Period</string>
+    <string name="insights_empty_subtitle">Transactions recorded in this period will appear here.</string>
+    <string name="insights_time_this_month">This Month</string>
+    <string name="insights_time_last_month">Last Month</string>
+    <string name="insights_time_all">All Time</string>
+    <string name="insights_heatmap_title">Spending Intensity Heatmap</string>
+    <string name="insights_heatmap_subtitle">Last 35 days daily spend density</string>
+    <string name="insights_heatmap_day_summary">%1$s (%2$d txns)</string>
+    <string name="insights_heatmap_cell_desc">Day %1$d, %2$s spent</string>
+    <string name="insights_recurring_title">Recurring Bills &amp; Subscriptions</string>
+    <string name="insights_recurring_monthly_total">%1$s projected per month</string>
+    <string name="insights_due_today">Due Today</string>
+    <string name="insights_due_tomorrow">Due Tomorrow</string>
+    <string name="insights_due_in_days">Due in %1$d days</string>
+    <string name="insights_price_hike_alert">+%1$s alert</string>
+    <string name="insights_tab_overview">Overview</string>
+    <string name="insights_tab_budgets">Budgets</string>
+    <string name="insights_tab_recurring">Recurring</string>
+    <string name="insights_recurring_empty_title">No Recurring Bills Detected</string>
+    <string name="insights_recurring_empty_subtitle">
+        Regular bills and subscriptions will be automatically detected and tracked here.
+    </string>
+    <string name="insights_budgets_title">Monthly Budget Pacing</string>
+    <string name="insights_budgets_subtitle">Track safe daily allowance and category limits</string>
+    <string name="budget_sparkline_title">Spend Pacing Curve</string>
+    <string name="budget_sparkline_subtitle">Actual spend vs linear budget pace</string>
+    <string name="budget_sparkline_day_start">Day 1</string>
+    <string name="budget_sparkline_today">Today</string>
+    <string name="budget_sparkline_day_end">Day %1$d</string>
+    <string name="budget_sparkline_target_legend">Target Pace</string>
+    <string name="budget_sparkline_actual_legend">Actual Spend</string>
+    <string name="budget_edit_title">Edit Monthly Budget</string>
+    <string name="budget_edit_amount_hint">Amount in ₹</string>
+    <string name="budget_edit_save">Save</string>
+    <string name="budget_edit_cancel">Cancel</string>
+    <string name="budget_category_limits_title">Category Budgets</string>
+</resources>

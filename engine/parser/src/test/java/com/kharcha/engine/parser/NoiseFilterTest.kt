@@ -97,4 +97,138 @@ class NoiseFilterTest {
         assertNotNull(result)
         assertEquals(IgnoreReason.REMINDER, (result as ParseResult.Ignored).reason)
     }
+
+    @Test
+    fun doesNotIgnoreTransferOrPaymentWithBalance() {
+        val transferSms =
+            RawSms(
+                id = 7,
+                sender = "XX-HDFCBK",
+                body = "HDFC Bank: Rs 2000 transferred to a/c ending 5678 on 24-OCT-26. Avl Bal Rs 15,000",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        assertNull(NoiseFilter.filter(transferSms))
+
+        val paidSms =
+            RawSms(
+                id = 8,
+                sender = "XX-SBIBNK",
+                body = "Paid Rs 350 on Paytm using SBI UPI. Avl Bal Rs 5000",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        assertNull(NoiseFilter.filter(paidSms))
+    }
+
+    @Test
+    fun ignoresCouponAndVoucherOffers() {
+        val couponSms =
+            RawSms(
+                id = 9,
+                sender = "XX-TATACL",
+                body = "Tata CliQ has added 2000 coupon to shop for a watch",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val result = NoiseFilter.filter(couponSms)
+        assertNotNull(result)
+        assertEquals(IgnoreReason.PROMO, (result as ParseResult.Ignored).reason)
+
+        val voucherSms =
+            RawSms(
+                id = 10,
+                sender = "XX-MYNTRA",
+                body = "Congratulations! Rs. 500 voucher added to your account to shop on Myntra.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val voucherResult = NoiseFilter.filter(voucherSms)
+        assertNotNull(voucherResult)
+        assertEquals(IgnoreReason.PROMO, (voucherResult as ParseResult.Ignored).reason)
+    }
+
+    @Test
+    fun ignoresCreditLimitAndLoanOffers() {
+        val limitSms =
+            RawSms(
+                id = 11,
+                sender = "XX-HDFCBK",
+                body = "Your credit limit has been increased to Rs. 2,00,000 on your HDFC card.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val result = NoiseFilter.filter(limitSms)
+        assertNotNull(result)
+        assertEquals(IgnoreReason.PROMO, (result as ParseResult.Ignored).reason)
+
+        val loanSms =
+            RawSms(
+                id = 12,
+                sender = "XX-AXISBK",
+                body = "Pre-approved personal loan of Rs 5,00,000 is ready for you. Apply now!",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val loanResult = NoiseFilter.filter(loanSms)
+        assertNotNull(loanResult)
+        assertEquals(IgnoreReason.PROMO, (loanResult as ParseResult.Ignored).reason)
+    }
+
+    @Test
+    fun ignoresBrandWalletAndPowerCashOffers() {
+        val tissotSms =
+            RawSms(
+                id = 13,
+                sender = "XX-TISSOT",
+                body = "Rs.2000 has been credited to your Tissot Power Cash Wallet. Access your wallet here: ",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val result = NoiseFilter.filter(tissotSms)
+        assertNotNull(result)
+        assertEquals(IgnoreReason.PROMO, (result as ParseResult.Ignored).reason)
+
+        val brandWalletSms =
+            RawSms(
+                id = 14,
+                sender = "XX-LNSKRT",
+                body = "Rs. 500 has been credited to your Lenskart wallet.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val brandResult = NoiseFilter.filter(brandWalletSms)
+        assertNotNull(brandResult)
+        assertEquals(IgnoreReason.PROMO, (brandResult as ParseResult.Ignored).reason)
+    }
+
+    @Test
+    fun ignoresPreDebitMandateNotices() {
+        val mandateSms =
+            RawSms(
+                id = 15,
+                sender = "XX-HDFCBK",
+                body =
+                    "E-Mandate!\nRs.199.00 will be deducted on 30/09/26, 00:00:00\n" +
+                        "For NETFLIX COM mandate\nUMN 151aa7f6a9d248c4ba545e5b303eefc6@ptyes\n" +
+                        "Maintain Balance\n-HDFC Bank",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val result = NoiseFilter.filter(mandateSms)
+        assertNotNull(result)
+        assertEquals(IgnoreReason.REMINDER, (result as ParseResult.Ignored).reason)
+
+        val autoDebitNotice =
+            RawSms(
+                id = 16,
+                sender = "XX-ICICIB",
+                body = "Pre-debit notification: Rs. 1500 will be deducted from a/c XX1234 on 05-Nov for SIP.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val autoDebitResult = NoiseFilter.filter(autoDebitNotice)
+        assertNotNull(autoDebitResult)
+        assertEquals(IgnoreReason.REMINDER, (autoDebitResult as ParseResult.Ignored).reason)
+    }
 }

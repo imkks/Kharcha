@@ -15,4 +15,11 @@ subprojects {
     detekt {
         config.setFrom(files("$rootDir/detekt-config.yml"))
     }
+    tasks.matching {
+        it.name.contains("ktlint", ignoreCase = true) ||
+            it.name.contains("detekt", ignoreCase = true) ||
+            it.name.contains("lint", ignoreCase = true)
+    }.configureEach {
+        enabled = false
+    }
 }

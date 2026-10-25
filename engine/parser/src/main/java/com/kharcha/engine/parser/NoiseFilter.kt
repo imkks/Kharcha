@@ -6,11 +6,34 @@ import com.kharcha.core.model.RawSms
 
 object NoiseFilter {
     private val otpRegex = Regex("(?i)\\b(otp|one time password)\\b|do not share")
-    private val promoRegex =
-        Regex("(?i)\\b(offer|promo|win|cashback|voucher|discount|congratulations)\\b")
-    private val promoCodeRegex = Regex("(?i)\\bcode\\b")
+    private val promoKeywordsRegex =
+        Regex("(?i)\\b(coupon[s]?|voucher[s]?|discount[s]?|promo\\b|promo\\s*code|coupon\\s*code|" +
+            "voucher\\s*code|reward\\s*points?|supercoin[s]?|to\\s+shop|shop\\s+now|apply\\s+now|" +
+            "claim\\s+now|avail\\s+now|order\\s+now|pre-?approved|personal\\s+loan|credit\\s+limit|" +
+            "instant\\s+loan|upgrade\\s+your\\s+card|exclusive\\s+offer|special\\s+offer|festive\\s+offer|" +
+            "mega\\s+sale|spin\\s+to\\s+win|win\\s+code|use\\s+code|flat\\s+\\d+%\\s+off|" +
+            "save\\s+up\\s+to|valid\\s+till|expires\\s+(?:on|soon)|power\\s+cash|bonus\\s+cash|" +
+            "brand\\s+cash|loyalty\\s+cash|promotional\\s+cash|store\\s+credits?|reward\\s+wallet|" +
+            "cash\\s+wallet|access\\s+your\\s+wallet|check\\s+your\\s+wallet|use\\s+your\\s+wallet)\\b")
+    private val brandWalletRegex =
+        Regex("(?i)\\b(?:credited\\s+to|added\\s+to)\\s+your\\s+([a-zA-Z\\s]+?)\\s+wallet\\b")
+    private val bankIndicatorsRegex =
+        Regex("(?i)\\b(a/c|account|ending|card|\\*+|x+|upi\\s+ref|utr|neft|imps|rtgs)\\b")
+    private val winCongratRegex = Regex("(?i)\\b(congratulations|congrats|won|win)\\b")
     private val reminderRegex =
         Regex("(?i)\\b(reminder|due date|minimum due|overdue)\\b")
+    private val preDebitMandateRegex =
+        Regex(
+            "(?i)\\b(e-?mandate!?|mandate\\s+(?:alert|notification|details?)|" +
+                "pre-?debit\\s+(?:alert|notification)|auto-?debit\\s+scheduled)\\b",
+        )
+    private val futureDebitRegex =
+        Regex(
+            "(?i)\\b(?:will\\s+be\\s+(?:deducted|debited)|scheduled\\s+(?:for|to\\s+be)\\s+(?:deducted|debited)|" +
+                "to\\s+be\\s+debited\\s+on)\\b",
+        )
+    private val maintainBalanceRegex =
+        Regex("(?i)\\bmaintain\\s+(?:sufficient\\s+)?(?:balance|funds)\\b")
     private val failedRegex =
         Regex("(?i)\\b(declined|failed|insufficient funds|unsuccessful)\\b")
     private val mandateRegex =
@@ -24,16 +47,36 @@ object NoiseFilter {
             return ParseResult.Ignored(IgnoreReason.OTP)
         }
 
-        // 2. Promotional: require promo words or explicit promo code offers
-        if ((promoRegex.containsMatchIn(body) && promoCodeRegex.containsMatchIn(body)) ||
-            Regex("(?i)\\b(win code|use code|flat \\d+% off|cashback on your next)\\b").containsMatchIn(body) ||
-            Regex("(?i)\\b(exclusive offer|special offer|promo code)\\b").containsMatchIn(body)
-        ) {
+        // 2. Promotional offers, coupons, shopping vouchers, brand cash wallets, loans
+        if (promoKeywordsRegex.containsMatchIn(body)) {
             return ParseResult.Ignored(IgnoreReason.PROMO)
         }
 
-        // 3. Reminder
-        if (reminderRegex.containsMatchIn(body)) {
+        if (brandWalletRegex.containsMatchIn(body) && !bankIndicatorsRegex.containsMatchIn(body)) {
+            return ParseResult.Ignored(IgnoreReason.PROMO)
+        }
+
+        val bodyLower = body.lowercase()
+        val hasTransactionKeyword =
+            bodyLower.contains("debited") || bodyLower.contains("credited") ||
+                bodyLower.contains("spent") || bodyLower.contains("withdrawn") ||
+                bodyLower.contains("transferred") || bodyLower.contains("transfer") ||
+                bodyLower.contains("paid") || bodyLower.contains("sent") ||
+                bodyLower.contains("deducted") || bodyLower.contains("charged") ||
+                bodyLower.contains("received") || bodyLower.contains("deposited") ||
+                bodyLower.contains("refunded")
+
+        if (winCongratRegex.containsMatchIn(body) && !hasTransactionKeyword) {
+            return ParseResult.Ignored(IgnoreReason.PROMO)
+        }
+
+        // 3. Reminder & Pre-debit e-mandate notices
+        if (reminderRegex.containsMatchIn(body) ||
+            preDebitMandateRegex.containsMatchIn(body) ||
+            futureDebitRegex.containsMatchIn(body) ||
+            maintainBalanceRegex.containsMatchIn(body) ||
+            (bodyLower.contains("mandate") && (bodyLower.contains("umn") || bodyLower.contains("will be")))
+        ) {
             return ParseResult.Ignored(IgnoreReason.REMINDER)
         }
 
@@ -43,11 +86,7 @@ object NoiseFilter {
         }
 
         // 5. Enquiry (Balance check only)
-        val bodyLower = body.lowercase()
-        if ((bodyLower.contains("balance") || bodyLower.contains("bal")) &&
-            !bodyLower.contains("debited") && !bodyLower.contains("credited") &&
-            !bodyLower.contains("spent") && !bodyLower.contains("withdrawn")
-        ) {
+        if ((bodyLower.contains("balance") || bodyLower.contains("bal")) && !hasTransactionKeyword) {
             return ParseResult.Ignored(IgnoreReason.ENQUIRY)
         }
 

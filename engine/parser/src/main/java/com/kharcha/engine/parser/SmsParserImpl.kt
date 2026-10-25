@@ -88,7 +88,7 @@ class SmsParserImpl(
                             dateTime = dateTime,
                             accountLast4 = last4,
                             bankName = template.bank,
-                            merchantRaw = merchant,
+                            merchantRaw = merchant ?: upiId,
                             channel = template.channel,
                             balanceAfterMinor = balanceMinor,
                             refNumber = refNumber,

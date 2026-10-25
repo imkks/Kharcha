@@ -1,0 +1,10 @@
+{
+  "id": "sbi_credit_v1",
+  "bank": "SBI",
+  "senderPatterns": ["^[A-Za-z]{2}-?(SBINB|SBIUPI|SBIPIN|SBIINB)$"],
+  "direction": "CREDIT",
+  "channel": "NEFT",
+  "regex": "(?i)Your\\s+A/[Cc]\\s+(?:ending\\s+with|ending|no\\.?|X+|\\*+)?\\s*(?<last4>\\d{4})\\s+(?:has\\s+been\\s+)?credited\\s+by\\s+(?:Rs\\.?|INR|₹)?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}[A-Za-z]{3}\\d{2,4})\\s+by\\s+(?:(?:NEFT|IMPS|RTGS|UPI)\\s+(?:transfer\\s+)?from\\s+|transfer\\s+from\\s+|from\\s+)?(?<merchant>[^.]+?)(?:\\s+Ref\\s+(?<ref>\\d+)|\\.|$)",
+  "dateFormats": ["ddMMMyy", "dd-MMM-yy", "ddMMMyyyy", "dd-MMM-yyyy"],
+  "confidence": 0.95
+}

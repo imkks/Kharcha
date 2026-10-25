@@ -1,0 +1,10 @@
+{
+  "id": "airtel_bank_debit_v1",
+  "bank": "AIRTEL",
+  "senderPatterns": ["^[A-Za-z]{2}-?(AIRBNK|AIRTEL)$"],
+  "direction": "DEBIT",
+  "channel": "WALLET",
+  "regex": "(?i)(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+debited\\s+from\\s+Airtel\\s+Payments\\s+Bank\\s+A/[Cc]\\s+(?:ending\\s+with|ending|no\\.?|X+|\\*+)?\\s*(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{2}-\\d{2}-\\d{2,4})\\s+(?:towards|to)\\s+(?<merchant>[^.]+?)(?:\\.\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*)|\\.?$)",
+  "dateFormats": ["dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

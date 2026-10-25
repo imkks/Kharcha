@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_title">Kharcha</string>
+    <string name="home_period_this_month">This Month</string>
+    <string name="home_period_last_month">Last Month</string>
+    <string name="home_period_all">All Time</string>
+    <string name="home_summary_net">Net Balance</string>
+    <string name="home_summary_income">Total Income</string>
+    <string name="home_summary_expense">Total Expense</string>
+    <string name="home_review_title">%1$d transactions need a quick look</string>
+    <string name="home_review_button">Review</string>
+    <string name="home_recent_title">Recent Transactions</string>
+    <string name="home_see_all">See all</string>
+    <string name="home_empty_title">No transactions yet</string>
+    <string name="home_empty_subtitle">New SMS from your banks will appear here automatically.</string>
+    <string name="home_safe_to_spend_title">Safe-to-Spend</string>
+    <string name="home_safe_daily_subtitle">Daily Safe Allowance</string>
+    <string name="home_status_on_track">On Track</string>
+    <string name="home_status_warning">Pacing High</string>
+    <string name="home_status_exceeded">Exceeded</string>
+    <string name="home_daily_burn_rate">Daily burn: %1$s/day</string>
+    <string name="home_days_remaining">%1$d days left</string>
+    <string name="home_spending_breakdown_title">Spending Breakdown</string>
+    <string name="home_spending_breakdown_others">Others</string>
+</resources>

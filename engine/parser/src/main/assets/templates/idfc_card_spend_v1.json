@@ -1,0 +1,10 @@
+{
+  "id": "idfc_card_spend_v1",
+  "bank": "IDFC",
+  "senderPatterns": ["^[A-Za-z]{2}-?(IDFCFB|IDFCBK).*$", "^(IDFCFB|IDFCBK).*$"],
+  "direction": "DEBIT",
+  "channel": "CARD",
+  "regex": "(?i)(?:Transaction Successful!?\\s*)?(?:INR|Rs\\.?|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+spent\\s+on\\s+(?:your\\s+)?(?:IDFC\\s+FIRST\\s+Bank\\s+)?Credit\\s+Card\\s+(?:ending|with)?\\s*(?:XX|X+|\\*+)?(?<last4>\\d{4})\\s+at\\s+(?<merchant>.+?)\\s+on\\s+(?<date>\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{2,4})(?:\\s+at\\s+[\\d:]+\\s*(?:AM|PM|am|pm)?)?(?:\\.?\\s+Avbl\\s+Limit:?\\s*(?:INR|Rs\\.?|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["d MMM yyyy", "dd MMM yyyy", "d-MMM-yyyy", "dd-MMM-yyyy", "dd-MMM-yy"],
+  "confidence": 0.95
+}

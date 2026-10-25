@@ -1,6 +1,7 @@
 package com.kharcha.feature.transactions.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,6 +73,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -86,6 +89,7 @@ import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.component.DonutChart
 import com.kharcha.core.designsystem.component.SwipeableTransactionRow
+import com.kharcha.core.designsystem.component.TwoColumnDonutChart
 import com.kharcha.core.designsystem.component.buildCategorySlices
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
@@ -423,11 +427,34 @@ fun TransactionsScreen(
                 contentColor = MaterialTheme.financialColors.income,
                 divider = {},
                 indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedSubTab.ordinal]),
-                        color = MaterialTheme.financialColors.income,
-                        height = 3.dp,
-                    )
+                    if (selectedSubTab.ordinal < tabPositions.size) {
+                        val currentTabPosition = tabPositions[selectedSubTab.ordinal]
+                        Box(
+                            modifier =
+                                Modifier
+                                    .tabIndicatorOffset(currentTabPosition)
+                                    .fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .width(48.dp)
+                                        .height(3.dp)
+                                        .clip(RoundedCornerShape(3.dp))
+                                        .background(
+                                            brush =
+                                                Brush.horizontalGradient(
+                                                    listOf(
+                                                        MaterialTheme.financialColors.income.copy(alpha = 0.5f),
+                                                        MaterialTheme.financialColors.income,
+                                                        MaterialTheme.financialColors.income.copy(alpha = 0.5f),
+                                                    ),
+                                                ),
+                                        ),
+                            )
+                        }
+                    }
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
@@ -453,20 +480,22 @@ fun TransactionsScreen(
                 }
             }
 
-            // 2. Hero Month Circular Ring & Stats Overview
-            HeroMonthSummary(
-                totalExpenseMinor = monthExpense,
-                totalIncomeMinor = monthIncome,
-                monthlyBudgetMinor = monthlyBudgetMinor,
-                onSetBudgetClick = onSetBudgetClick,
-            )
+            // 2. Hero Month Circular Ring & Stats Overview (Only in Transactions tab)
+            if (selectedSubTab == TransactionsSubTab.TRANSACTIONS) {
+                HeroMonthSummary(
+                    totalExpenseMinor = monthExpense,
+                    totalIncomeMinor = monthIncome,
+                    monthlyBudgetMinor = monthlyBudgetMinor,
+                    onSetBudgetClick = onSetBudgetClick,
+                )
+            }
 
-            // 3. Tab Content in Rounded Container
-            Surface(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                tonalElevation = 2.dp,
+            // 3. Tab Content
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
             ) {
                 when (selectedSubTab) {
                     TransactionsSubTab.TRANSACTIONS -> {
@@ -480,61 +509,76 @@ fun TransactionsScreen(
                                 modifier = Modifier.fillMaxSize(),
                             )
                         } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            Card(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                shape = RoundedCornerShape(20.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
+                                colors =
+                                    CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    ),
                             ) {
-                                items(sortedMonthTxns, key = { it.id }) { txn ->
-                                    val deletedMsg = stringResource(id = DesignR.string.swipe_deleted_message)
-                                    val undoMsg = stringResource(id = DesignR.string.swipe_undo)
-                                    val isSelected = selectedIds.contains(txn.id)
-                                    val isSelectionMode = selectedIds.isNotEmpty()
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(vertical = 8.dp),
+                                ) {
+                                    itemsIndexed(sortedMonthTxns, key = { _, txn -> txn.id }) { index, txn ->
+                                        val deletedMsg = stringResource(id = DesignR.string.swipe_deleted_message)
+                                        val undoMsg = stringResource(id = DesignR.string.swipe_undo)
+                                        val isSelected = selectedIds.contains(txn.id)
+                                        val isSelectionMode = selectedIds.isNotEmpty()
 
-                                    SwipeableTransactionRow(
-                                        transaction = txn,
-                                        onClick = {
-                                            if (isSelectionMode) {
-                                                selectedIds =
-                                                    if (isSelected) {
-                                                        selectedIds - txn.id
-                                                    } else {
-                                                        selectedIds + txn.id
-                                                    }
-                                            } else {
-                                                onTransactionClick(txn)
-                                            }
-                                        },
-                                        onLongClick = {
-                                            if (!isSelectionMode) {
-                                                selectedIds = setOf(txn.id)
-                                            }
-                                        },
-                                        isSelected = isSelected,
-                                        isSelectionMode = isSelectionMode,
-                                        enableSwipe = !isSelectionMode,
-                                        onDelete = { toDelete ->
-                                            onDeleteTransaction(toDelete)
-                                            scope.launch {
-                                                val result =
-                                                    snackbarHostState.showSnackbar(
-                                                        message = deletedMsg,
-                                                        actionLabel = undoMsg,
-                                                        duration = SnackbarDuration.Short,
-                                                    )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    onRestoreTransaction(toDelete)
+                                        SwipeableTransactionRow(
+                                            transaction = txn,
+                                            onClick = {
+                                                if (isSelectionMode) {
+                                                    selectedIds =
+                                                        if (isSelected) {
+                                                            selectedIds - txn.id
+                                                        } else {
+                                                            selectedIds + txn.id
+                                                        }
+                                                } else {
+                                                    onTransactionClick(txn)
                                                 }
-                                            }
-                                        },
-                                        onReview = { toReview ->
-                                            onReviewTransaction(toReview.copy(isReviewed = true))
-                                        },
-                                    )
+                                            },
+                                            onLongClick = {
+                                                if (!isSelectionMode) {
+                                                    selectedIds = setOf(txn.id)
+                                                }
+                                            },
+                                            isSelected = isSelected,
+                                            isSelectionMode = isSelectionMode,
+                                            enableSwipe = !isSelectionMode,
+                                            onDelete = { toDelete ->
+                                                onDeleteTransaction(toDelete)
+                                                scope.launch {
+                                                    val result =
+                                                        snackbarHostState.showSnackbar(
+                                                            message = deletedMsg,
+                                                            actionLabel = undoMsg,
+                                                            duration = SnackbarDuration.Short,
+                                                        )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        onRestoreTransaction(toDelete)
+                                                    }
+                                                }
+                                            },
+                                            onReview = { toReview ->
+                                                onReviewTransaction(toReview.copy(isReviewed = true))
+                                            },
+                                        )
 
-                                    HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                                        modifier = Modifier.padding(horizontal = 8.dp),
-                                    )
+                                        if (index < sortedMonthTxns.size - 1) {
+                                            HorizontalDivider(
+                                                color = Color.White.copy(alpha = 0.08f),
+                                                modifier = Modifier.padding(horizontal = 16.dp),
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -542,6 +586,8 @@ fun TransactionsScreen(
                     TransactionsSubTab.CATEGORIES -> {
                         CategoriesTabContent(
                             transactions = monthTransactions,
+                            monthlyBudgetMinor = monthlyBudgetMinor,
+                            onSetBudgetClick = onSetBudgetClick,
                             onCategoryClick = { category ->
                                 currentFilter = currentFilter.copy(categories = setOf(category))
                                 selectedSubTab = TransactionsSubTab.TRANSACTIONS
@@ -807,12 +853,25 @@ fun HeroMonthSummary(
 @Composable
 fun CategoriesTabContent(
     transactions: List<Transaction>,
+    monthlyBudgetMinor: Long = 0L,
+    onSetBudgetClick: () -> Unit = {},
     onCategoryClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
     val totalExpense = expenses.sumOf { it.amount }
-    val slices = remember(transactions) { buildCategorySlices(transactions) }
+    val slices =
+        remember(transactions) {
+            buildCategorySlices(transactions, maxCategories = 8)
+        }
+    val isPrivacy = LocalPrivacyMode.current
+
+    val categoryTxnCounts =
+        remember(expenses) {
+            expenses
+                .groupBy { it.categorySource?.trim().takeUnless { s -> s.isNullOrEmpty() } ?: "Others" }
+                .mapValues { it.value.size }
+        }
 
     if (expenses.isEmpty()) {
         Box(
@@ -828,47 +887,208 @@ fun CategoriesTabContent(
     } else {
         LazyColumn(
             modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // 1. Two-Column Donut Chart at the top
             item {
-                DonutChart(
+                TwoColumnDonutChart(
                     slices = slices,
                     totalAmountMinor = totalExpense,
                     onCategoryClick = onCategoryClick,
                 )
             }
-            items(slices) { slice ->
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth().clickable { onCategoryClick(slice.categoryName) },
+
+            // 2. Two-column Summary Card
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 14.dp, horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // Left Column: Spends label with bold total amount
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.transactions_hero_spends),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val totalFormatted =
+                                if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalExpense)
+                            Text(
+                                text = totalFormatted,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+
+                        VerticalDivider(
+                            modifier = Modifier.height(36.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                        )
+
+                        // Right Column: Set monthly budget with circular gauge icon
+                        Row(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .clickable { onSetBudgetClick() }
+                                    .padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                                        ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.financialColors.income,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                val budgetLabel =
+                                    if (monthlyBudgetMinor > 0L) {
+                                        stringResource(id = R.string.transactions_hero_budget)
+                                    } else {
+                                        stringResource(id = R.string.transactions_hero_set_budget)
+                                    }
+                                Text(
+                                    text = budgetLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                if (monthlyBudgetMinor > 0L) {
+                                    val budgetFormatted =
+                                        if (isPrivacy) {
+                                            "₹ ••••••"
+                                        } else {
+                                            MoneyFormatter.formatMinorUnits(monthlyBudgetMinor)
+                                        }
+                                    Text(
+                                        text = budgetFormatted,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Category cards in dark rounded card
+            items(slices) { slice ->
+                val count = categoryTxnCounts[slice.categoryName] ?: 0
+                val countText =
+                    if (count == 1) {
+                        stringResource(id = R.string.transactions_spend_count_single)
+                    } else {
+                        stringResource(id = R.string.transactions_spends_count, count)
+                    }
+                val isOthers =
+                    slice.categoryName.equals("Others", ignoreCase = true) ||
+                        slice.categoryName.equals("Unknown", ignoreCase = true) ||
+                        slice.categoryName.equals("Uncategorized", ignoreCase = true)
+                val actionText =
+                    if (isOthers) {
+                        stringResource(id = R.string.transactions_action_categorise)
+                    } else {
+                        stringResource(id = R.string.transactions_action_set_budget)
+                    }
+
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onCategoryClick(slice.categoryName) },
+                ) {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CategoryBadge(categoryName = slice.categoryName, size = 32.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            CategoryBadge(categoryName = slice.categoryName, size = 40.dp)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
                                     text = slice.categoryName,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "${"%.1f".format(slice.percentage)}%",
+                                    text = countText,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
-                        Text(
-                            text = MoneyFormatter.formatMinorUnits(slice.amountMinor),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(horizontalAlignment = Alignment.End) {
+                            val amountFormatted =
+                                if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(slice.amountMinor)
+                            Text(
+                                text = amountFormatted,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = actionText,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.financialColors.income,
+                                modifier =
+                                    Modifier.clickable {
+                                        if (isOthers) {
+                                            onCategoryClick(slice.categoryName)
+                                        } else {
+                                            onSetBudgetClick()
+                                        }
+                                    },
+                            )
+                        }
                     }
                 }
             }
@@ -883,6 +1103,7 @@ fun MerchantsTabContent(
     modifier: Modifier = Modifier,
 ) {
     val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    val isPrivacy = LocalPrivacyMode.current
     val topMerchants =
         remember(expenses) {
             expenses
@@ -910,32 +1131,70 @@ fun MerchantsTabContent(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(topMerchants) { (merchant, amountMinor, count) ->
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth().clickable { onMerchantClick(merchant) },
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onMerchantClick(merchant) },
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = merchant,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = "$count transactions",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_storefront),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = merchant,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                val spendCountText =
+                                    if (count == 1) {
+                                        stringResource(id = R.string.transactions_spend_count_single)
+                                    } else {
+                                        stringResource(id = R.string.transactions_spends_count, count)
+                                    }
+                                Text(
+                                    text = spendCountText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        val formattedAmount =
+                            if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(amountMinor)
                         Text(
-                            text = MoneyFormatter.formatMinorUnits(amountMinor),
+                            text = formattedAmount,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.financialColors.expense,

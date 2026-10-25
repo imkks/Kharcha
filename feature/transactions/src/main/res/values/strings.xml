@@ -49,6 +49,7 @@
     <string name="detail_channel">Channel</string>
     <string name="detail_reference">Reference</string>
     <string name="detail_copied">Copied to clipboard</string>
+    <string name="detail_copy_ref">Copy to clipboard</string>
     <string name="detail_upi_id">UPI ID</string>
     <string name="detail_balance_after">Balance After</string>
     <string name="detail_parse_confidence">Parse Confidence</string>

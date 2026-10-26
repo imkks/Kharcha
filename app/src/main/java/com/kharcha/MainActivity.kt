@@ -398,7 +398,6 @@ fun MainAppShell(
                             }
                         }
                     },
-                    modifier = Modifier.padding(innerPadding),
                 )
             }
         }

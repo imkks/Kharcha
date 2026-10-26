@@ -1,20 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="onboarding_welcome_title">Track every rupee automatically</string>
-    <string name="onboarding_welcome_subtitle">reading bank SMS on your phone only</string>
-    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_welcome_title">Track spends\nautomatically</string>
+    <string name="onboarding_welcome_subtitle">Smart, effortless financial insights right from your bank alert SMS.</string>
+    <string name="onboarding_get_started">Get Started</string>
 
+    <string name="onboarding_trust_on_device_title">100% On-Device</string>
+    <string name="onboarding_trust_on_device_desc">Your financial data is processed locally and never leaves your phone.</string>
+    <string name="onboarding_trust_offline_title">Zero Internet Access</string>
+    <string name="onboarding_trust_offline_desc">Kharcha has no network permissions, guaranteeing complete offline privacy.</string>
+    <string name="onboarding_trust_insights_title">Instant Organization</string>
+    <string name="onboarding_trust_insights_desc">UPI, card spends, and bank balances sorted into categories and budgets.</string>
+    <string name="onboarding_welcome_footer">No account required • 100% Private &amp; Offline</string>
+
+    <string name="onboarding_permission_title">Enable SMS access</string>
+    <string name="onboarding_permission_subtitle">Kharcha reads your bank SMS alerts to log debits, credits, and account balances automatically.</string>
+    <string name="onboarding_permission_rationale">We need READ_SMS and RECEIVE_SMS to automatically categorize your transactions.</string>
+    <string name="onboarding_permission_point_automated">Automates manual expense tracking</string>
+    <string name="onboarding_permission_point_accounts">Auto-detects bank accounts, cards &amp; UPI</string>
+    <string name="onboarding_permission_point_private">Personal SMS and OTPs are strictly ignored</string>
+    <string name="onboarding_permission_cta">Allow SMS Access</string>
+    <string name="onboarding_grant_permission">Allow SMS Access</string>
+    <string name="onboarding_use_manual">Continue Manually</string>
+    <string name="onboarding_open_settings">Open Settings</string>
+    <string name="onboarding_permission_denied_help">SMS access is needed to read your bank alerts. You can enable it in App Settings or continue manually.</string>
+
+    <string name="onboarding_import_progress_counter">%1$d transactions found</string>
+    <string name="onboarding_importing_title">Reading your messages</string>
+    <string name="onboarding_importing_subtitle">Scanning bank SMS alerts and organizing your accounts…</string>
+    <string name="onboarding_import_complete_title">You\'re all set!</string>
+    <string name="onboarding_import_complete_subtitle">All your transactions have been organized and are ready on your dashboard.</string>
+    <string name="onboarding_continue_to_app">Go to Dashboard</string>
+    <string name="onboarding_skip_to_app">Skip to App</string>
+    <string name="onboarding_transactions_found_label">Transactions Found</string>
+
+    <!-- Deprecated strings kept for backward compatibility -->
     <string name="onboarding_privacy_device">Stays on your device</string>
     <string name="onboarding_privacy_messages">Only bank messages are read</string>
     <string name="onboarding_privacy_delete">You can delete everything anytime</string>
     <string name="onboarding_privacy_link">Privacy Policy</string>
     <string name="onboarding_continue">Continue</string>
-
-    <string name="onboarding_permission_rationale">We need READ_SMS and RECEIVE_SMS to automatically categorize your transactions.</string>
-    <string name="onboarding_grant_permission">Grant permission</string>
-    <string name="onboarding_use_manual">Use manual mode</string>
-    <string name="onboarding_open_settings">Open settings</string>
-
     <string name="onboarding_setup_currency">Currency</string>
     <string name="onboarding_setup_import_window">Import Window</string>
     <string name="onboarding_setup_30_days">30 days</string>
@@ -23,10 +47,4 @@
     <string name="onboarding_setup_all">All</string>
     <string name="onboarding_setup_store_original">Store original SMS text</string>
     <string name="onboarding_setup_start_import">Start Import</string>
-
-    <string name="onboarding_import_progress_counter">Found %1$d transactions</string>
-    <string name="onboarding_importing_title">Reading your messages</string>
-    <string name="onboarding_import_complete_title">All done!</string>
-    <string name="onboarding_continue_to_app">Continue to app</string>
-    <string name="onboarding_skip_to_app">Skip to app</string>
 </resources>

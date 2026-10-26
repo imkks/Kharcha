@@ -98,15 +98,16 @@ class OnboardingViewModel
 
         fun onPermissionResult(isGranted: Boolean) {
             if (isGranted) {
-                _uiState.update { it.copy(currentState = OnboardingState.SETUP, isPermissionDenied = false) }
+                _uiState.update { it.copy(currentState = OnboardingState.IMPORT_PROGRESS, isPermissionDenied = false) }
+                startImport(window = "All", storeRaw = false)
             } else {
                 _uiState.update { it.copy(isPermissionDenied = true) }
             }
         }
 
         fun startImport(
-            window: String,
-            storeRaw: Boolean,
+            window: String = "All",
+            storeRaw: Boolean = false,
         ) {
             _uiState.update {
                 it.copy(

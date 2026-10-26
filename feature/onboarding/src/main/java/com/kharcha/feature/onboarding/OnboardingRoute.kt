@@ -14,9 +14,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 enum class OnboardingState {
     WELCOME,
-    PRIVACY,
     PERMISSION,
-    SETUP,
     IMPORT_PROGRESS,
 }
 
@@ -40,10 +38,9 @@ fun OnboardingRoute(
 
     when (uiState.currentState) {
         OnboardingState.WELCOME -> {
-            WelcomeScreen(onGetStartedClick = { viewModel.moveToState(OnboardingState.PRIVACY) })
-        }
-        OnboardingState.PRIVACY -> {
-            PrivacyScreen(onContinueClick = { viewModel.moveToState(OnboardingState.PERMISSION) })
+            WelcomeScreen(
+                onGetStartedClick = { viewModel.moveToState(OnboardingState.PERMISSION) },
+            )
         }
         OnboardingState.PERMISSION -> {
             PermissionScreen(
@@ -57,9 +54,7 @@ fun OnboardingRoute(
                         ),
                     )
                 },
-                onUseManualMode = {
-                    viewModel.moveToState(OnboardingState.SETUP)
-                },
+                onUseManualMode = onOnboardingComplete,
                 onOpenSettings = {
                     val intent =
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -69,11 +64,6 @@ fun OnboardingRoute(
                 },
                 isDenied = uiState.isPermissionDenied,
             )
-        }
-        OnboardingState.SETUP -> {
-            SetupScreen(onStartImport = { window, storeRaw ->
-                viewModel.startImport(window, storeRaw)
-            })
         }
         OnboardingState.IMPORT_PROGRESS -> {
             ImportProgressScreen(

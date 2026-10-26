@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
+@Deprecated("Removed from onboarding flow.")
 @Composable
 fun PrivacyScreen(onContinueClick: () -> Unit) {
     Column(

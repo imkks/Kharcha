@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
+@Deprecated("Removed from onboarding flow.")
 @Composable
 fun SetupScreen(onStartImport: (window: String, storeRaw: Boolean) -> Unit) {
     var storeRawSms by remember { mutableStateOf(false) }

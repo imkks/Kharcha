@@ -21,6 +21,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OnboardingViewModelTest {
@@ -30,12 +31,17 @@ class OnboardingViewModelTest {
     private val deduplicator: Deduplicator = mockk()
     private val transactionRepository: TransactionRepository = mockk(relaxed = true)
     private val context: Context = mockk(relaxed = true)
+    private lateinit var tempDir: File
 
     private lateinit var viewModel: OnboardingViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        tempDir = File(System.getProperty("java.io.tmpdir"), "onboarding_test_${System.currentTimeMillis()}")
+        tempDir.mkdirs()
+        every { context.filesDir } returns tempDir
+        every { context.applicationContext } returns context
         viewModel =
             OnboardingViewModel(
                 inboxReader,
@@ -50,6 +56,7 @@ class OnboardingViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        tempDir.deleteRecursively()
     }
 
     @Test

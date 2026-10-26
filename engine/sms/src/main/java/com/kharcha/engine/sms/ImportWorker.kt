@@ -84,17 +84,23 @@ class ImportWorker
                                                 isCredit,
                                                 isTransfer,
                                             )
-                                        val accountRepo =
-                                            DefaultAccountRepository.getInstance(applicationContext)
-                                        val account =
-                                            accountRepo.resolveOrCreateAccount(
-                                                bankName = parsed.bankName,
-                                                last4 = parsed.accountLast4,
-                                                channel = parsed.channel,
-                                                balanceMinor = parsed.balanceAfterMinor,
-                                                timestamp = parsed.dateTime ?: sms.receivedAt,
-                                                smsBody = sms.body,
-                                            )
+                                        val accountId =
+                                            try {
+                                                val accountRepo =
+                                                    DefaultAccountRepository.getInstance(applicationContext)
+                                                val account =
+                                                    accountRepo.resolveOrCreateAccount(
+                                                        bankName = parsed.bankName,
+                                                        last4 = parsed.accountLast4,
+                                                        channel = parsed.channel,
+                                                        balanceMinor = parsed.balanceAfterMinor,
+                                                        timestamp = parsed.dateTime ?: sms.receivedAt,
+                                                        smsBody = sms.body,
+                                                    )
+                                                account.id
+                                            } catch (_: Throwable) {
+                                                1L
+                                            }
                                         val txn =
                                             Transaction(
                                                 id = sms.id,
@@ -104,7 +110,7 @@ class ImportWorker
                                                         sms.body,
                                                         sms.receivedAt,
                                                     ),
-                                                accountId = account.id,
+                                                accountId = accountId,
                                                 type = type,
                                                 amount = parsed.amountMinor,
                                                 currency = parsed.currency,

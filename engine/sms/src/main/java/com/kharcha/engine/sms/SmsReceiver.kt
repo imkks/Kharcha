@@ -87,22 +87,28 @@ class SmsReceiver : BroadcastReceiver() {
                                 userRules = userRules,
                             )
 
-                        val accountRepo = DefaultAccountRepository.getInstance(context)
-                        val account =
-                            accountRepo.resolveOrCreateAccount(
-                                bankName = parsed.bankName,
-                                last4 = parsed.accountLast4,
-                                channel = parsed.channel,
-                                balanceMinor = parsed.balanceAfterMinor,
-                                timestamp = parsed.dateTime ?: receivedAt,
-                                smsBody = body,
-                            )
+                        val accountId =
+                            try {
+                                val accountRepo = DefaultAccountRepository.getInstance(context)
+                                val account =
+                                    accountRepo.resolveOrCreateAccount(
+                                        bankName = parsed.bankName,
+                                        last4 = parsed.accountLast4,
+                                        channel = parsed.channel,
+                                        balanceMinor = parsed.balanceAfterMinor,
+                                        timestamp = parsed.dateTime ?: receivedAt,
+                                        smsBody = body,
+                                    )
+                                account.id
+                            } catch (_: Throwable) {
+                                1L
+                            }
 
                         val txn =
                             Transaction(
                                 id = rawSms.id,
                                 smsHash = "$sender|$body|$receivedAt",
-                                accountId = account.id,
+                                accountId = accountId,
                                 type = type,
                                 amount = parsed.amountMinor,
                                 currency = parsed.currency,

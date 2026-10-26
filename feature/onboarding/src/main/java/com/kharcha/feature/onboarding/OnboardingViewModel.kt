@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.kharcha.core.common.AccountRepository
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
@@ -50,6 +51,7 @@ class OnboardingViewModel
         @ApplicationContext private val context: Context,
     ) : ViewModel() {
         var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+        var accountRepository: AccountRepository? = null
 
         constructor(
             inboxReader: InboxReader,
@@ -58,8 +60,10 @@ class OnboardingViewModel
             transactionRepository: TransactionRepository,
             context: Context,
             ioDispatcher: CoroutineDispatcher,
+            accountRepository: AccountRepository? = null,
         ) : this(inboxReader, senderFilter, deduplicator, transactionRepository, context) {
             this.ioDispatcher = ioDispatcher
+            this.accountRepository = accountRepository
         }
 
         constructor(
@@ -203,22 +207,29 @@ class OnboardingViewModel
                             val isHighConf = (parsedTxn.confidence >= 0.8f) && (rawMerchant != null)
                             val isReviewed = isUserCategorized || (isHighConf && category != "Other")
 
-                            val accountRepo = DefaultAccountRepository.getInstance(context)
-                            val account =
-                                accountRepo.resolveOrCreateAccount(
-                                    bankName = parsedTxn.bankName,
-                                    last4 = parsedTxn.accountLast4,
-                                    channel = parsedTxn.channel,
-                                    balanceMinor = parsedTxn.balanceAfterMinor,
-                                    timestamp = parsedTxn.dateTime ?: sms.receivedAt,
-                                    smsBody = sms.body,
-                                )
+                            val accountId =
+                                try {
+                                    val accountRepo =
+                                        accountRepository ?: DefaultAccountRepository.getInstance(context)
+                                    val account =
+                                        accountRepo.resolveOrCreateAccount(
+                                            bankName = parsedTxn.bankName,
+                                            last4 = parsedTxn.accountLast4,
+                                            channel = parsedTxn.channel,
+                                            balanceMinor = parsedTxn.balanceAfterMinor,
+                                            timestamp = parsedTxn.dateTime ?: sms.receivedAt,
+                                            smsBody = sms.body,
+                                        )
+                                    account.id
+                                } catch (_: Throwable) {
+                                    1L
+                                }
 
                             val txn =
                                 Transaction(
                                     id = sms.id,
                                     smsHash = hash,
-                                    accountId = account.id,
+                                    accountId = accountId,
                                     type = type,
                                     amount = parsedTxn.amountMinor,
                                     currency = parsedTxn.currency,

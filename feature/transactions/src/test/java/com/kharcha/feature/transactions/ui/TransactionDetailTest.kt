@@ -133,4 +133,32 @@ class TransactionDetailTest {
         assertEquals(250000L, expenseTotal)
         assertFalse(txns.filter { it.type == TransactionType.Expense }.contains(cardBillPayment))
     }
+
+    @Test
+    fun testInwardCategoriesAndTypeMapping() {
+        assertTrue(INWARD_INCOME_CATEGORIES.contains("Salary"))
+        assertTrue(INWARD_INCOME_CATEGORIES.contains("Bank Deposit"))
+        assertTrue(INWARD_INCOME_CATEGORIES.contains("Interest"))
+        assertTrue(INWARD_NON_INCOME_CATEGORIES.contains("Refund"))
+        assertTrue(INWARD_NON_INCOME_CATEGORIES.contains("A/C Transfer"))
+        assertTrue(INWARD_NON_INCOME_CATEGORIES.contains("Bill Payment"))
+        assertTrue(EXPENSE_CATEGORIES.contains("Food & Drinks"))
+        assertTrue(EXPENSE_CATEGORIES.contains("Groceries"))
+        assertTrue(EXPENSE_CATEGORIES.contains("Fuel"))
+
+        fun mapCategoryToType(cat: String, isCredit: Boolean): TransactionType {
+            return when {
+                cat in INWARD_INCOME_CATEGORIES -> TransactionType.Income
+                cat == "Refund" -> TransactionType.Refund
+                cat in listOf("Transfer", "A/C Transfer", "Bill Payment", "Investment") -> TransactionType.Transfer
+                else -> if (isCredit) TransactionType.Income else TransactionType.Expense
+            }
+        }
+
+        assertEquals(TransactionType.Income, mapCategoryToType("Salary", isCredit = true))
+        assertEquals(TransactionType.Refund, mapCategoryToType("Refund", isCredit = true))
+        assertEquals(TransactionType.Transfer, mapCategoryToType("A/C Transfer", isCredit = true))
+        assertEquals(TransactionType.Transfer, mapCategoryToType("Bill Payment", isCredit = true))
+        assertEquals(TransactionType.Expense, mapCategoryToType("Groceries", isCredit = false))
+    }
 }

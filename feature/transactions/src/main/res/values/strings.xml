@@ -69,7 +69,14 @@
     <string name="detail_propagate_option_single">This transaction only</string>
     <string name="detail_propagate_apply">Apply</string>
     <string name="detail_propagate_cancel">Cancel</string>
-    <string name="detail_category_sheet_title">Select Category</string>
+    <string name="detail_category_sheet_title">Categories</string>
+    <string name="category_section_mark_as_income">Mark as income</string>
+    <string name="category_section_mark_as_not_income">Mark as not an income</string>
+    <string name="category_new_hint">New category</string>
+    <string name="category_mark_as_income_toggle">Mark as income</string>
+    <string name="category_mark_as_income_desc">
+        Transactions categorised with this category will be counted as income.
+    </string>
     <string name="detail_category_search_hint">Search category…</string>
     <string name="detail_action_delete">Delete</string>
     <string name="detail_delete_dialog_title">Delete Transaction?</string>

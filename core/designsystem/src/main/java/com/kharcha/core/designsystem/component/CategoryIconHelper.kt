@@ -22,7 +22,9 @@ object CategoryIconHelper {
                 lower.contains("petrol") || lower.contains("cab") -> R.drawable.ic_category_transport
 
             lower.contains("bill") || lower.contains("utility") || lower.contains("utilities") ||
-                lower.contains("recharge") || lower.contains("electricity") -> R.drawable.ic_category_bills
+                lower.contains("recharge") || lower.contains("electricity") ||
+                lower.contains("donation") || lower.contains("charity") ||
+                lower.contains("emi") || lower.contains("loan") -> R.drawable.ic_category_bills
 
             lower.contains("entertain") || lower.contains("movie") || lower.contains("music") ||
                 lower.contains("ott") -> R.drawable.ic_category_entertainment
@@ -33,9 +35,10 @@ object CategoryIconHelper {
             lower.contains("invest") || lower.contains("mutual fund") || lower.contains("stock") ||
                 lower.contains("share") -> R.drawable.ic_category_investments
 
-            lower.contains("salary") -> R.drawable.ic_category_salary
+            lower.contains("salary") || lower.contains("deposit") -> R.drawable.ic_category_salary
 
-            lower.contains("transfer") -> R.drawable.ic_category_transfer
+            lower.contains("transfer") || lower.contains("refund") || lower.contains("reimburse") ->
+                R.drawable.ic_category_transfer
 
             else -> R.drawable.ic_category_other
         }

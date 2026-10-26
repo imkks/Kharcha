@@ -94,6 +94,7 @@ import com.kharcha.core.designsystem.component.TwoColumnDonutChart
 import com.kharcha.core.designsystem.component.buildCategorySlices
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.model.Account
 import com.kharcha.core.model.AmountRangeFilter
 import com.kharcha.core.model.DateRangeSelection
 import com.kharcha.core.model.ReviewStatusFilter
@@ -151,6 +152,7 @@ fun TransactionsScreen(
     onSubTabChange: ((TransactionsSubTab) -> Unit)? = null,
     onCategoryClick: ((String) -> Unit)? = null,
     onMerchantClick: ((String) -> Unit)? = null,
+    accounts: List<Account> = emptyList(),
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var internalFilter by remember {
@@ -604,6 +606,7 @@ fun TransactionsScreen(
                     val isAllSelected = currentFilter.types.isEmpty()
                     val isExpenseSelected = currentFilter.types == setOf(TransactionType.Expense)
                     val isIncomeSelected = currentFilter.types == setOf(TransactionType.Income)
+                    val isTransferSelected = currentFilter.types == setOf(TransactionType.Transfer)
 
                     FilterChip(
                         selected = isAllSelected,
@@ -645,6 +648,21 @@ fun TransactionsScreen(
                         label = {
                             Text(
                                 text = stringResource(id = R.string.transactions_filter_income),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        },
+                    )
+
+                    FilterChip(
+                        selected = isTransferSelected,
+                        onClick = {
+                            val newTypes =
+                                if (isTransferSelected) emptySet() else setOf(TransactionType.Transfer)
+                            updateFilter(currentFilter.copy(types = newTypes))
+                        },
+                        label = {
+                            Text(
+                                text = stringResource(id = R.string.transactions_filter_transfer),
                                 style = MaterialTheme.typography.labelMedium,
                             )
                         },
@@ -823,6 +841,7 @@ fun TransactionsScreen(
                 updateFilter(currentFilter.copy(accountIds = accIds, channels = channels))
             },
             onDismiss = { showAccountsSheet = false },
+            accounts = accounts,
         )
     }
 

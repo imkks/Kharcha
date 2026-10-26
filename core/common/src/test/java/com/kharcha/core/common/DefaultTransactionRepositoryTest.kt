@@ -122,6 +122,60 @@ class DefaultTransactionRepositoryTest {
             assertEquals(2, list.size)
             assertEquals(TransactionType.Transfer, list[0].type)
             assertEquals(TransactionType.Transfer, list[1].type)
+            assertEquals(2L, list.find { it.id == 1L }?.linkedTransactionId)
+            assertEquals(1L, list.find { it.id == 2L }?.linkedTransactionId)
+        }
+
+    @Test
+    fun cardSpendsCountAsExpenseWhileCardBillPaymentIsTransfer() =
+        runTest(testDispatcher) {
+            val cardSpend =
+                Transaction(
+                    id = 101L,
+                    accountId = 10L,
+                    amount = 500000L,
+                    type = TransactionType.Expense,
+                    merchantNormalised = "Amazon",
+                    categorySource = "Shopping",
+                    dateTime = 1000L,
+                    channel = Channel.CARD,
+                )
+            val bankDebitForBill =
+                Transaction(
+                    id = 102L,
+                    accountId = 1L,
+                    amount = 500000L,
+                    type = TransactionType.Transfer,
+                    categorySource = "Transfer",
+                    dateTime = 2000L,
+                    channel = Channel.UPI,
+                )
+            val cardCreditPaymentReceived =
+                Transaction(
+                    id = 103L,
+                    accountId = 10L,
+                    amount = 500000L,
+                    type = TransactionType.Transfer,
+                    categorySource = "Transfer",
+                    dateTime = 2500L,
+                    channel = Channel.CARD,
+                )
+
+            repository.insertTransactions(listOf(cardSpend, bankDebitForBill, cardCreditPaymentReceived))
+            testScheduler.advanceUntilIdle()
+
+            val txns = repository.getTransactions().first()
+            assertEquals(3, txns.size)
+
+            val totalExpenses = txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+            assertEquals(500000L, totalExpenses)
+
+            val debitBill = txns.first { it.id == 102L }
+            val creditBill = txns.first { it.id == 103L }
+            assertEquals(TransactionType.Transfer, debitBill.type)
+            assertEquals(TransactionType.Transfer, creditBill.type)
+            assertEquals(103L, debitBill.linkedTransactionId)
+            assertEquals(102L, creditBill.linkedTransactionId)
         }
 
     @Test

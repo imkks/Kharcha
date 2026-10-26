@@ -90,12 +90,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kharcha.core.common.MoneyFormatter
+import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
 import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.model.Account
+import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
@@ -115,7 +118,9 @@ fun TransactionDetailScreen(
     onDelete: (Transaction) -> Unit,
     modifier: Modifier = Modifier,
     allTransactions: List<Transaction> = emptyList(),
+    accounts: List<Account> = emptyList(),
     onSaveTransactions: ((updatedList: List<Transaction>, updateMerchantRule: Boolean) -> Unit)? = null,
+    onNavigateToTransaction: ((Long) -> Unit)? = null,
 ) {
     var selectedType by remember { mutableStateOf(transaction.type) }
     var selectedCategory by remember { mutableStateOf(transaction.categorySource ?: "Other") }
@@ -475,6 +480,23 @@ fun TransactionDetailScreen(
 
             // 2. Account & Expense Toggle Card
             item {
+                val account = accounts.find { it.id == transaction.accountId }
+                val isCardAccount =
+                    account?.type == AccountType.CreditCard || transaction.channel == Channel.CARD
+                val accountIcon =
+                    if (isCardAccount) DesignR.drawable.ic_channel_card else DesignR.drawable.ic_bank
+                val iconTint =
+                    if (isCardAccount) {
+                        MaterialTheme.financialColors.warning
+                    } else {
+                        MaterialTheme.financialColors.income
+                    }
+                val accountName =
+                    account?.name ?: transaction.refNumber?.takeLast(4)?.let { "HDFC $it" }
+                        ?: (transaction.channel?.name ?: "Bank Account")
+                val accountTypeLabel =
+                    if (isCardAccount) "Credit Card" else "Savings Account"
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
@@ -504,47 +526,175 @@ fun TransactionDetailScreen(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
-                                    painter = painterResource(id = DesignR.drawable.ic_bank),
+                                    painter = painterResource(id = accountIcon),
                                     contentDescription = null,
-                                    tint = MaterialTheme.financialColors.income,
+                                    tint = iconTint,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
-                            val accountName =
-                                transaction.refNumber?.takeLast(4)?.let { "HDFC $it" }
-                                    ?: (transaction.channel?.name ?: "Bank Account")
-                            Text(
-                                text = accountName,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
+                            Column {
+                                Text(
+                                    text = accountName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = accountTypeLabel,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
 
+                        if (selectedType == TransactionType.Transfer) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.financialColors.transfer.copy(alpha = 0.15f),
+                            ) {
+                                Text(
+                                    text = "Transfer",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.financialColors.transfer,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                )
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.detail_account_expense),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Switch(
+                                    checked = selectedType == TransactionType.Expense,
+                                    onCheckedChange = { isExpense ->
+                                        selectedType =
+                                            if (isExpense) {
+                                                TransactionType.Expense
+                                            } else {
+                                                TransactionType.Income
+                                            }
+                                    },
+                                    colors =
+                                        SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = MaterialTheme.financialColors.income,
+                                        ),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Linked Transfer / Card Bill Payment Card
+            val linkedTxn =
+                remember(transaction.linkedTransactionId, allTransactions) {
+                    transaction.linkedTransactionId?.let { id ->
+                        allTransactions.find { it.id == id }
+                    }
+                }
+            val linkedAccount =
+                remember(linkedTxn, accounts) {
+                    linkedTxn?.let { lt -> accounts.find { it.id == lt.accountId } }
+                }
+
+            if (linkedTxn != null || selectedType == TransactionType.Transfer) {
+                item {
+                    val account = accounts.find { it.id == transaction.accountId }
+                    val isCardAccount =
+                        account?.type == AccountType.CreditCard || transaction.channel == Channel.CARD
+                    val targetCard =
+                        TransactionClassifierHelper.extractTargetCardLast4(transaction.note ?: "")
+
+                    val transferTitle =
+                        when {
+                            linkedTxn != null && isCardAccount ->
+                                "Card Bill Paid from ${linkedAccount?.name ?: "Bank Account"}"
+                            linkedTxn != null ->
+                                "Paid to ${linkedAccount?.name ?: "Credit Card"}"
+                            targetCard != null ->
+                                "Payment to Card ••$targetCard"
+                            else -> "Transfer"
+                        }
+
+                    val transferSubtitle =
+                        if (linkedTxn != null) {
+                            "Reconciled Transfer • No double counting"
+                        } else {
+                            "Card Bill Payment / Transfer • Excluded from Expense"
+                        }
+
+                    Card(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (linkedTxn != null && onNavigateToTransaction != null) {
+                                        Modifier.clickable { onNavigateToTransaction(linkedTxn.id) }
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
+                        shape = RoundedCornerShape(18.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
+                    ) {
                         Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text(
-                                text = stringResource(id = R.string.detail_account_expense),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Switch(
-                                checked = selectedType == TransactionType.Expense,
-                                onCheckedChange = { isExpense ->
-                                    selectedType =
-                                        if (isExpense) {
-                                            TransactionType.Expense
-                                        } else {
-                                            TransactionType.Income
-                                        }
-                                },
-                                colors =
-                                    SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = MaterialTheme.financialColors.income,
-                                    ),
-                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.financialColors.transfer.copy(alpha = 0.15f),
+                                modifier = Modifier.size(38.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_category_transfer),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.financialColors.transfer,
+                                    modifier = Modifier.padding(9.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = transferTitle,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = transferSubtitle,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (linkedTxn != null) {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = MoneyFormatter.formatMinorUnits(linkedTxn.amount),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.financialColors.transfer,
+                                    )
+                                    Text(
+                                        text = "Linked",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.financialColors.income,
+                                    )
+                                }
+                            }
                         }
                     }
                 }

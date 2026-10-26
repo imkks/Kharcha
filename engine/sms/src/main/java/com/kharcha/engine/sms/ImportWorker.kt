@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.model.Direction
@@ -83,15 +84,27 @@ class ImportWorker
                                                 isCredit,
                                                 isTransfer,
                                             )
+                                        val accountRepo =
+                                            DefaultAccountRepository.getInstance(applicationContext)
+                                        val account =
+                                            accountRepo.resolveOrCreateAccount(
+                                                bankName = parsed.bankName,
+                                                last4 = parsed.accountLast4,
+                                                channel = parsed.channel,
+                                                balanceMinor = parsed.balanceAfterMinor,
+                                                timestamp = parsed.dateTime ?: sms.receivedAt,
+                                                smsBody = sms.body,
+                                            )
                                         val txn =
                                             Transaction(
                                                 id = sms.id,
-                                                smsHash = deduplicator.generateHash(
-                                                    sms.sender,
-                                                    sms.body,
-                                                    sms.receivedAt,
-                                                ),
-                                                accountId = 1L,
+                                                smsHash =
+                                                    deduplicator.generateHash(
+                                                        sms.sender,
+                                                        sms.body,
+                                                        sms.receivedAt,
+                                                    ),
+                                                accountId = account.id,
                                                 type = type,
                                                 amount = parsed.amountMinor,
                                                 currency = parsed.currency,

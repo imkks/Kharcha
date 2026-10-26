@@ -218,23 +218,35 @@ class DefaultTransactionRepository(
     private fun reconcileTransfers(list: MutableList<Transaction>) {
         for (i in list.indices) {
             val t1 = list[i]
-            if (t1.type != TransactionType.Expense) continue
+            if (t1.type != TransactionType.Expense && t1.type != TransactionType.Transfer) continue
             for (j in list.indices) {
                 if (i == j) continue
                 val t2 = list[j]
-                if (t2.type != TransactionType.Income) continue
+                if (t2.type != TransactionType.Income && t2.type != TransactionType.Transfer) continue
+                if (t1.id == t2.linkedTransactionId && t2.id == t1.linkedTransactionId) continue
                 if (t1.amount == t2.amount) {
-                    val window =
-                        if (t1.channel == Channel.CARD || t2.channel == Channel.CARD) {
-                            7L * 24 * 60 * 60 * 1000L
-                        } else {
-                            10 * 60 * 1000L
-                        }
+                    val isCard =
+                        t1.channel == Channel.CARD || t2.channel == Channel.CARD ||
+                            t1.categorySource.equals("Transfer", ignoreCase = true) ||
+                            t2.categorySource.equals("Transfer", ignoreCase = true) ||
+                            (t1.note?.contains("card", ignoreCase = true) == true) ||
+                            (t2.note?.contains("card", ignoreCase = true) == true)
+                    val window = if (isCard) 7L * 24 * 60 * 60 * 1000L else 10 * 60 * 1000L
                     if (kotlin.math.abs(t1.dateTime - t2.dateTime) <= window) {
                         list[i] =
-                            t1.copy(type = TransactionType.Transfer, categorySource = "Transfer", isReviewed = true)
+                            t1.copy(
+                                type = TransactionType.Transfer,
+                                categorySource = "Transfer",
+                                linkedTransactionId = t2.id,
+                                isReviewed = true,
+                            )
                         list[j] =
-                            t2.copy(type = TransactionType.Transfer, categorySource = "Transfer", isReviewed = true)
+                            t2.copy(
+                                type = TransactionType.Transfer,
+                                categorySource = "Transfer",
+                                linkedTransactionId = t1.id,
+                                isReviewed = true,
+                            )
                     }
                 }
             }
@@ -272,6 +284,7 @@ class DefaultTransactionRepository(
         obj.put("note", txn.note)
         obj.put("categorySource", txn.categorySource)
         obj.put("isReviewed", txn.isReviewed)
+        txn.linkedTransactionId?.let { obj.put("linkedTransactionId", it) }
         txn.parseConfidence?.let { obj.put("parseConfidence", it.toDouble()) }
         return obj
     }
@@ -335,6 +348,12 @@ class DefaultTransactionRepository(
                     null
                 },
             isReviewed = json.optBoolean("isReviewed", false),
+            linkedTransactionId =
+                if (json.has("linkedTransactionId") && !json.isNull("linkedTransactionId")) {
+                    json.getLong("linkedTransactionId")
+                } else {
+                    null
+                },
             parseConfidence = parseConf,
         )
     }

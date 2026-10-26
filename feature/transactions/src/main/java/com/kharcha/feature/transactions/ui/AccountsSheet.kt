@@ -42,6 +42,8 @@ import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.model.Account
+import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
@@ -54,6 +56,8 @@ data class AccountOption(
     val channels: Set<Channel>,
     val totalExpenseMinor: Long,
     val transactionCount: Int,
+    val accountType: AccountType? = null,
+    val currentBalanceMinor: Long? = null,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,6 +69,7 @@ fun AccountsSheet(
     onSelectAccount: (accountIds: Set<Long>, channels: Set<Channel>) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    accounts: List<Account> = emptyList(),
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isPrivacy = LocalPrivacyMode.current
@@ -75,31 +80,49 @@ fun AccountsSheet(
         }
 
     val accountOptions =
-        remember(transactions) {
-            val groups =
-                transactions.groupBy { txn ->
-                    val last4 = txn.refNumber?.takeLast(4)?.trim()
-                    val channel = txn.channel
-                    when {
-                        !last4.isNullOrEmpty() -> "HDFC $last4"
-                        channel != null -> "${channel.name} Account"
-                        else -> "Account #${txn.accountId}"
+        remember(transactions, accounts) {
+            if (accounts.isNotEmpty()) {
+                accounts.map { acc ->
+                    val txns = transactions.filter { it.accountId == acc.id }
+                    val expenseSum =
+                        txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+                    AccountOption(
+                        key = "acc_${acc.id}",
+                        name = acc.name,
+                        accountIds = setOf(acc.id),
+                        channels = if (acc.type == AccountType.CreditCard) setOf(Channel.CARD) else emptySet(),
+                        totalExpenseMinor = expenseSum,
+                        transactionCount = txns.size,
+                        accountType = acc.type,
+                        currentBalanceMinor = acc.currentBalance,
+                    )
+                }.sortedByDescending { it.totalExpenseMinor }
+            } else {
+                val groups =
+                    transactions.groupBy { txn ->
+                        val last4 = txn.refNumber?.takeLast(4)?.trim()
+                        val channel = txn.channel
+                        when {
+                            !last4.isNullOrEmpty() -> "HDFC $last4"
+                            channel != null -> "${channel.name} Account"
+                            else -> "Account #${txn.accountId}"
+                        }
                     }
-                }
-            groups.map { (name, txns) ->
-                val accIds = txns.map { it.accountId }.toSet()
-                val channels = txns.mapNotNull { it.channel }.toSet()
-                val expenseSum =
-                    txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
-                AccountOption(
-                    key = name,
-                    name = name,
-                    accountIds = accIds,
-                    channels = channels,
-                    totalExpenseMinor = expenseSum,
-                    transactionCount = txns.size,
-                )
-            }.sortedByDescending { it.totalExpenseMinor }
+                groups.map { (name, txns) ->
+                    val accIds = txns.map { it.accountId }.toSet()
+                    val channels = txns.mapNotNull { it.channel }.toSet()
+                    val expenseSum =
+                        txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+                    AccountOption(
+                        key = name,
+                        name = name,
+                        accountIds = accIds,
+                        channels = channels,
+                        totalExpenseMinor = expenseSum,
+                        transactionCount = txns.size,
+                    )
+                }.sortedByDescending { it.totalExpenseMinor }
+            }
         }
 
     val isAllAccountsSelected = selectedAccountIds.isEmpty() && selectedChannels.isEmpty()
@@ -275,8 +298,11 @@ fun AccountsSheet(
                                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
                                 modifier = Modifier.size(40.dp),
                             ) {
+                                val isCard =
+                                    account.accountType == AccountType.CreditCard ||
+                                        account.name.contains("CARD", ignoreCase = true)
                                 val iconRes =
-                                    if (account.name.contains("CARD", ignoreCase = true)) {
+                                    if (isCard) {
                                         DesignR.drawable.ic_channel_card
                                     } else if (account.name.contains("UPI", ignoreCase = true)) {
                                         DesignR.drawable.ic_channel_upi
@@ -286,7 +312,12 @@ fun AccountsSheet(
                                 Icon(
                                     painter = painterResource(id = iconRes),
                                     contentDescription = null,
-                                    tint = MaterialTheme.financialColors.income,
+                                    tint =
+                                        if (isCard) {
+                                            MaterialTheme.financialColors.warning
+                                        } else {
+                                            MaterialTheme.financialColors.income
+                                        },
                                     modifier = Modifier.padding(10.dp),
                                 )
                             }
@@ -299,15 +330,29 @@ fun AccountsSheet(
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text =
-                                        stringResource(
-                                            id = R.string.accounts_txn_count,
-                                            account.transactionCount,
-                                        ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        text =
+                                            stringResource(
+                                                id = R.string.accounts_txn_count,
+                                                account.transactionCount,
+                                            ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    if (account.currentBalanceMinor != null) {
+                                        val balFormatted =
+                                            MoneyFormatter.formatMinorUnits(account.currentBalanceMinor)
+                                        Text(
+                                            text = "• Bal: $balFormatted",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.financialColors.income,
+                                        )
+                                    }
+                                }
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(

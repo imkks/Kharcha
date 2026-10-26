@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
 import com.kharcha.core.common.TransactionClassifierHelper
@@ -202,11 +203,22 @@ class OnboardingViewModel
                             val isHighConf = (parsedTxn.confidence >= 0.8f) && (rawMerchant != null)
                             val isReviewed = isUserCategorized || (isHighConf && category != "Other")
 
+                            val accountRepo = DefaultAccountRepository.getInstance(context)
+                            val account =
+                                accountRepo.resolveOrCreateAccount(
+                                    bankName = parsedTxn.bankName,
+                                    last4 = parsedTxn.accountLast4,
+                                    channel = parsedTxn.channel,
+                                    balanceMinor = parsedTxn.balanceAfterMinor,
+                                    timestamp = parsedTxn.dateTime ?: sms.receivedAt,
+                                    smsBody = sms.body,
+                                )
+
                             val txn =
                                 Transaction(
                                     id = sms.id,
                                     smsHash = hash,
-                                    accountId = 1L,
+                                    accountId = account.id,
                                     type = type,
                                     amount = parsedTxn.amountMinor,
                                     currency = parsedTxn.currency,

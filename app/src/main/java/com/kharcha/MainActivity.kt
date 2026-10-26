@@ -38,8 +38,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
@@ -129,6 +131,9 @@ fun MainAppShell(
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
+    val context = LocalContext.current
+    val accountRepository = remember { DefaultAccountRepository.getInstance(context) }
+    val accounts by accountRepository.getAccounts().collectAsState(initial = emptyList())
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showReviewQueue by rememberSaveable { mutableStateOf(false) }
@@ -157,7 +162,11 @@ fun MainAppShell(
             TransactionDetailScreen(
                 transaction = txn,
                 allTransactions = transactions,
+                accounts = accounts,
                 onBack = { selectedTransactionForDetail = null },
+                onNavigateToTransaction = { txnId ->
+                    selectedTransactionForDetail = transactions.find { it.id == txnId }
+                },
                 onSave = { updated, propagate ->
                     scope.launch {
                         if (propagate) {
@@ -418,6 +427,7 @@ fun BoxDestinationContent(
         AppDestination.TRANSACTIONS -> {
             TransactionsScreen(
                 transactions = transactions,
+                accounts = accounts,
                 onTransactionClick = onTransactionClick,
                 onPrivacyToggle = onPrivacyToggle,
                 initialCategory = filterCategory,

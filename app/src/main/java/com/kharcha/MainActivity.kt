@@ -57,11 +57,15 @@ import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.review.ui.ReviewQueueScreen
 import com.kharcha.feature.settings.ui.MoreScreen
+import com.kharcha.feature.transactions.R as TransactionsR
 import com.kharcha.feature.transactions.ui.EntityTransactionsScreen
+import com.kharcha.feature.transactions.ui.ReportUndetectedSmsScreen
+import com.kharcha.feature.transactions.ui.SearchScreen
 import com.kharcha.feature.transactions.ui.SetBudgetSheet
 import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import com.kharcha.feature.transactions.ui.TransactionsSubTab
+import com.kharcha.feature.transactions.ui.WeeklySummaryScreen
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.YearMonth
 import javax.inject.Inject
@@ -142,6 +146,9 @@ fun MainAppShell(
     var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
     var selectedEntityForDetail by remember { mutableStateOf<SelectedEntity?>(null) }
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
+    var showSearchScreen by rememberSaveable { mutableStateOf(false) }
+    var showReportSmsScreen by rememberSaveable { mutableStateOf(false) }
+    var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(false) }
     var showSetBudgetSheet by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
     var transactionsFilter by remember { mutableStateOf(TransactionFilter()) }
@@ -301,6 +308,7 @@ fun MainAppShell(
                     accounts = accounts,
                     userPreferences = userPreferences,
                     onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
+                    onNavigateToHome = { currentDestination = AppDestination.HOME },
                     onReviewClick = { showReviewQueue = true },
                     onTransactionClick = { txn -> selectedTransactionForDetail = txn },
                     onCategoryClick = { cat ->
@@ -358,14 +366,32 @@ fun MainAppShell(
                         transactionsSubTab = TransactionsSubTab.CATEGORIES
                         currentDestination = AppDestination.TRANSACTIONS
                     },
-                    onSearchClick = {
-                        transactionsSubTab = TransactionsSubTab.TRANSACTIONS
-                        currentDestination = AppDestination.TRANSACTIONS
-                    },
+                    onWeeklySummaryClick = { showWeeklySummaryScreen = true },
+                    onSearchClick = { showSearchScreen = true },
                     onTagClick = { tag ->
                         transactionsFilter = TransactionFilter(query = tag)
                         transactionsSubTab = TransactionsSubTab.TRANSACTIONS
                         currentDestination = AppDestination.TRANSACTIONS
+                    },
+                    onSaveAccount = { account ->
+                        scope.launch {
+                            accountRepository.saveAccount(account)
+                            snackbarHostState.showSnackbar("Account saved")
+                        }
+                    },
+                    onApplyMerchantRuleToTransactions = { merchant, category ->
+                        scope.launch {
+                            val matching =
+                                transactions.filter {
+                                    it.merchantNormalised?.equals(merchant, ignoreCase = true) == true ||
+                                        it.merchantRaw?.equals(merchant, ignoreCase = true) == true
+                                }
+                            if (matching.isNotEmpty()) {
+                                val updated = matching.map { it.copy(categorySource = category, isReviewed = true) }
+                                transactionRepository.updateTransactions(updated)
+                                snackbarHostState.showSnackbar("Applied $category to ${matching.size} transactions")
+                            }
+                        }
                     },
                     modifier = Modifier.padding(innerPadding),
                 )
@@ -433,6 +459,7 @@ fun MainAppShell(
     if (showAddTransactionDialog) {
         val txnAddedMsg = stringResource(id = R.string.txn_added)
         AddTransactionDialog(
+            accounts = accounts,
             onSave = { newTxn ->
                 scope.launch {
                     transactionRepository.insertTransaction(newTxn)
@@ -440,6 +467,45 @@ fun MainAppShell(
                 }
             },
             onDismiss = { showAddTransactionDialog = false },
+        )
+    }
+
+    if (showSearchScreen) {
+        SearchScreen(
+            transactions = transactions,
+            onTransactionClick = { txn ->
+                selectedTransactionForDetail = txn
+                showSearchScreen = false
+            },
+            onBack = { showSearchScreen = false },
+            onAddPrefilledTransaction = { _ ->
+                showSearchScreen = false
+                showAddTransactionDialog = true
+            },
+        )
+    }
+
+    if (showReportSmsScreen) {
+        val reportedMsg = stringResource(id = TransactionsR.string.report_sms_submitted)
+        ReportUndetectedSmsScreen(
+            onSubmitReport = { _, _, _ ->
+                scope.launch {
+                    snackbarHostState.showSnackbar(reportedMsg)
+                }
+            },
+            onDismiss = { showReportSmsScreen = false },
+        )
+    }
+
+    if (showWeeklySummaryScreen) {
+        WeeklySummaryScreen(
+            transactions = transactions,
+            monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
+            onBack = { showWeeklySummaryScreen = false },
+            onSetBudgetClick = {
+                showWeeklySummaryScreen = false
+                showSetBudgetSheet = true
+            },
         )
     }
 }
@@ -451,6 +517,7 @@ fun BoxDestinationContent(
     accounts: List<Account> = emptyList(),
     userPreferences: UserPreferences,
     onNavigateToTransactions: () -> Unit,
+    onNavigateToHome: () -> Unit = {},
     onReviewClick: () -> Unit,
     onTransactionClick: (Transaction) -> Unit,
     onCategoryClick: (String) -> Unit = {},
@@ -477,12 +544,15 @@ fun BoxDestinationContent(
     onAddTransactionClick: () -> Unit = {},
     onTrendsClick: () -> Unit = {},
     onCategoriesClick: () -> Unit = {},
+    onWeeklySummaryClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onTagClick: (String) -> Unit = {},
     onAccountClick: (Account) -> Unit = {},
     onSplitClick: () -> Unit = {},
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
+    onSaveAccount: (Account) -> Unit = {},
+    onApplyMerchantRuleToTransactions: ((String, String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -500,6 +570,7 @@ fun BoxDestinationContent(
                 onAddTransactionClick = onAddTransactionClick,
                 onTrendsClick = onTrendsClick,
                 onCategoriesClick = onCategoriesClick,
+                onWeeklySummaryClick = onWeeklySummaryClick,
                 onSearchClick = onSearchClick,
                 onAccountClick = onAccountClick,
                 onTagClick = onTagClick,
@@ -539,20 +610,32 @@ fun BoxDestinationContent(
         AppDestination.INSIGHTS -> {
             InsightsScreen(
                 transactions = transactions,
+                accounts = accounts,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
+                categoryBudgets = userPreferences.getAllCategoryBudgets(),
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
+                onUpdateCategoryBudget = { cat, minor -> userPreferences.setCategoryBudgetMinor(cat, minor) },
                 onTransactionClick = onTransactionClick,
                 onCategoryClick = onCategoryClick,
                 onMerchantClick = onMerchantClick,
+                onBack = onNavigateToHome,
+                onReviewMonthClick = { ym ->
+                    onYearMonthChange(ym)
+                    onSubTabChange(TransactionsSubTab.TRANSACTIONS)
+                    onNavigateToTransactions()
+                },
                 modifier = modifier,
             )
         }
         AppDestination.MORE -> {
             MoreScreen(
                 transactions = transactions,
+                accounts = accounts,
                 userPreferences = userPreferences,
                 onResetOnboarding = onResetOnboarding,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
+                onSaveAccount = onSaveAccount,
+                onApplyMerchantRuleToTransactions = onApplyMerchantRuleToTransactions,
                 modifier = modifier,
             )
         }

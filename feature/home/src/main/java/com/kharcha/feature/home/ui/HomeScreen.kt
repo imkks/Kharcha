@@ -118,6 +118,7 @@ fun HomeScreen(
     onAddTransactionClick: () -> Unit = {},
     onTrendsClick: () -> Unit = {},
     onCategoriesClick: () -> Unit = {},
+    onWeeklySummaryClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onAccountClick: (Account) -> Unit = {},
     onTagClick: (String) -> Unit = {},
@@ -524,6 +525,38 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = stringResource(id = R.string.home_shortcut_categories),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.financialColors.limeAccent,
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // Weekly Summary Chip
+                    Surface(
+                        shape = RoundedCornerShape(100.dp),
+                        color = MaterialTheme.financialColors.cardBackground,
+                        border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(100.dp))
+                                .clickable { onWeeklySummaryClick() },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_calendar),
+                                contentDescription = null,
+                                tint = MaterialTheme.financialColors.limeAccent,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(id = R.string.home_shortcut_weekly_summary),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.financialColors.limeAccent,

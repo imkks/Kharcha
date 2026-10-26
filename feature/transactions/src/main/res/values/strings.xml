@@ -250,4 +250,23 @@
     <string name="add_txn_attach_receipt">Attach receipt</string>
     <string name="add_txn_save_and_add_another">Save &amp; add another</string>
     <string name="add_txn_save">✓ Save</string>
+    <string name="search_tab_transactions">Transactions (%1$d)</string>
+    <string name="search_tab_sms">SMS (%1$d)</string>
+    <string name="report_sms_title">Report undetected SMS</string>
+    <string name="report_sms_caption">Help us improve SMS detection. Paste the bank message below.</string>
+    <string name="report_sms_body_hint">Paste SMS here…</string>
+    <string name="report_sms_sender_label">Sender / Header</string>
+    <string name="report_sms_sender_hint">e.g. AX-HDFCBK</string>
+    <string name="report_sms_mask_privacy">Don\'t share sensitive details (account numbers &amp; names are masked before sending)</string>
+    <string name="report_sms_submit">Submit report</string>
+    <string name="report_sms_submitted">Thank you for reporting. This helps improve parser accuracy.</string>
+    <string name="weekly_summary_title">Weekly summary</string>
+    <string name="weekly_summary_spent_this_week">Spent this week</string>
+    <string name="weekly_summary_daily_target">Spend %1$s per day to stay on track.</string>
+    <string name="weekly_summary_top_spends">Top spends</string>
+    <string name="weekly_summary_dues_coming_up">Dues coming up</string>
+    <string name="weekly_summary_no_dues">No upcoming dues in the next 7 days</string>
+    <string name="weekly_summary_rate_week">Rate your week</string>
+    <string name="weekly_summary_share_button">Share summary</string>
+    <string name="weekly_summary_share_text">My weekly spends on Kharcha: %1$s. Daily pace: %2$s/day.</string>
 </resources>

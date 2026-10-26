@@ -74,6 +74,28 @@ class UserPreferencesTest {
         assertEquals(2, rules.size)
         assertEquals("Food & Dining", userPreferences.getCategoryForMerchant("Swiggy"))
         assertEquals("Entertainment", userPreferences.getCategoryForMerchant("Netflix"))
+
+        userPreferences.removeMerchantCategoryRule("swiggy")
+        verify { editor.putString("key_merchant_rules_json", any()) }
+    }
+
+    @Test
+    fun testCustomCategories() {
+        every { sharedPreferences.getString("key_custom_categories_json", null) } returns null
+        assertTrue(userPreferences.getCustomCategories().isEmpty())
+
+        userPreferences.addCustomCategory("Chicken")
+        verify { editor.putString("key_custom_categories_json", any()) }
+
+        every { sharedPreferences.getString("key_custom_categories_json", null) } returns
+            """["Chicken","Gym"]"""
+        val customCats = userPreferences.getCustomCategories()
+        assertEquals(2, customCats.size)
+        assertTrue(customCats.contains("Chicken"))
+        assertTrue(customCats.contains("Gym"))
+
+        userPreferences.removeCustomCategory("Chicken")
+        verify { editor.putString("key_custom_categories_json", any()) }
     }
 
     @Test

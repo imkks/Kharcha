@@ -163,11 +163,13 @@ class DefaultAccountRepository(
     override suspend fun saveAccount(account: Account) {
         withContext(ioDispatcher) {
             val currentList = _accounts.value.toMutableList()
-            val index = currentList.indexOfFirst { it.id == account.id }
+            val targetId = if (account.id == 0L) (currentList.maxOfOrNull { it.id } ?: 0L) + 1L else account.id
+            val finalAccount = if (account.id == 0L) account.copy(id = targetId) else account
+            val index = currentList.indexOfFirst { it.id == finalAccount.id }
             if (index != -1) {
-                currentList[index] = account
+                currentList[index] = finalAccount
             } else {
-                currentList.add(account)
+                currentList.add(finalAccount)
             }
             _accounts.value = currentList
             saveToDisk(currentList)

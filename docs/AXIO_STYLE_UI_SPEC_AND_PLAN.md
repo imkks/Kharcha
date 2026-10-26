@@ -804,12 +804,12 @@ To fulfill the user's specific location requirement:
 ```mermaid
 flowchart TD
     PR8["Phase 8: Location Permission & Live Geo-Capture [COMPLETED]"] --> PR9["Phase 9: Component Library [COMPLETED]"]
-    PR9 --> PR10["Phase 10: Home Complete Scroll Feed (PR 10)"]
-    PR10 --> PR11["Phase 11: Add Transaction Full-Screen Flow (PR 11)"]
-    PR11 --> PR12["Phase 12: Trends Screen & Budget Planner (PR 12)"]
-    PR12 --> PR13["Phase 13: Search Screen & Report Undetected SMS (PR 13)"]
-    PR13 --> PR14["Phase 14: Weekly Summary & Detail Micro-Interactions (PR 14)"]
-    PR14 --> PR15["Phase 15: Preferences, Categories & Account Linking (PR 15)"]
+    PR9 --> PR10["Phase 10: Home Complete Scroll Feed [COMPLETED]"]
+    PR10 --> PR11["Phase 11: Add Transaction Full-Screen Flow [COMPLETED]"]
+    PR11 --> PR12["Phase 12: Trends Screen & Budget Planner [COMPLETED]"]
+    PR12 --> PR13["Phase 13: Search Screen & Report Undetected SMS [COMPLETED]"]
+    PR13 --> PR14["Phase 14: Weekly Summary & Detail Micro-Interactions [COMPLETED]"]
+    PR14 --> PR15["Phase 15: Preferences, Categories & Account Linking [COMPLETED]"]
 ```
 
 ### Phase 8: Location Permission & Real-Time Geo-Capture [COMPLETED & VERIFIED]
@@ -837,7 +837,7 @@ flowchart TD
   - `FormFooter.kt`: Pinned action bar with "Save & add another" and lime "✓ Save".
 - Added unit tests in `ExtendedComponentsTest.kt` and verified with full build suite.
 
-### Phase 10: Home Screen Complete Scrolling Layout (PR 10)
+### Phase 10: Home Screen Complete Scrolling Layout [COMPLETED & VERIFIED]
 - Expand `HomeScreen.kt` below Recent Transactions:
   - Dues & Reminders card with horizontal scroll mini-cards.
   - Categories quick-budget card.
@@ -849,7 +849,7 @@ flowchart TD
   - "Made with ❤ in India" footer.
 - Verify layout scroll behavior with unit tests.
 
-### Phase 11: Add a Transaction Full-Screen Flow (PR 11)
+### Phase 11: Add a Transaction Full-Screen Flow [COMPLETED & VERIFIED]
 - Build full-screen `AddTransactionScreen`:
   - `TypeSwitch` (Spend / Income).
   - Amount card with numeric keyboard launch.
@@ -860,7 +860,7 @@ flowchart TD
   - Pinned `FormFooter` ("Save & add another" / "✓ Save").
 - Add unit tests for manual transaction creation and category flows.
 
-### Phase 12: Trends Screen & Budget Planner (PR 12)
+### Phase 12: Trends Screen & Budget Planner [COMPLETED & VERIFIED]
 - Modernize `InsightsScreen` / build `TrendsScreen`:
   - 6-month blue bar chart with green dot baseline.
   - Month summary with source account selector dropdown.
@@ -873,7 +873,7 @@ flowchart TD
   - Category-wise budget adder with category dialog and amount inputs.
 - Add unit tests for Trends chart calculation and budget persistence.
 
-### Phase 13: Search Screen & Report Undetected SMS (PR 13)
+### Phase 13: Search Screen & Report Undetected SMS [COMPLETED & VERIFIED]
 - Build `SearchScreen`:
   - Search bar with live query matching.
   - `Transactions` & `SMS` tabs.
@@ -884,7 +884,7 @@ flowchart TD
   - Missed transaction report dialog and local rule creation.
 - Add unit tests for search matching and SMS reporting.
 
-### Phase 14: Weekly Summary & Detail Micro-Interactions (PR 14)
+### Phase 14: Weekly Summary & Detail Micro-Interactions [COMPLETED & VERIFIED]
 - Build `WeeklySummaryScreen`:
   - Top spends list, `HalfRingGauge` weekly budget tracker.
   - Upcoming dues card with mark-as-paid action.
@@ -896,7 +896,7 @@ flowchart TD
 - Polish Account / Profile header ("Krishna", verified phone, email with "Edit").
 - Add unit tests for weekly summary calculations and refund sheets.
 
-### Phase 15: Preferences, Categories & Account Linking (PR 15)
+### Phase 15: Preferences, Categories & Account Linking [COMPLETED & VERIFIED]
 - Build dedicated `PreferencesScreen` / sub-flow:
   - `Launch in Money Manager` switch setting.
   - **Add category for merchants (`MerchantRulesScreen`):** Search, browse rules, `+ Add Rule` dialog with category picker and transaction propagation.

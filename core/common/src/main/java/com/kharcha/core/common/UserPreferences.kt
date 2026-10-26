@@ -10,10 +10,14 @@ interface UserPreferences {
     var isPrivacyModeEnabled: Boolean
     fun getMerchantCategoryRules(): Map<String, String>
     fun setMerchantCategory(merchant: String, category: String)
+    fun removeMerchantCategoryRule(merchant: String)
     fun getCategoryForMerchant(merchant: String): String?
     fun getCategoryBudgetMinor(category: String): Long
     fun setCategoryBudgetMinor(category: String, budgetMinor: Long)
     fun getAllCategoryBudgets(): Map<String, Long>
+    fun getCustomCategories(): Set<String>
+    fun addCustomCategory(category: String)
+    fun removeCustomCategory(category: String)
     fun clear()
 }
 
@@ -58,9 +62,53 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         prefs.edit().putString(KEY_MERCHANT_RULES, json.toString()).apply()
     }
 
+    override fun removeMerchantCategoryRule(merchant: String) {
+        val normalized = merchant.trim().lowercase()
+        if (normalized.isBlank()) return
+        val current = getMerchantCategoryRules().toMutableMap()
+        current.remove(normalized)
+        val json = JSONObject(current as Map<*, *>)
+        prefs.edit().putString(KEY_MERCHANT_RULES, json.toString()).apply()
+    }
+
     override fun getCategoryForMerchant(merchant: String): String? {
         val normalized = merchant.trim().lowercase()
         return getMerchantCategoryRules()[normalized]
+    }
+
+    override fun getCustomCategories(): Set<String> {
+        val raw = prefs.getString(KEY_CUSTOM_CATEGORIES, null) ?: return emptySet()
+        return try {
+            val jsonArray = org.json.JSONArray(raw)
+            val result = mutableSetOf<String>()
+            for (i in 0 until jsonArray.length()) {
+                val cat = jsonArray.optString(i)?.trim()
+                if (!cat.isNullOrBlank()) {
+                    result.add(cat)
+                }
+            }
+            result
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    override fun addCustomCategory(category: String) {
+        val trimmed = category.trim()
+        if (trimmed.isBlank()) return
+        val current = getCustomCategories().toMutableSet()
+        current.add(trimmed)
+        val jsonArray = org.json.JSONArray(current.toList())
+        prefs.edit().putString(KEY_CUSTOM_CATEGORIES, jsonArray.toString()).apply()
+    }
+
+    override fun removeCustomCategory(category: String) {
+        val trimmed = category.trim()
+        if (trimmed.isBlank()) return
+        val current = getCustomCategories().toMutableSet()
+        current.remove(trimmed)
+        val jsonArray = org.json.JSONArray(current.toList())
+        prefs.edit().putString(KEY_CUSTOM_CATEGORIES, jsonArray.toString()).apply()
     }
 
     override fun getAllCategoryBudgets(): Map<String, Long> {
@@ -108,6 +156,7 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_PRIVACY_MODE_ENABLED = "key_privacy_mode_enabled"
         private const val KEY_MERCHANT_RULES = "key_merchant_rules_json"
         private const val KEY_CATEGORY_BUDGETS = "key_category_budgets_json"
+        private const val KEY_CUSTOM_CATEGORIES = "key_custom_categories_json"
         const val DEFAULT_BUDGET_PAISE: Long = 30_000_00L
     }
 }

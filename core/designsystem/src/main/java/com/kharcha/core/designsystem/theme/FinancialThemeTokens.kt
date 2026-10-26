@@ -27,6 +27,7 @@ data class FinancialColors(
     val heatmapLevel3: Color,
     val heatmapLevel4: Color,
     val limeAccent: Color = axio_lime_accent,
+    val onLimeAccent: Color = axio_on_pale_lime,
     val paleLimeAddButton: Color = axio_pale_lime,
     val onPaleLimeAddButton: Color = axio_on_pale_lime,
     val chartBlue: Color = axio_chart_blue,

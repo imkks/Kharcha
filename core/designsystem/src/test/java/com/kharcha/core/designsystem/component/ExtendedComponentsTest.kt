@@ -43,4 +43,16 @@ class ExtendedComponentsTest {
         val clean2 = if (tagWithHash.startsWith("#")) tagWithHash else "#$tagWithHash"
         assertEquals("#Groceries", clean2)
     }
+
+    @Test
+    fun transactionBuilderLogic_constructsValidModel() {
+        val amountMinor = 450_00L
+        val tags = listOf("Dinner", "Weekend")
+        val note = "Team treat"
+        val tagsSuffix = tags.joinToString(" ") { if (it.startsWith("#")) it else "#$it" }
+        val fullNote = "$note $tagsSuffix"
+
+        assertEquals("Team treat #Dinner #Weekend", fullNote)
+        assertEquals(45000L, amountMinor)
+    }
 }

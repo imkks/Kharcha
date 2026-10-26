@@ -68,4 +68,37 @@ class MoreScreenTest {
         val display = normalized.replaceFirstChar { it.uppercase() }
         assertEquals("Uber india", display)
     }
+
+    @Test
+    fun testMerchantRuleSearchFiltering() {
+        val rules = mapOf(
+            "swiggy" to "Food & Dining",
+            "uber" to "Transport",
+            "amazon" to "Shopping",
+        )
+        val query = "swig"
+        val filtered = rules.entries.filter { (m, c) ->
+            m.contains(query.trim(), ignoreCase = true) || c.contains(query.trim(), ignoreCase = true)
+        }
+        assertEquals(1, filtered.size)
+        assertEquals("swiggy", filtered.first().key)
+
+        val catQuery = "port"
+        val catFiltered = rules.entries.filter { (m, c) ->
+            m.contains(catQuery.trim(), ignoreCase = true) || c.contains(catQuery.trim(), ignoreCase = true)
+        }
+        assertEquals(1, catFiltered.size)
+        assertEquals("uber", catFiltered.first().key)
+    }
+
+    @Test
+    fun testCustomCategoryDeduplication() {
+        val defaultCategories = listOf("Food & Dining", "Shopping", "Transport")
+        val customCategories = setOf("Chicken", "Shopping", "Gym")
+        val combined = (defaultCategories + customCategories).distinct()
+
+        assertEquals(5, combined.size)
+        assertTrue(combined.contains("Chicken"))
+        assertTrue(combined.contains("Gym"))
+    }
 }

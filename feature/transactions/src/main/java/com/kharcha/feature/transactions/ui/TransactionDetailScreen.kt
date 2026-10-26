@@ -253,6 +253,22 @@ fun TransactionDetailScreen(
             selectedCategory != (transaction.categorySource ?: "Other") ||
             noteText != (transaction.note ?: "")
 
+    val dynamicHeroTint =
+        remember(selectedCategory) {
+            when (selectedCategory.lowercase()) {
+                "food & drinks", "food", "dining" -> Color(0xFF281333)
+                "shopping" -> Color(0xFF1E2812)
+                "groceries", "grocery" -> Color(0xFF0F2615)
+                "unknown", "other", "others" -> Color(0xFF2B1212)
+                "transport", "travel" -> Color(0xFF102030)
+                "bills & utilities", "bills" -> Color(0xFF0E2529)
+                "entertainment" -> Color(0xFF25132E)
+                "health" -> Color(0xFF29121E)
+                "investments", "salary" -> Color(0xFF112616)
+                else -> CategoryColors.forCategory(selectedCategory).color.copy(alpha = 0.22f)
+            }
+        }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -394,7 +410,7 @@ fun TransactionDetailScreen(
                                 .fillMaxWidth()
                                 .background(
                                     Brush.verticalGradient(
-                                        listOf(Color(0xFF0F2615), MaterialTheme.financialColors.cardBackground),
+                                        listOf(dynamicHeroTint, MaterialTheme.financialColors.cardBackground),
                                     ),
                                 )
                                 .padding(20.dp),

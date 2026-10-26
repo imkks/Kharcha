@@ -52,4 +52,24 @@
     <string name="budget_edit_save">Save</string>
     <string name="budget_edit_cancel">Cancel</string>
     <string name="budget_category_limits_title">Category Budgets</string>
+    <string name="trends_title">Trends by month ▾</string>
+    <string name="trends_grouping_month">Trends by month</string>
+    <string name="trends_grouping_category">Trends by category</string>
+    <string name="trends_grouping_week">Trends by week</string>
+    <string name="trends_filter_title">Filter Trends</string>
+    <string name="trends_all_accounts">All accounts ▾</string>
+    <string name="trends_spends_tile">Spends</string>
+    <string name="trends_income_tile">Income</string>
+    <string name="trends_set_monthly_budget">Set monthly budget</string>
+    <string name="trends_review_action">Review %1$s</string>
+    <string name="trends_toggle_income">Toggle income visibility</string>
+    <string name="budget_planner_title">Budget planner</string>
+    <string name="budget_planner_header_title">Set monthly budget</string>
+    <string name="budget_planner_header_caption">Setting a budget reduces expenditures about 10% on an average.</string>
+    <string name="budget_planner_overall_label">Overall budget</string>
+    <string name="budget_planner_set_now">Set now</string>
+    <string name="budget_planner_category_wise">Category wise budget</string>
+    <string name="budget_planner_add_category">+ Add category</string>
+    <string name="budget_planner_select_category">Select a category</string>
+    <string name="budget_planner_set_budget_button">Set budget</string>
 </resources>

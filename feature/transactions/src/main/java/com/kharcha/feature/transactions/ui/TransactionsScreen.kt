@@ -561,116 +561,7 @@ fun TransactionsScreen(
                 }
             }
 
-            // 2. Hero Month Circular Ring & Stats Overview (Only in Transactions tab)
-            if (selectedSubTab == TransactionsSubTab.TRANSACTIONS) {
-                HeroMonthSummary(
-                    totalExpenseMinor = monthExpense,
-                    totalIncomeMinor = monthIncome,
-                    monthlyBudgetMinor = monthlyBudgetMinor,
-                    onSetBudgetClick = {
-                        budgetCategoryTarget = null
-                        showSetBudgetSheet = true
-                        onSetBudgetClick()
-                    },
-                    isExpenseSelected = currentFilter.types == setOf(TransactionType.Expense),
-                    isIncomeSelected = currentFilter.types == setOf(TransactionType.Income),
-                    onExpenseClick = {
-                        val newTypes =
-                            if (currentFilter.types == setOf(TransactionType.Expense)) {
-                                emptySet()
-                            } else {
-                                setOf(TransactionType.Expense)
-                            }
-                        updateFilter(currentFilter.copy(types = newTypes))
-                    },
-                    onIncomeClick = {
-                        val newTypes =
-                            if (currentFilter.types == setOf(TransactionType.Income)) {
-                                emptySet()
-                            } else {
-                                setOf(TransactionType.Income)
-                            }
-                        updateFilter(currentFilter.copy(types = newTypes))
-                    },
-                )
-
-                // Quick Type Filter Chips: All | Expense | Income
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val isAllSelected = currentFilter.types.isEmpty()
-                    val isExpenseSelected = currentFilter.types == setOf(TransactionType.Expense)
-                    val isIncomeSelected = currentFilter.types == setOf(TransactionType.Income)
-                    val isTransferSelected = currentFilter.types == setOf(TransactionType.Transfer)
-
-                    FilterChip(
-                        selected = isAllSelected,
-                        onClick = {
-                            if (!isAllSelected) {
-                                updateFilter(currentFilter.copy(types = emptySet()))
-                            }
-                        },
-                        label = {
-                            Text(
-                                text = stringResource(id = R.string.transactions_filter_all),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        },
-                    )
-
-                    FilterChip(
-                        selected = isExpenseSelected,
-                        onClick = {
-                            val newTypes =
-                                if (isExpenseSelected) emptySet() else setOf(TransactionType.Expense)
-                            updateFilter(currentFilter.copy(types = newTypes))
-                        },
-                        label = {
-                            Text(
-                                text = stringResource(id = R.string.transactions_filter_expense),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        },
-                    )
-
-                    FilterChip(
-                        selected = isIncomeSelected,
-                        onClick = {
-                            val newTypes =
-                                if (isIncomeSelected) emptySet() else setOf(TransactionType.Income)
-                            updateFilter(currentFilter.copy(types = newTypes))
-                        },
-                        label = {
-                            Text(
-                                text = stringResource(id = R.string.transactions_filter_income),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        },
-                    )
-
-                    FilterChip(
-                        selected = isTransferSelected,
-                        onClick = {
-                            val newTypes =
-                                if (isTransferSelected) emptySet() else setOf(TransactionType.Transfer)
-                            updateFilter(currentFilter.copy(types = newTypes))
-                        },
-                        label = {
-                            Text(
-                                text = stringResource(id = R.string.transactions_filter_transfer),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        },
-                    )
-                }
-            }
-
-            // 3. Tab Content
+            // 2. Tab Content
             Box(
                 modifier =
                     Modifier
@@ -679,84 +570,198 @@ fun TransactionsScreen(
             ) {
                 when (selectedSubTab) {
                     TransactionsSubTab.TRANSACTIONS -> {
-                        if (sortedMonthTxns.isEmpty()) {
-                            EmptyTransactionsState(
-                                onClearFilters = {
-                                    searchQuery = ""
-                                    updateFilter(TransactionFilter())
-                                    updateIsAllMonthsSelected(true)
-                                },
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        } else {
-                            Card(
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                                shape = RoundedCornerShape(20.dp),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
-                                colors =
-                                    CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    ),
-                            ) {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(vertical = 8.dp),
-                                ) {
-                                    itemsIndexed(sortedMonthTxns, key = { _, txn -> txn.id }) { index, txn ->
-                                        val deletedMsg = stringResource(id = DesignR.string.swipe_deleted_message)
-                                        val undoMsg = stringResource(id = DesignR.string.swipe_undo)
-                                        val isSelected = selectedIds.contains(txn.id)
-                                        val isSelectionMode = selectedIds.isNotEmpty()
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 24.dp),
+                        ) {
+                            // Hero Month Circular Ring & Stats Overview (Scrolls with transaction list)
+                            item {
+                                HeroMonthSummary(
+                                    totalExpenseMinor = monthExpense,
+                                    totalIncomeMinor = monthIncome,
+                                    monthlyBudgetMinor = monthlyBudgetMinor,
+                                    onSetBudgetClick = {
+                                        budgetCategoryTarget = null
+                                        showSetBudgetSheet = true
+                                        onSetBudgetClick()
+                                    },
+                                    isExpenseSelected = currentFilter.types == setOf(TransactionType.Expense),
+                                    isIncomeSelected = currentFilter.types == setOf(TransactionType.Income),
+                                    onExpenseClick = {
+                                        val newTypes =
+                                            if (currentFilter.types == setOf(TransactionType.Expense)) {
+                                                emptySet()
+                                            } else {
+                                                setOf(TransactionType.Expense)
+                                            }
+                                        updateFilter(currentFilter.copy(types = newTypes))
+                                    },
+                                    onIncomeClick = {
+                                        val newTypes =
+                                            if (currentFilter.types == setOf(TransactionType.Income)) {
+                                                emptySet()
+                                            } else {
+                                                setOf(TransactionType.Income)
+                                            }
+                                        updateFilter(currentFilter.copy(types = newTypes))
+                                    },
+                                )
+                            }
 
-                                        SwipeableTransactionRow(
-                                            transaction = txn,
-                                            onClick = {
-                                                if (isSelectionMode) {
-                                                    selectedIds =
-                                                        if (isSelected) {
-                                                            selectedIds - txn.id
-                                                        } else {
-                                                            selectedIds + txn.id
-                                                        }
-                                                } else {
-                                                    onTransactionClick(txn)
-                                                }
-                                            },
-                                            onLongClick = {
-                                                if (!isSelectionMode) {
-                                                    selectedIds = setOf(txn.id)
-                                                }
-                                            },
-                                            isSelected = isSelected,
-                                            isSelectionMode = isSelectionMode,
-                                            enableSwipe = !isSelectionMode,
-                                            onDelete = { toDelete ->
-                                                onDeleteTransaction(toDelete)
-                                                scope.launch {
-                                                    val result =
-                                                        snackbarHostState.showSnackbar(
-                                                            message = deletedMsg,
-                                                            actionLabel = undoMsg,
-                                                            duration = SnackbarDuration.Short,
-                                                        )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        onRestoreTransaction(toDelete)
-                                                    }
-                                                }
-                                            },
-                                            onReview = { toReview ->
-                                                onReviewTransaction(toReview.copy(isReviewed = true))
-                                            },
+                            // Quick Type Filter Chips: All | Expense | Income
+                            item {
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    val isAllSelected = currentFilter.types.isEmpty()
+                                    val isExpenseSelected = currentFilter.types == setOf(TransactionType.Expense)
+                                    val isIncomeSelected = currentFilter.types == setOf(TransactionType.Income)
+
+                                    FilterChip(
+                                        selected = isAllSelected,
+                                        onClick = {
+                                            if (!isAllSelected) {
+                                                updateFilter(currentFilter.copy(types = emptySet()))
+                                            }
+                                        },
+                                        label = {
+                                            Text(
+                                                text = stringResource(id = R.string.transactions_filter_all),
+                                                style = MaterialTheme.typography.labelMedium,
+                                            )
+                                        },
+                                    )
+
+                                    FilterChip(
+                                        selected = isExpenseSelected,
+                                        onClick = {
+                                            val newTypes =
+                                                if (isExpenseSelected) emptySet() else setOf(TransactionType.Expense)
+                                            updateFilter(currentFilter.copy(types = newTypes))
+                                        },
+                                        label = {
+                                            Text(
+                                                text = stringResource(id = R.string.transactions_filter_expense),
+                                                style = MaterialTheme.typography.labelMedium,
+                                            )
+                                        },
+                                    )
+
+                                    FilterChip(
+                                        selected = isIncomeSelected,
+                                        onClick = {
+                                            val newTypes =
+                                                if (isIncomeSelected) emptySet() else setOf(TransactionType.Income)
+                                            updateFilter(currentFilter.copy(types = newTypes))
+                                        },
+                                        label = {
+                                            Text(
+                                                text = stringResource(id = R.string.transactions_filter_income),
+                                                style = MaterialTheme.typography.labelMedium,
+                                            )
+                                        },
+                                    )
+                                }
+                            }
+
+                            item {
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+
+                            if (sortedMonthTxns.isEmpty()) {
+                                item {
+                                    EmptyTransactionsState(
+                                        onClearFilters = {
+                                            searchQuery = ""
+                                            updateFilter(TransactionFilter())
+                                            updateIsAllMonthsSelected(true)
+                                        },
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 32.dp),
+                                    )
+                                }
+                            } else {
+                                itemsIndexed(sortedMonthTxns, key = { _, txn -> txn.id }) { index, txn ->
+                                    val deletedMsg = stringResource(id = DesignR.string.swipe_deleted_message)
+                                    val undoMsg = stringResource(id = DesignR.string.swipe_undo)
+                                    val isSelected = selectedIds.contains(txn.id)
+                                    val isSelectionMode = selectedIds.isNotEmpty()
+
+                                    val topCorner = if (index == 0) 20.dp else 0.dp
+                                    val bottomCorner = if (index == sortedMonthTxns.size - 1) 20.dp else 0.dp
+                                    val itemShape =
+                                        RoundedCornerShape(
+                                            topStart = topCorner,
+                                            topEnd = topCorner,
+                                            bottomStart = bottomCorner,
+                                            bottomEnd = bottomCorner,
                                         )
 
-                                        if (index < sortedMonthTxns.size - 1) {
-                                            HorizontalDivider(
-                                                color = Color.White.copy(alpha = 0.08f),
-                                                modifier = Modifier.padding(horizontal = 16.dp),
+                                    Surface(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp),
+                                        shape = itemShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
+                                    ) {
+                                        Column {
+                                            SwipeableTransactionRow(
+                                                transaction = txn,
+                                                onClick = {
+                                                    if (isSelectionMode) {
+                                                        selectedIds =
+                                                            if (isSelected) {
+                                                                selectedIds - txn.id
+                                                            } else {
+                                                                selectedIds + txn.id
+                                                            }
+                                                    } else {
+                                                        onTransactionClick(txn)
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    if (!isSelectionMode) {
+                                                        selectedIds = setOf(txn.id)
+                                                    }
+                                                },
+                                                isSelected = isSelected,
+                                                isSelectionMode = isSelectionMode,
+                                                enableSwipe = !isSelectionMode,
+                                                onDelete = { toDelete ->
+                                                    onDeleteTransaction(toDelete)
+                                                    scope.launch {
+                                                        val result =
+                                                            snackbarHostState.showSnackbar(
+                                                                message = deletedMsg,
+                                                                actionLabel = undoMsg,
+                                                                duration = SnackbarDuration.Short,
+                                                            )
+                                                        if (result == SnackbarResult.ActionPerformed) {
+                                                            onRestoreTransaction(toDelete)
+                                                        }
+                                                    }
+                                                },
+                                                onReview = { toReview ->
+                                                    onReviewTransaction(toReview.copy(isReviewed = true))
+                                                },
                                             )
+
+                                            if (index < sortedMonthTxns.size - 1) {
+                                                HorizontalDivider(
+                                                    color = Color.White.copy(alpha = 0.08f),
+                                                    thickness = 0.5.dp,
+                                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                                )
+                                            }
                                         }
                                     }
                                 }

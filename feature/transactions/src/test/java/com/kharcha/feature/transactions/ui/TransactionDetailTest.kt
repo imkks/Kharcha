@@ -161,4 +161,33 @@ class TransactionDetailTest {
         assertEquals(TransactionType.Transfer, mapCategoryToType("Bill Payment", isCredit = true))
         assertEquals(TransactionType.Expense, mapCategoryToType("Groceries", isCredit = false))
     }
+
+    @Test
+    fun testLinkingVisibilityForRefundAndAcTransfer() {
+        fun shouldShowLinkPrompt(category: String?, type: TransactionType): Boolean {
+            val isAcTransfer =
+                category == "A/C Transfer" || category == "Transfer" || type == TransactionType.Transfer
+            val isRefund = category.equals("Refund", ignoreCase = true) || type == TransactionType.Refund
+            val isExpense = type == TransactionType.Expense && !isAcTransfer
+            return isAcTransfer || isRefund || isExpense
+        }
+
+        // Only Refund under income should show link prompt
+        assertTrue(shouldShowLinkPrompt("Refund", TransactionType.Refund))
+        assertTrue(shouldShowLinkPrompt("Refund", TransactionType.Income))
+
+        // Normal income should NOT show link prompt
+        assertFalse(shouldShowLinkPrompt("Salary", TransactionType.Income))
+        assertFalse(shouldShowLinkPrompt("Bank Deposit", TransactionType.Income))
+        assertFalse(shouldShowLinkPrompt("Interest", TransactionType.Income))
+        assertFalse(shouldShowLinkPrompt("Business", TransactionType.Income))
+
+        // A/C Transfer should show link prompt on both sides
+        assertTrue(shouldShowLinkPrompt("A/C Transfer", TransactionType.Transfer))
+        assertTrue(shouldShowLinkPrompt("Transfer", TransactionType.Expense))
+
+        // Normal expense should show link prompt (to refund)
+        assertTrue(shouldShowLinkPrompt("Food & Drinks", TransactionType.Expense))
+        assertTrue(shouldShowLinkPrompt("Shopping", TransactionType.Expense))
+    }
 }

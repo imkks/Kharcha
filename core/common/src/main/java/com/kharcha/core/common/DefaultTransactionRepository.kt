@@ -323,7 +323,7 @@ class DefaultTransactionRepository(
             val tRefund = list[i]
             val isRefundCandidate =
                 tRefund.type == TransactionType.Refund ||
-                    (tRefund.note != null && TransactionClassifierHelper.isRefundNarrative(tRefund.note))
+                    TransactionClassifierHelper.isRefundNarrative(tRefund.note)
             if (!isRefundCandidate || tRefund.linkedTransactionId != null) continue
 
             for (j in list.indices) {

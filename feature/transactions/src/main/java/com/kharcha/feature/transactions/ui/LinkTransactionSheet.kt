@@ -76,8 +76,7 @@ fun LinkTransactionSheet(
                 if (isLinkingToRefund) {
                     candidate.type == TransactionType.Refund ||
                         candidate.type == TransactionType.Income ||
-                        (candidate.note != null &&
-                            TransactionClassifierHelper.isRefundNarrative(candidate.note))
+                        TransactionClassifierHelper.isRefundNarrative(candidate.note)
                 } else {
                     candidate.type == TransactionType.Expense
                 }

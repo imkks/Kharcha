@@ -610,10 +610,8 @@ fun TransactionDetailScreen(
                 linkedTxn != null &&
                     (selectedType == TransactionType.Refund ||
                         linkedTxn.type == TransactionType.Refund ||
-                        (linkedTxn.note != null &&
-                            TransactionClassifierHelper.isRefundNarrative(linkedTxn.note)) ||
-                        (transaction.note != null &&
-                            TransactionClassifierHelper.isRefundNarrative(transaction.note)))
+                        TransactionClassifierHelper.isRefundNarrative(linkedTxn.note) ||
+                        TransactionClassifierHelper.isRefundNarrative(transaction.note))
 
             if (linkedTxn != null) {
                 item {
@@ -730,8 +728,7 @@ fun TransactionDetailScreen(
                 val isRefundOrIncome =
                     selectedType == TransactionType.Refund ||
                         selectedType == TransactionType.Income ||
-                        (transaction.note != null &&
-                            TransactionClassifierHelper.isRefundNarrative(transaction.note))
+                        TransactionClassifierHelper.isRefundNarrative(transaction.note)
 
                 if (isExpense || isRefundOrIncome) {
                     item {
@@ -1799,10 +1796,8 @@ fun TransactionDetailScreen(
                 val isRefund =
                     selectedType == TransactionType.Refund ||
                         candidate.type == TransactionType.Refund ||
-                        (candidate.note != null &&
-                            TransactionClassifierHelper.isRefundNarrative(candidate.note)) ||
-                        (transaction.note != null &&
-                            TransactionClassifierHelper.isRefundNarrative(transaction.note))
+                        TransactionClassifierHelper.isRefundNarrative(candidate.note) ||
+                        TransactionClassifierHelper.isRefundNarrative(transaction.note)
                 onLinkTransactions?.invoke(transaction.id, candidate.id, isRefund)
                 showLinkSheet = false
             },

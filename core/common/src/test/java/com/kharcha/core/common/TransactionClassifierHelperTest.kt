@@ -108,5 +108,12 @@ class TransactionClassifierHelperTest {
             body = "Transaction reversal of Rs 500 credited to a/c **1234",
         )
         assertEquals(TransactionType.Refund, reversalType)
+
+        assertEquals(false, TransactionClassifierHelper.isRefundNarrative(null))
+        assertEquals(false, TransactionClassifierHelper.isTransferNarrative(null))
+        assertEquals(false, TransactionClassifierHelper.isCreditCardBillPayment(null))
+        assertEquals(false, TransactionClassifierHelper.isAutoDebit(null))
+        assertEquals(null, TransactionClassifierHelper.extractTargetCardLast4(null))
+        assertEquals(null, TransactionClassifierHelper.extractSourceAccountLast4(null))
     }
 }

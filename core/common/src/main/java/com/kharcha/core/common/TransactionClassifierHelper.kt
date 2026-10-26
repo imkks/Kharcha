@@ -21,8 +21,11 @@ object TransactionClassifierHelper {
         }
     }
 
-    fun isCreditCardBillPayment(body: String, merchant: String? = null): Boolean {
-        val b = body.lowercase()
+    fun isCreditCardBillPayment(body: String? = null, merchant: String? = null): Boolean {
+        if (body.isNullOrBlank() && merchant.isNullOrBlank()) {
+            return false
+        }
+        val b = body?.lowercase() ?: ""
         val m = merchant?.lowercase() ?: ""
 
         if (b.contains("spent") || b.contains("used for a transaction") || b.contains("used at")) {
@@ -57,13 +60,15 @@ object TransactionClassifierHelper {
         return hasCardPhrase || hasAppPhrase || isAutoDebitForCard
     }
 
-    fun isAutoDebit(body: String): Boolean {
+    fun isAutoDebit(body: String? = null): Boolean {
+        if (body.isNullOrBlank()) return false
         val b = body.lowercase()
         return b.contains("auto debit") || b.contains("autodebit") || b.contains("auto-debit") ||
             b.contains("standing instruction") || b.contains("nach") || b.contains("e-mandate")
     }
 
-    fun extractTargetCardLast4(body: String): String? {
+    fun extractTargetCardLast4(body: String? = null): String? {
+        if (body.isNullOrBlank()) return null
         val pattern =
             Regex(
                 """(?:towards|for|to)\s+(?:your\s+)?(?:[a-zA-Z]+\s+)?""" +
@@ -82,7 +87,8 @@ object TransactionClassifierHelper {
         return fallbackPattern.find(body)?.groupValues?.get(1)
     }
 
-    fun extractSourceAccountLast4(body: String): String? {
+    fun extractSourceAccountLast4(body: String? = null): String? {
+        if (body.isNullOrBlank()) return null
         val pattern =
             Regex(
                 """(?:from\s+)?(?:a/c|acct|account)\s*(?:no\.?|number)?\s*(?:xx|x|\*)*(\d{4})""",
@@ -91,8 +97,9 @@ object TransactionClassifierHelper {
         return pattern.find(body)?.groupValues?.get(1)
     }
 
-    fun isTransferNarrative(body: String, merchant: String? = null): Boolean {
-        val b = body.lowercase()
+    fun isTransferNarrative(body: String? = null, merchant: String? = null): Boolean {
+        if (body.isNullOrBlank() && merchant.isNullOrBlank()) return false
+        val b = body?.lowercase() ?: ""
         val m = merchant?.lowercase() ?: ""
         val isSelf =
             b.contains("self transfer") || b.contains("transfer to self") ||
@@ -108,8 +115,9 @@ object TransactionClassifierHelper {
         return isSelf || isCardBill || isGeneralAutoDebit
     }
 
-    fun isRefundNarrative(body: String, merchant: String? = null): Boolean {
-        val b = body.lowercase()
+    fun isRefundNarrative(body: String? = null, merchant: String? = null): Boolean {
+        if (body.isNullOrBlank() && merchant.isNullOrBlank()) return false
+        val b = body?.lowercase() ?: ""
         val m = merchant?.lowercase() ?: ""
         val refundPhrases =
             listOf(

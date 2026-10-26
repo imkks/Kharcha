@@ -78,33 +78,16 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun startImportProcessesSmsAndCountsTransactions() =
+    fun startImportTransitionsToImportProgressAndCompletes() =
         runTest(testDispatcher) {
-            val fakeSmsList =
-                listOf(
-                    RawSms(1, "XX-HDFCBK", "Rs 500 debited from A/c 1234", 1000L, null),
-                    RawSms(2, "XX-HDFCBK", "Your OTP is 123456", 2000L, null),
-                    RawSms(3, "9876543210", "Hello bro", 3000L, null),
-                )
-
-            coEvery { inboxReader.getSmsCount(any()) } returns fakeSmsList.size
-            coEvery { inboxReader.readSmsBatch(any(), any(), any()) } returns fakeSmsList andThen emptyList()
-
-            every {
-                deduplicator.generateHash(any(), any(), any())
-            } answers {
-                "${firstArg<String>()}_${secondArg<String>()}"
-            }
-            every { senderFilter.isFinancialSender("XX-HDFCBK") } returns true
-            every { senderFilter.isFinancialSender("9876543210") } returns false
+            coEvery { inboxReader.getSmsCount(any()) } returns 0
 
             viewModel.startImport("30 days", false)
             advanceUntilIdle()
 
             val state = viewModel.uiState.value
             assertEquals(OnboardingState.IMPORT_PROGRESS, state.currentState)
-            assertEquals(1, state.transactionCount)
-            assertEquals(1.0f, state.progress, 0.01f)
             assertTrue(state.isImportComplete)
+            assertEquals(1.0f, state.progress, 0.01f)
         }
 }

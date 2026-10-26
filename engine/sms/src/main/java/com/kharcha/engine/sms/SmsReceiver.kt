@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.Telephony
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
 import com.kharcha.core.common.TransactionClassifierHelper
@@ -86,11 +87,28 @@ class SmsReceiver : BroadcastReceiver() {
                                 userRules = userRules,
                             )
 
+                        val accountId =
+                            try {
+                                val accountRepo = DefaultAccountRepository.getInstance(context)
+                                val account =
+                                    accountRepo.resolveOrCreateAccount(
+                                        bankName = parsed.bankName,
+                                        last4 = parsed.accountLast4,
+                                        channel = parsed.channel,
+                                        balanceMinor = parsed.balanceAfterMinor,
+                                        timestamp = parsed.dateTime ?: receivedAt,
+                                        smsBody = body,
+                                    )
+                                account.id
+                            } catch (_: Throwable) {
+                                1L
+                            }
+
                         val txn =
                             Transaction(
                                 id = rawSms.id,
                                 smsHash = "$sender|$body|$receivedAt",
-                                accountId = 1L,
+                                accountId = accountId,
                                 type = type,
                                 amount = parsed.amountMinor,
                                 currency = parsed.currency,

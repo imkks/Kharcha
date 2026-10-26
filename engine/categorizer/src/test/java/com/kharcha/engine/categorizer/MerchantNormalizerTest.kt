@@ -37,6 +37,12 @@ class MerchantNormalizerTest {
     }
 
     @Test
+    fun testNormalizeStripsPaymentGatewayPrefixes() {
+        assertEquals("SWIGGY", MerchantNormalizer.normalize("RSP*SWIGGY PVT"))
+        assertEquals("OPTICK LABS", MerchantNormalizer.normalize("RAZ*Optick Labs Inc"))
+    }
+
+    @Test
     fun testNormalizeHandlesMultipleCombinations() {
         assertEquals("SWIGGY", MerchantNormalizer.normalize("UPI/SWIGGY*ORDER 8432 PVT LTD"))
     }

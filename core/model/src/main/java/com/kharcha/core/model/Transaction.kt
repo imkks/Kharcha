@@ -3,7 +3,7 @@ package com.kharcha.core.model
 data class Transaction(
     val id: Long = 0L,
     val smsHash: String? = null,
-    val accountId: Long,
+    val accountId: Long = 0L,
     val type: TransactionType,
     val amount: Long,
     val currency: String = "INR",

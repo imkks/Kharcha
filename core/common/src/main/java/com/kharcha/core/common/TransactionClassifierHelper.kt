@@ -21,21 +21,131 @@ object TransactionClassifierHelper {
         }
     }
 
-    fun isTransferNarrative(body: String, merchant: String? = null): Boolean {
-        val b = body.lowercase()
+    fun isCreditCardBillPayment(body: String? = null, merchant: String? = null): Boolean {
+        if (body.isNullOrBlank() && merchant.isNullOrBlank()) {
+            return false
+        }
+        val b = body?.lowercase() ?: ""
         val m = merchant?.lowercase() ?: ""
-        return b.contains("self transfer") || b.contains("transfer to self") ||
-            b.contains("own account") || b.contains("own a/c") ||
-            b.contains("towards credit card") || b.contains("credit card payment") ||
-            b.contains("card payment") || b.contains("payment to card") ||
-            b.contains("payment received for card") || b.contains("cc payment") ||
-            m.contains("credit card") || m.contains("self transfer") ||
-            m.equals("transfer", ignoreCase = true)
+
+        if (b.contains("spent") || b.contains("used for a transaction") ||
+            b.contains("used at") || b.contains("used your") || b.contains("made on")
+        ) {
+            return false
+        }
+
+        val cardPaymentPattern =
+            Regex(
+                """(?:payment|received|credited|thank you for payment)\b.*(?:towards|for|to|in)\b.*""" +
+                    """(?:credit\s+card|card|cc)\b|""" +
+                    """\btowards\s+(?:your\s+)?(?:[a-zA-Z]+\s+)*(?:credit\s+card|card|cc)\b|""" +
+                    """\b(?:credit\s+card|card|cc)\s+(?:bill|payment)\b|""" +
+                    """\b(?:cred|cheq|cred club|cred\.club)\b|cred@|cheq@""",
+                RegexOption.IGNORE_CASE,
+            )
+
+        val cardPhrases =
+            listOf(
+                "towards card", "to card ending",
+                "towards credit card", "credit card payment", "cc payment", "cc bill",
+                "card bill", "credit card bill", "payment to card", "payment for card",
+                "payment for your card", "payment towards your card", "payment towards your credit card",
+                "payment received for card", "payment received towards your credit card",
+                "received towards your credit card", "received towards your card",
+                "received towards credit card", "credited to your credit card",
+                "credited to card ending", "in your credit card account",
+                "towards sbi card", "towards hdfc card", "towards icici card",
+                "towards axis card", "towards onecard", "towards rbl card",
+                "towards kotak card", "sbi card payment", "hdfc card payment",
+                "received towards", "payment received towards",
+            )
+
+        val hasCardPhrase =
+            (cardPhrases.any { b.contains(it) || m.contains(it) } && (b.contains("card") || b.contains("cc"))) ||
+                cardPaymentPattern.containsMatchIn(b) || cardPaymentPattern.containsMatchIn(m)
+
+        val isAutoDebitForCard =
+            (b.contains("auto debit") || b.contains("autodebit") || b.contains("auto-debit") ||
+                b.contains("standing instruction") || b.contains("nach") || b.contains("e-mandate")) &&
+                (b.contains("card") || b.contains("cc") || b.contains("credit"))
+
+        return hasCardPhrase || isAutoDebitForCard
+    }
+
+    fun isAutoDebit(body: String? = null): Boolean {
+        if (body.isNullOrBlank()) return false
+        val b = body.lowercase()
+        return b.contains("auto debit") || b.contains("autodebit") || b.contains("auto-debit") ||
+            b.contains("standing instruction") || b.contains("nach") || b.contains("e-mandate")
+    }
+
+    fun extractTargetCardLast4(body: String? = null): String? {
+        if (body.isNullOrBlank()) return null
+        val pattern =
+            Regex(
+                """(?:towards|for|to)\s+(?:your\s+)?(?:[a-zA-Z]+\s+)?""" +
+                    """(?:credit\s+card|card|cc)\s*(?:ending|no\.?|number|ending with|ending in)?""" +
+                    """\s*(?:xx|x|\*)*(\d{4})""",
+                RegexOption.IGNORE_CASE,
+            )
+        val match = pattern.find(body)
+        if (match != null) return match.groupValues[1]
+
+        val fallbackPattern =
+            Regex(
+                """(?:credit\s+card|card)\s*(?:ending|no\.?|number|ending with|ending in)?\s*(?:xx|x|\*)*(\d{4})""",
+                RegexOption.IGNORE_CASE,
+            )
+        return fallbackPattern.find(body)?.groupValues?.get(1)
+    }
+
+    fun extractSourceAccountLast4(body: String? = null): String? {
+        if (body.isNullOrBlank()) return null
+        val pattern =
+            Regex(
+                """(?:from\s+)?(?:a/c|acct|account)\s*(?:no\.?|number)?\s*(?:xx|x|\*)*(\d{4})""",
+                RegexOption.IGNORE_CASE,
+            )
+        return pattern.find(body)?.groupValues?.get(1)
+    }
+
+    fun isTransferNarrative(body: String? = null, merchant: String? = null): Boolean {
+        if (body.isNullOrBlank() && merchant.isNullOrBlank()) return false
+        val b = body?.lowercase() ?: ""
+        val m = merchant?.lowercase() ?: ""
+        val isSelf =
+            b.contains("self transfer") || b.contains("transfer to self") ||
+                b.contains("own account") || b.contains("own a/c") ||
+                b.contains("transfer between accounts") ||
+                m.contains("self transfer") || m.equals("transfer", ignoreCase = true)
+
+        val isCardBill = isCreditCardBillPayment(body, merchant)
+
+        val isGeneralAutoDebit =
+            isAutoDebit(body) && (b.contains("card") || b.contains("loan") || b.contains("bill") || b.contains("emi"))
+
+        return isSelf || isCardBill || isGeneralAutoDebit
+    }
+
+    fun isRefundNarrative(body: String? = null, merchant: String? = null): Boolean {
+        if (body.isNullOrBlank() && merchant.isNullOrBlank()) return false
+        val b = body?.lowercase() ?: ""
+        val m = merchant?.lowercase() ?: ""
+        val refundPhrases =
+            listOf(
+                "refund", "refunded", "reversal", "reversed",
+                "credited back", "initiated for refund", "refund of",
+                "cashback", "cash back", "returned", "chargeback",
+            )
+        return refundPhrases.any { b.contains(it) || m.contains(it) }
     }
 
     fun classifyType(direction: Direction, body: String, merchant: String? = null): TransactionType {
         if (isTransferNarrative(body, merchant)) {
             return TransactionType.Transfer
+        }
+        if (isRefundNarrative(body, merchant)) {
+            return TransactionType.Refund
         }
         return if (direction == Direction.CREDIT) TransactionType.Income else TransactionType.Expense
     }
@@ -44,9 +154,11 @@ object TransactionClassifierHelper {
         merchant: String,
         isCredit: Boolean,
         isTransfer: Boolean = false,
+        isRefund: Boolean = false,
         userRules: Map<String, String> = emptyMap(),
     ): String {
         if (isTransfer) return "Transfer"
+        if (isRefund) return "Refund"
         val m = merchant.trim().lowercase()
 
         val exactMatch = userRules[m]

@@ -1,6 +1,7 @@
 package com.kharcha.feature.insights
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,6 +67,8 @@ fun InsightsScreen(
     modifier: Modifier = Modifier,
     monthlyBudgetMinor: Long = 30_000_00L,
     onUpdateMonthlyBudget: (Long) -> Unit = {},
+    onCategoryClick: ((String) -> Unit)? = null,
+    onMerchantClick: ((String) -> Unit)? = null,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(InsightsTab.OVERVIEW) }
     var selectedPeriod by rememberSaveable { mutableStateOf(TimePeriod.THIS_MONTH) }
@@ -178,7 +181,10 @@ fun InsightsScreen(
                     } else {
                         if (categoryShares.isNotEmpty()) {
                             item {
-                                CategoryBreakdownCard(categoryShares = categoryShares)
+                                CategoryBreakdownCard(
+                                    categoryShares = categoryShares,
+                                    onCategoryClick = onCategoryClick,
+                                )
                             }
                         }
 
@@ -190,7 +196,10 @@ fun InsightsScreen(
 
                         if (topMerchants.isNotEmpty()) {
                             item {
-                                TopMerchantsCard(topMerchants = topMerchants)
+                                TopMerchantsCard(
+                                    topMerchants = topMerchants,
+                                    onMerchantClick = onMerchantClick,
+                                )
                             }
                         }
                     }
@@ -429,6 +438,7 @@ fun FlowSummaryItem(
 fun CategoryBreakdownCard(
     categoryShares: List<CategorySpendShare>,
     modifier: Modifier = Modifier,
+    onCategoryClick: ((String) -> Unit)? = null,
 ) {
     val isPrivacy = LocalPrivacyMode.current
     Card(
@@ -448,7 +458,14 @@ fun CategoryBreakdownCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             categoryShares.take(6).forEach { share ->
-                Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                Column(
+                    modifier =
+                        Modifier
+                            .padding(vertical = 6.dp)
+                            .clickable(enabled = onCategoryClick != null) {
+                                onCategoryClick?.invoke(share.categoryName)
+                            },
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -495,6 +512,7 @@ fun CategoryBreakdownCard(
 fun TopMerchantsCard(
     topMerchants: List<MerchantSpendShare>,
     modifier: Modifier = Modifier,
+    onMerchantClick: ((String) -> Unit)? = null,
 ) {
     val isPrivacy = LocalPrivacyMode.current
     Card(
@@ -517,6 +535,9 @@ fun TopMerchantsCard(
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .clickable(enabled = onMerchantClick != null) {
+                                onMerchantClick?.invoke(merchant.merchantName)
+                            }
                             .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,

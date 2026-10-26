@@ -95,4 +95,40 @@ class DonutChartTest {
         assertEquals("Uncategorized", slices[1].categoryName)
         assertEquals(3000_00L, slices[1].amountMinor)
     }
+
+    @Test
+    fun buildCategorySlicesCustomMaxCategories() {
+        val txns = listOf(
+            createTxn(1L, 1000_00L, category = "Food"),
+            createTxn(2L, 900_00L, category = "Rent"),
+            createTxn(3L, 800_00L, category = "Shopping"),
+            createTxn(4L, 700_00L, category = "Travel"),
+            createTxn(5L, 600_00L, category = "Bills"),
+            createTxn(6L, 500_00L, category = "Entertainment"),
+            createTxn(7L, 400_00L, category = "Health"),
+        )
+
+        val slices = buildCategorySlices(txns, maxCategories = 3)
+        // 3 top + 1 Others = 4 slices
+        assertEquals(4, slices.size)
+        assertEquals("Food", slices[0].categoryName)
+        assertEquals(1000_00L, slices[0].amountMinor)
+        assertEquals("Rent", slices[1].categoryName)
+        assertEquals("Shopping", slices[2].categoryName)
+        assertEquals("Others", slices[3].categoryName)
+        assertEquals(2200_00L, slices[3].amountMinor) // 700 + 600 + 500 + 400
+    }
+
+    @Test
+    fun buildCategorySlicesMaxCategoriesLargerThanCount() {
+        val txns = listOf(
+            createTxn(1L, 1000_00L, category = "Food"),
+            createTxn(2L, 900_00L, category = "Rent"),
+        )
+
+        val slices = buildCategorySlices(txns, maxCategories = 8)
+        assertEquals(2, slices.size)
+        assertEquals("Food", slices[0].categoryName)
+        assertEquals("Rent", slices[1].categoryName)
+    }
 }

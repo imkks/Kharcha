@@ -1,0 +1,10 @@
+{
+  "id": "hdfc_upi_debit_v2",
+  "bank": "HDFC",
+  "senderPatterns": ["^[A-Za-z]{2}-?(HDFCBK|HDFCSMS|HDFC)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)(?:HDFC\\s+Bank:?)?\\s*(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+debited\\s+from\\s+a/c\\s+(?:X+|\\*+)?(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{2}[/-]\\d{2}[/-]\\d{2,4})\\s+to\\s+(?<merchant>[^.(]+?)(?:\\s*\\((?:UPI\\s+Ref\\s+No\\.?\\s*)?(?<ref>[a-zA-Z0-9]+)\\))?(?:\\.|\\s+(?:if\\s+)?not\\s+you.*|$)",
+  "dateFormats": ["dd/MM/yy", "dd-MM-yy", "dd/MM/yyyy", "dd-MM-yyyy", "dd-MMM-yy"],
+  "confidence": 0.95
+}

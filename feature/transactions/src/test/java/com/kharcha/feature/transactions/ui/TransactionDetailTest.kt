@@ -82,4 +82,55 @@ class TransactionDetailTest {
         val countZomato = allList.count { it.merchantNormalised == "Zomato" }
         assertEquals(1, countZomato)
     }
+
+    @Test
+    fun testLinkedTransactionResolution() {
+        val debitForCardBill =
+            createTxn(
+                id = 10L,
+                type = TransactionType.Transfer,
+                category = "Transfer",
+                amount = 1500000L,
+            ).copy(linkedTransactionId = 20L)
+
+        val cardCreditReceived =
+            createTxn(
+                id = 20L,
+                type = TransactionType.Transfer,
+                category = "Transfer",
+                amount = 1500000L,
+            ).copy(linkedTransactionId = 10L)
+
+        val all = listOf(debitForCardBill, cardCreditReceived)
+
+        val linkedToDebit = all.find { it.id == debitForCardBill.linkedTransactionId }
+        val linkedToCredit = all.find { it.id == cardCreditReceived.linkedTransactionId }
+
+        assertEquals(20L, linkedToDebit?.id)
+        assertEquals(10L, linkedToCredit?.id)
+    }
+
+    @Test
+    fun testCardSpendExpenseVsCardBillTransfer() {
+        val cardSpend =
+            createTxn(
+                id = 1L,
+                type = TransactionType.Expense,
+                amount = 250000L,
+                category = "Shopping",
+            )
+        val cardBillPayment =
+            createTxn(
+                id = 2L,
+                type = TransactionType.Transfer,
+                amount = 250000L,
+                category = "Transfer",
+            )
+
+        val txns = listOf(cardSpend, cardBillPayment)
+        val expenseTotal = txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+
+        assertEquals(250000L, expenseTotal)
+        assertFalse(txns.filter { it.type == TransactionType.Expense }.contains(cardBillPayment))
+    }
 }

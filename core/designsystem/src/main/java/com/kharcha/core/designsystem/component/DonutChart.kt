@@ -51,6 +51,7 @@ import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.sqrt
@@ -63,11 +64,12 @@ data class DonutSliceData(
 )
 
 /**
- * Builds top 5 categories + Others slice data from transaction list.
+ * Builds top categories + Others slice data from transaction list.
  */
 fun buildCategorySlices(
     transactions: List<Transaction>,
     otherLabel: String = "Others",
+    maxCategories: Int = 5,
 ): List<DonutSliceData> {
     val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
     val totalExpense = expenses.sumOf { it.amount }
@@ -84,12 +86,12 @@ fun buildCategorySlices(
                     .thenBy { it.first },
             )
 
-    val top5 = grouped.take(5)
-    val remainder = grouped.drop(5)
+    val topCategories = grouped.take(maxCategories)
+    val remainder = grouped.drop(maxCategories)
     val remainderSum = remainder.sumOf { it.second }
 
     val slices = mutableListOf<DonutSliceData>()
-    top5.forEach { (category, amount) ->
+    topCategories.forEach { (category, amount) ->
         val pct = (amount.toDouble() / totalExpense.toDouble() * 100).toFloat()
         slices.add(
             DonutSliceData(
@@ -114,6 +116,180 @@ fun buildCategorySlices(
     }
 
     return slices
+}
+
+@Composable
+fun TwoColumnDonutChart(
+    slices: List<DonutSliceData>,
+    totalAmountMinor: Long,
+    onCategoryClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    chartSize: Dp = 145.dp,
+    strokeWidth: Dp = 22.dp,
+) {
+    if (slices.isEmpty() || totalAmountMinor <= 0L) return
+
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    val selectedSlice = slices.find { it.categoryName == selectedCategory }
+
+    val animProgress = remember { Animatable(0f) }
+    LaunchedEffect(slices) {
+        animProgress.snapTo(0f)
+        animProgress.animateTo(1f, animationSpec = tween(durationMillis = 750))
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Left column: Compact Donut chart with smooth stroke (~22dp) and clean hollow center
+            Box(
+                modifier = Modifier.size(chartSize),
+                contentAlignment = Alignment.Center,
+            ) {
+                Canvas(
+                    modifier =
+                        Modifier
+                            .size(chartSize)
+                            .pointerInput(slices) {
+                                detectTapGestures { tapOffset ->
+                                    val center = Offset(size.width / 2f, size.height / 2f)
+                                    val dx = tapOffset.x - center.x
+                                    val dy = tapOffset.y - center.y
+                                    val distance = sqrt(dx * dx + dy * dy)
+                                    val outerRadius = size.width / 2f
+                                    val innerRadius = outerRadius - strokeWidth.toPx()
+
+                                    if (distance in innerRadius..outerRadius) {
+                                        var angle = (atan2(dy, dx) * 180f / PI.toFloat()) + 90f
+                                        if (angle < 0f) angle += 360f
+
+                                        var accumulatedAngle = 0f
+                                        for (slice in slices) {
+                                            val sweep = (slice.percentage / 100f) * 360f
+                                            if (angle in accumulatedAngle..(accumulatedAngle + sweep)) {
+                                                if (selectedCategory == slice.categoryName) {
+                                                    onCategoryClick(slice.categoryName)
+                                                } else {
+                                                    selectedCategory = slice.categoryName
+                                                }
+                                                break
+                                            }
+                                            accumulatedAngle += sweep
+                                        }
+                                    } else if (distance < innerRadius) {
+                                        selectedCategory?.let { onCategoryClick(it) }
+                                    }
+                                }
+                            },
+                ) {
+                    val strokePx = strokeWidth.toPx()
+                    val arcSize = Size(size.width - strokePx, size.height - strokePx)
+                    val arcOffset = Offset(strokePx / 2f, strokePx / 2f)
+
+                    var startAngle = -90f
+                    slices.forEach { slice ->
+                        val sweepAngle = (slice.percentage / 100f) * 360f * animProgress.value
+                        val isSelected = slice.categoryName == selectedCategory
+                        drawArc(
+                            color = slice.color,
+                            startAngle = startAngle,
+                            sweepAngle = (sweepAngle - 2f).coerceAtLeast(0.5f),
+                            useCenter = false,
+                            topLeft = arcOffset,
+                            size = arcSize,
+                            style =
+                                Stroke(
+                                    width = if (isSelected) strokePx + 4f else strokePx,
+                                    cap = StrokeCap.Round,
+                                ),
+                        )
+                        startAngle += sweepAngle
+                    }
+                }
+
+                // Clean hollow center with subtle selected slice info
+                selectedSlice?.let {
+                    Text(
+                        text = String.format(Locale.ROOT, "%.1f%%", it.percentage),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = it.color,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Right column: Tabular vertical category legend
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                slices.forEach { slice ->
+                    val isSelected = slice.categoryName == selectedCategory
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable {
+                                    if (selectedCategory == slice.categoryName) {
+                                        onCategoryClick(slice.categoryName)
+                                    } else {
+                                        selectedCategory = slice.categoryName
+                                    }
+                                }
+                                .padding(vertical = 3.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(slice.color),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = slice.categoryName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = String.format(Locale.ROOT, "%.1f%%", slice.percentage),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

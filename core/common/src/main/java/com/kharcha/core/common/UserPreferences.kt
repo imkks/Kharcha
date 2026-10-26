@@ -11,6 +11,9 @@ interface UserPreferences {
     fun getMerchantCategoryRules(): Map<String, String>
     fun setMerchantCategory(merchant: String, category: String)
     fun getCategoryForMerchant(merchant: String): String?
+    fun getCategoryBudgetMinor(category: String): Long
+    fun setCategoryBudgetMinor(category: String, budgetMinor: Long)
+    fun getAllCategoryBudgets(): Map<String, Long>
     fun clear()
 }
 
@@ -60,6 +63,40 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         return getMerchantCategoryRules()[normalized]
     }
 
+    override fun getAllCategoryBudgets(): Map<String, Long> {
+        val raw = prefs.getString(KEY_CATEGORY_BUDGETS, null) ?: return emptyMap()
+        return try {
+            val json = JSONObject(raw)
+            val map = mutableMapOf<String, Long>()
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                map[key] = json.getLong(key)
+            }
+            map
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    override fun getCategoryBudgetMinor(category: String): Long {
+        val normalized = category.trim().lowercase()
+        return getAllCategoryBudgets()[normalized] ?: 0L
+    }
+
+    override fun setCategoryBudgetMinor(category: String, budgetMinor: Long) {
+        val normalized = category.trim().lowercase()
+        if (normalized.isBlank()) return
+        val current = getAllCategoryBudgets().toMutableMap()
+        if (budgetMinor <= 0L) {
+            current.remove(normalized)
+        } else {
+            current[normalized] = budgetMinor
+        }
+        val json = JSONObject(current as Map<*, *>)
+        prefs.edit().putString(KEY_CATEGORY_BUDGETS, json.toString()).apply()
+    }
+
     override fun clear() {
         prefs.edit().clear().apply()
     }
@@ -70,6 +107,7 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_MONTHLY_BUDGET = "key_monthly_budget_paise"
         private const val KEY_PRIVACY_MODE_ENABLED = "key_privacy_mode_enabled"
         private const val KEY_MERCHANT_RULES = "key_merchant_rules_json"
+        private const val KEY_CATEGORY_BUDGETS = "key_category_budgets_json"
         const val DEFAULT_BUDGET_PAISE: Long = 30_000_00L
     }
 }

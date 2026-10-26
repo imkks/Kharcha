@@ -956,4 +956,123 @@ class SmsParserTest {
         assertTrue(result is ParseResult.Ignored)
         assertEquals(IgnoreReason.REMINDER, (result as ParseResult.Ignored).reason)
     }
+
+    @Test
+    fun testIciciBankCardSpendV2Template() {
+        val sms =
+            RawSms(
+                id = 45,
+                sender = "BG-ICICIT-S",
+                body =
+                    "INR 323.00 spent using ICICI Bank Card XX3006 on 24-Oct-26 on RSP*SWIGGY PVT . " +
+                        "Avl Limit: INR 6,93,384.00. If not you, call 1800 2662/SMS BLOCK 3006 to 9215676766.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(32300L, txn.amountMinor)
+        assertEquals("ICICI", txn.bankName)
+        assertEquals("3006", txn.accountLast4)
+        assertEquals("RSP*SWIGGY PVT", txn.merchantRaw?.trim())
+        assertEquals("icici_card_spend_v2", txn.templateId)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals(69338400L, txn.balanceAfterMinor)
+    }
+
+    @Test
+    fun testFallbackParserDoesNotParseHelplineAsMerchant() {
+        val fallback = GenericFallbackParser()
+        val sms =
+            RawSms(
+                id = 46,
+                sender = "UNKNOWN-S",
+                body =
+                    "INR 323.00 spent on Card XX3006 on 24-Oct-26 on RSP*SWIGGY PVT . " +
+                        "Avl Limit: INR 6,93,384.00. If not you, call 1800 2662/SMS BLOCK 3006 to 9215676766.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val txn = fallback.parse(sms)
+        org.junit.Assert.assertNotNull(txn)
+        assertEquals(32300L, txn?.amountMinor)
+        assertEquals("3006", txn?.accountLast4)
+        assertEquals("RSP*SWIGGY PVT", txn?.merchantRaw?.trim())
+        org.junit.Assert.assertNotEquals("9215676766", txn?.merchantRaw?.trim())
+    }
+
+    @Test
+    fun testSpamJobOfferIsIgnored() {
+        val sms =
+            RawSms(
+                id = 47,
+                sender = "AIRTEL",
+                body =
+                    "Airtel Warning: SPAM | Dear Sir/Mam, SUCCESSFUL Salary received Rs39800 credited to you, " +
+                        "provide You can work through home Contact customer api.whatsapp.com/send?phone=919706698213",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("Spam job offer must be ignored", result is ParseResult.Ignored)
+    }
+
+    @Test
+    fun testInsuranceClaimSettlementNoticeIsIgnored() {
+        val sms =
+            RawSms(
+                id = 48,
+                sender = "MEDIASST",
+                body =
+                    "We have received confirmation on the settlement of your claim 145769075 for a policy issued by " +
+                        "The New India Assurance Co. Ltd for INR 15545 vide reference number AXISCN1489391873 on " +
+                        "05 Oct 2026 from your insurer. Current balance is INR 484455 for Policy Period 01 Jun 2026 " +
+                        "to 31 May 2027. Click https://massist.in/MASIST/26o3v41 for details. Team Medi Assist",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("Insurance claim settlement notice must be ignored", result is ParseResult.Ignored)
+    }
+
+    @Test
+    fun testRefundInitiatedNoticeIsIgnored() {
+        val sms =
+            RawSms(
+                id = 49,
+                sender = "URBANCO",
+                body =
+                    "Dear customer, your amount Rs2511 /- has been initiated for refund. " +
+                        "It will be credited back to you within 7 working days. Thanks Team Urban Company",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("Refund initiated notification must be ignored", result is ParseResult.Ignored)
+    }
+
+    @Test
+    fun testHdfcUpiAccountDebitTemplate() {
+        val sms =
+            RawSms(
+                id = 50,
+                sender = "VM-HDFCBK",
+                body =
+                    "HDFC Bank:Rs. 53000.00 debited from a/c *1999 on 04/10/26 to a/c **0034 " +
+                        "(UPI Ref No. 615324150359). Not you? Call on 18002586161 to report",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(5300000L, txn.amountMinor)
+        assertEquals("1999", txn.accountLast4)
+        assertEquals("HDFC", txn.bankName)
+        assertEquals("a/c **0034", txn.merchantRaw?.trim())
+        assertEquals("615324150359", txn.refNumber)
+        assertEquals(Channel.UPI, txn.channel)
+        assertEquals(Direction.DEBIT, txn.direction)
+    }
 }

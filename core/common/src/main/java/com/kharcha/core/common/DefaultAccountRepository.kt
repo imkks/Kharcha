@@ -1,0 +1,317 @@
+package com.kharcha.core.common
+
+import android.content.Context
+import com.kharcha.core.model.Account
+import com.kharcha.core.model.AccountType
+import com.kharcha.core.model.Channel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+
+class DefaultAccountRepository(
+    private val context: Context,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : AccountRepository {
+    private val _accounts = MutableStateFlow<List<Account>>(emptyList())
+    private val file: File
+        get() {
+            val dir =
+                try {
+                    context.filesDir
+                } catch (_: Exception) {
+                    null
+                } ?: File(System.getProperty("java.io.tmpdir", "."))
+            return File(dir, "accounts.json")
+        }
+
+    init {
+        loadFromDisk()
+    }
+
+    override fun getAccounts(): Flow<List<Account>> = _accounts.asStateFlow()
+
+    override fun getAccountsSync(): List<Account> = _accounts.value
+
+    override suspend fun getAccountById(id: Long): Account? {
+        return _accounts.value.find { it.id == id }
+    }
+
+    override suspend fun resolveOrCreateAccount(
+        bankName: String?,
+        last4: String?,
+        channel: Channel?,
+        balanceMinor: Long?,
+        timestamp: Long?,
+        smsBody: String?,
+    ): Account {
+        return withContext(ioDispatcher) {
+            val currentList = _accounts.value.toMutableList()
+
+            val isCardChannel = channel == Channel.CARD
+            val hasCardText =
+                smsBody?.let { body ->
+                    val b = body.lowercase()
+                    b.contains("credit card") || b.contains("card ending") ||
+                        b.contains("spent on card") || b.contains("towards your card") ||
+                        b.contains("towards credit card") || b.contains("in your credit card")
+                } == true
+
+            val type =
+                when {
+                    isCardChannel || hasCardText -> AccountType.CreditCard
+                    channel == Channel.WALLET -> AccountType.Wallet
+                    else -> AccountType.Savings
+                }
+
+            val resolvedBank =
+                when {
+                    !bankName.isNullOrBlank() -> bankName.trim().uppercase()
+                    smsBody != null -> extractBankFromText(smsBody)
+                    else -> null
+                }
+
+            val resolvedLast4 =
+                when {
+                    !last4.isNullOrBlank() -> last4.trim()
+                    smsBody != null -> extractLast4FromText(smsBody, type)
+                    else -> null
+                }
+
+            val name =
+                when (type) {
+                    AccountType.CreditCard -> {
+                        val bankPart = resolvedBank ?: "Credit"
+                        val last4Part = resolvedLast4?.let { " ••$it" } ?: ""
+                        "$bankPart Card$last4Part"
+                    }
+                    AccountType.Wallet -> {
+                        val walletPart = resolvedBank ?: "Digital"
+                        "$walletPart Wallet"
+                    }
+                    else -> {
+                        val bankPart = resolvedBank ?: "Bank"
+                        val last4Part = resolvedLast4?.let { " ••$it" } ?: ""
+                        "$bankPart$last4Part"
+                    }
+                }
+
+            val existingIndex =
+                currentList.indexOfFirst { acc ->
+                    val sameType = acc.type == type
+                    val sameLast4 =
+                        resolvedLast4 != null && acc.last4 != null &&
+                            acc.last4.equals(resolvedLast4, ignoreCase = true)
+                    val sameBank =
+                        resolvedBank != null && acc.bankName != null &&
+                            acc.bankName.equals(resolvedBank, ignoreCase = true)
+
+                    if (resolvedLast4 != null && acc.last4 != null) {
+                        sameType && sameLast4 && (sameBank || acc.bankName == null || resolvedBank == null)
+                    } else if (resolvedBank != null && acc.bankName != null) {
+                        sameType && sameBank
+                    } else {
+                        false
+                    }
+                }
+
+            val now = timestamp ?: System.currentTimeMillis()
+            if (existingIndex != -1) {
+                val existing = currentList[existingIndex]
+                val lastUpdated = existing.balanceUpdatedAt
+                val shouldUpdateBalance =
+                    balanceMinor != null && (lastUpdated == null || now >= lastUpdated)
+
+                val updated =
+                    if (shouldUpdateBalance) {
+                        existing.copy(
+                            currentBalance = balanceMinor,
+                            balanceUpdatedAt = now,
+                        )
+                    } else {
+                        existing
+                    }
+                currentList[existingIndex] = updated
+                _accounts.value = currentList
+                saveToDisk(currentList)
+                updated
+            } else {
+                val nextId = (currentList.maxOfOrNull { it.id } ?: 0L) + 1L
+                val newAccount =
+                    Account(
+                        id = nextId,
+                        name = name,
+                        bankName = resolvedBank,
+                        last4 = resolvedLast4,
+                        type = type,
+                        currentBalance = balanceMinor,
+                        balanceUpdatedAt = if (balanceMinor != null) now else null,
+                    )
+                currentList.add(newAccount)
+                _accounts.value = currentList
+                saveToDisk(currentList)
+                newAccount
+            }
+        }
+    }
+
+    override suspend fun saveAccount(account: Account) {
+        withContext(ioDispatcher) {
+            val currentList = _accounts.value.toMutableList()
+            val index = currentList.indexOfFirst { it.id == account.id }
+            if (index != -1) {
+                currentList[index] = account
+            } else {
+                currentList.add(account)
+            }
+            _accounts.value = currentList
+            saveToDisk(currentList)
+        }
+    }
+
+    override suspend fun clearAccounts() {
+        withContext(ioDispatcher) {
+            _accounts.value = emptyList()
+            if (file.exists()) {
+                file.delete()
+            }
+        }
+    }
+
+    private fun extractBankFromText(body: String): String? {
+        val banks =
+            listOf(
+                "HDFC", "SBI", "ICICI", "AXIS", "KOTAK", "IDFC",
+                "PNB", "BOB", "CANARA", "INDUSIND", "YES", "AMEX",
+                "CITI", "RBL", "SCB", "FEDERAL",
+            )
+        val upper = body.uppercase()
+        return banks.firstOrNull { upper.contains(it) }
+    }
+
+    private fun extractLast4FromText(body: String, type: AccountType): String? {
+        if (type == AccountType.CreditCard) {
+            val cardRegex =
+                Regex(
+                    """(?:card|cc)\s*(?:ending|no\.?|number|ending with|ending in)?\s*(?:xx|x|\*)*(\d{4})""",
+                    RegexOption.IGNORE_CASE,
+                )
+            val match = cardRegex.find(body)
+            if (match != null) return match.groupValues[1]
+        }
+        val acctRegex =
+            Regex(
+                """(?:a/c|acct|account)\s*(?:no\.?|number)?\s*(?:xx|x|\*)*(\d{4})""",
+                RegexOption.IGNORE_CASE,
+            )
+        val acctMatch = acctRegex.find(body)
+        if (acctMatch != null) return acctMatch.groupValues[1]
+
+        val fallback = Regex("""(?:\*{2,}|x{2,}|xx)(\d{4})""", RegexOption.IGNORE_CASE)
+        return fallback.find(body)?.groupValues?.get(1)
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun loadFromDisk() {
+        try {
+            if (!file.exists()) return
+            val text = file.readText()
+            if (text.isBlank()) return
+            val jsonArray = JSONArray(text)
+            val list = mutableListOf<Account>()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                list.add(jsonToAccount(obj))
+            }
+            _accounts.value = list
+        } catch (_: Exception) {
+            // Keep empty list if corrupted
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun saveToDisk(list: List<Account>) {
+        try {
+            val jsonArray = JSONArray()
+            for (acc in list) {
+                jsonArray.put(accountToJson(acc))
+            }
+            file.writeText(jsonArray.toString())
+        } catch (_: Exception) {
+            // Log or ignore disk errors gracefully
+        }
+    }
+
+    private fun accountToJson(account: Account): JSONObject {
+        val obj = JSONObject()
+        obj.put("id", account.id)
+        obj.put("name", account.name)
+        obj.put("bankName", account.bankName)
+        obj.put("last4", account.last4)
+        obj.put("type", account.type.name)
+        account.currentBalance?.let { obj.put("currentBalance", it) }
+        account.balanceUpdatedAt?.let { obj.put("balanceUpdatedAt", it) }
+        obj.put("isArchived", account.isArchived)
+        return obj
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun jsonToAccount(json: JSONObject): Account {
+        val typeStr = json.optString("type", AccountType.Savings.name)
+        val accType =
+            try {
+                AccountType.valueOf(typeStr)
+            } catch (_: Exception) {
+                AccountType.Savings
+            }
+
+        val bal =
+            if (json.has("currentBalance") && !json.isNull("currentBalance")) {
+                json.getLong("currentBalance")
+            } else {
+                null
+            }
+
+        val updated =
+            if (json.has("balanceUpdatedAt") && !json.isNull("balanceUpdatedAt")) {
+                json.getLong("balanceUpdatedAt")
+            } else {
+                null
+            }
+
+        return Account(
+            id = json.optLong("id"),
+            name = json.optString("name", "Account"),
+            bankName = if (json.has("bankName") && !json.isNull("bankName")) json.getString("bankName") else null,
+            last4 = if (json.has("last4") && !json.isNull("last4")) json.getString("last4") else null,
+            type = accType,
+            currentBalance = bal,
+            balanceUpdatedAt = updated,
+            isArchived = json.optBoolean("isArchived", false),
+        )
+    }
+
+    companion object {
+        @Volatile
+        private var instance: DefaultAccountRepository? = null
+
+        fun getInstance(context: Context): DefaultAccountRepository {
+            return instance ?: synchronized(this) {
+                val appContext =
+                    try {
+                        context.applicationContext ?: context
+                    } catch (_: Exception) {
+                        context
+                    }
+                instance ?: DefaultAccountRepository(appContext).also {
+                    instance = it
+                }
+            }
+        }
+    }
+}

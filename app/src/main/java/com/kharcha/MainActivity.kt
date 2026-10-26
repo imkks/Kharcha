@@ -38,26 +38,38 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.designsystem.component.AddTransactionDialog
 import com.kharcha.core.designsystem.theme.KharchaTheme
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.model.Account
 import com.kharcha.core.model.Transaction
+import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
 import com.kharcha.feature.home.ui.HomeScreen
 import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.review.ui.ReviewQueueScreen
 import com.kharcha.feature.settings.ui.MoreScreen
+import com.kharcha.feature.transactions.ui.EntityTransactionsScreen
 import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
+import com.kharcha.feature.transactions.ui.TransactionsSubTab
 import dagger.hilt.android.AndroidEntryPoint
+import java.time.YearMonth
 import javax.inject.Inject
 import kotlinx.coroutines.launch
+
+data class SelectedEntity(
+    val title: String,
+    val isMerchant: Boolean,
+)
 
 enum class AppDestination(
     val labelRes: Int,
@@ -120,12 +132,20 @@ fun MainAppShell(
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
+    val context = LocalContext.current
+    val accountRepository = remember { DefaultAccountRepository.getInstance(context) }
+    val accounts by accountRepository.getAccounts().collectAsState(initial = emptyList())
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showReviewQueue by rememberSaveable { mutableStateOf(false) }
     var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
+    var selectedEntityForDetail by remember { mutableStateOf<SelectedEntity?>(null) }
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
+    var transactionsFilter by remember { mutableStateOf(TransactionFilter()) }
+    var transactionsYearMonth by remember { mutableStateOf<YearMonth?>(YearMonth.now()) }
+    var transactionsIsAllMonthsSelected by remember { mutableStateOf(false) }
+    var transactionsSubTab by remember { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
 
     val showFab = currentDestination == AppDestination.HOME || currentDestination == AppDestination.TRANSACTIONS
 
@@ -143,7 +163,27 @@ fun MainAppShell(
             TransactionDetailScreen(
                 transaction = txn,
                 allTransactions = transactions,
+                accounts = accounts,
                 onBack = { selectedTransactionForDetail = null },
+                onNavigateToTransaction = { txnId ->
+                    selectedTransactionForDetail = transactions.find { it.id == txnId }
+                },
+                onLinkTransactions = { primaryId, secondaryId, isRefund ->
+                    scope.launch {
+                        transactionRepository.linkTransactions(primaryId, secondaryId, isRefund)
+                        snackbarHostState.showSnackbar("Transactions linked")
+                        selectedTransactionForDetail =
+                            transactions.find { it.id == primaryId }?.copy(linkedTransactionId = secondaryId)
+                    }
+                },
+                onUnlinkTransaction = { id ->
+                    scope.launch {
+                        transactionRepository.unlinkTransactions(id)
+                        snackbarHostState.showSnackbar("Transactions unlinked")
+                        selectedTransactionForDetail =
+                            transactions.find { it.id == id }?.copy(linkedTransactionId = null)
+                    }
+                },
                 onSave = { updated, propagate ->
                     scope.launch {
                         if (propagate) {
@@ -168,6 +208,27 @@ fun MainAppShell(
                     }
                     selectedTransactionForDetail = null
                 },
+                onSaveTransactions = { updatedList, updateRule ->
+                    scope.launch {
+                        transactionRepository.updateTransactions(updatedList)
+                        if (updateRule) {
+                            val merchant =
+                                updatedList.firstOrNull()?.merchantNormalised
+                                    ?: updatedList.firstOrNull()?.merchantRaw
+                            val category = updatedList.firstOrNull()?.categorySource
+                            if (!merchant.isNullOrBlank() && !category.isNullOrBlank()) {
+                                userPreferences.setMerchantCategory(merchant, category)
+                            }
+                        }
+                        val count = updatedList.size
+                        if (count > 1) {
+                            snackbarHostState.showSnackbar("Updated $count transactions")
+                        } else {
+                            snackbarHostState.showSnackbar("Transaction updated")
+                        }
+                    }
+                    selectedTransactionForDetail = null
+                },
                 onDelete = { toDelete ->
                     scope.launch {
                         transactionRepository.updateTransaction(
@@ -177,6 +238,16 @@ fun MainAppShell(
                     }
                     selectedTransactionForDetail = null
                 },
+            )
+        } else if (selectedEntityForDetail != null) {
+            val entity = selectedEntityForDetail!!
+            BackHandler { selectedEntityForDetail = null }
+            EntityTransactionsScreen(
+                title = entity.title,
+                isMerchant = entity.isMerchant,
+                allTransactions = transactions,
+                onBack = { selectedEntityForDetail = null },
+                onTransactionClick = { selectedTransactionForDetail = it },
             )
         } else {
             Scaffold(
@@ -214,13 +285,16 @@ fun MainAppShell(
                 BoxDestinationContent(
                     destination = currentDestination,
                     transactions = transactions,
+                    accounts = accounts,
                     userPreferences = userPreferences,
                     onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
                     onReviewClick = { showReviewQueue = true },
                     onTransactionClick = { txn -> selectedTransactionForDetail = txn },
                     onCategoryClick = { cat ->
-                        filterCategoryForTransactions = cat
-                        currentDestination = AppDestination.TRANSACTIONS
+                        selectedEntityForDetail = SelectedEntity(cat, isMerchant = false)
+                    },
+                    onMerchantClick = { merchant ->
+                        selectedEntityForDetail = SelectedEntity(merchant, isMerchant = true)
                     },
                     filterCategory = filterCategoryForTransactions,
                     onClearCategoryFilter = { filterCategoryForTransactions = null },
@@ -248,6 +322,22 @@ fun MainAppShell(
                     },
                     onResetOnboarding = onResetOnboarding,
                     onPrivacyToggle = onTogglePrivacyMode,
+                    onCategoriseUnknown = { showReviewQueue = true },
+                    transactionsFilter = transactionsFilter,
+                    onFilterChange = { transactionsFilter = it },
+                    transactionsYearMonth = transactionsYearMonth,
+                    onYearMonthChange = { transactionsYearMonth = it },
+                    transactionsIsAllMonthsSelected = transactionsIsAllMonthsSelected,
+                    onAllMonthsSelectedChange = { transactionsIsAllMonthsSelected = it },
+                    transactionsSubTab = transactionsSubTab,
+                    onSubTabChange = { transactionsSubTab = it },
+                    onUpdateBudget = { category, budgetMinor ->
+                        if (category == null) {
+                            userPreferences.monthlyBudgetMinor = budgetMinor
+                        } else {
+                            userPreferences.setCategoryBudgetMinor(category, budgetMinor)
+                        }
+                    },
                     modifier = Modifier.padding(innerPadding),
                 )
             }
@@ -314,11 +404,13 @@ fun MainAppShell(
 fun BoxDestinationContent(
     destination: AppDestination,
     transactions: List<Transaction>,
+    accounts: List<Account> = emptyList(),
     userPreferences: UserPreferences,
     onNavigateToTransactions: () -> Unit,
     onReviewClick: () -> Unit,
     onTransactionClick: (Transaction) -> Unit,
     onCategoryClick: (String) -> Unit = {},
+    onMerchantClick: (String) -> Unit = {},
     filterCategory: String? = null,
     onClearCategoryFilter: () -> Unit = {},
     onDeleteTransaction: (Transaction) -> Unit = {},
@@ -327,6 +419,16 @@ fun BoxDestinationContent(
     onUpdateTransactions: (List<Transaction>) -> Unit = {},
     onResetOnboarding: () -> Unit,
     onPrivacyToggle: () -> Unit,
+    onCategoriseUnknown: () -> Unit = {},
+    transactionsFilter: TransactionFilter = TransactionFilter(),
+    onFilterChange: (TransactionFilter) -> Unit = {},
+    transactionsYearMonth: YearMonth? = YearMonth.now(),
+    onYearMonthChange: (YearMonth?) -> Unit = {},
+    transactionsIsAllMonthsSelected: Boolean = false,
+    onAllMonthsSelectedChange: (Boolean) -> Unit = {},
+    transactionsSubTab: TransactionsSubTab = TransactionsSubTab.TRANSACTIONS,
+    onSubTabChange: (TransactionsSubTab) -> Unit = {},
+    onUpdateBudget: (String?, Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -344,6 +446,7 @@ fun BoxDestinationContent(
         AppDestination.TRANSACTIONS -> {
             TransactionsScreen(
                 transactions = transactions,
+                accounts = accounts,
                 onTransactionClick = onTransactionClick,
                 onPrivacyToggle = onPrivacyToggle,
                 initialCategory = filterCategory,
@@ -353,6 +456,19 @@ fun BoxDestinationContent(
                 onReviewTransaction = onReviewTransaction,
                 onUpdateTransactions = onUpdateTransactions,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
+                categoryBudgets = userPreferences.getAllCategoryBudgets(),
+                onUpdateBudget = onUpdateBudget,
+                onCategoriseUnknown = onCategoriseUnknown,
+                filter = transactionsFilter,
+                onFilterChange = onFilterChange,
+                selectedYearMonthState = transactionsYearMonth,
+                onYearMonthChange = onYearMonthChange,
+                isAllMonthsSelectedState = transactionsIsAllMonthsSelected,
+                onAllMonthsSelectedChange = onAllMonthsSelectedChange,
+                subTabState = transactionsSubTab,
+                onSubTabChange = onSubTabChange,
+                onCategoryClick = onCategoryClick,
+                onMerchantClick = onMerchantClick,
             )
         }
         AppDestination.INSIGHTS -> {
@@ -361,6 +477,8 @@ fun BoxDestinationContent(
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 onTransactionClick = onTransactionClick,
+                onCategoryClick = onCategoryClick,
+                onMerchantClick = onMerchantClick,
                 modifier = modifier,
             )
         }

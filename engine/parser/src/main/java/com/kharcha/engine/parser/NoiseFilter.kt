@@ -34,6 +34,25 @@ object NoiseFilter {
         )
     private val maintainBalanceRegex =
         Regex("(?i)\\bmaintain\\s+(?:sufficient\\s+)?(?:balance|funds)\\b")
+    private val futureCreditRefundRegex =
+        Regex(
+            "(?i)\\b(?:initiated\\s+for\\s+refund|refund\\s+(?:has\\s+been\\s+)?initiated|" +
+                "will\\s+be\\s+credited|credited\\s+back\\s+to\\s+you|" +
+                "credited\\s+(?:back\\s+)?within\\s+\\d+\\s+working\\s+days)\\b",
+        )
+    private val spamScamRegex =
+        Regex(
+            "(?i)\\b(?:warning:?\\s*spam|airtel\\s+warning|jio\\s+warning|vi\\s+warning|" +
+                "work\\s+(?:from|through)\\s+home|part\\s*time\\s+job|" +
+                "earn\\s+(?:daily|online|money\\s+from\\s+home)|" +
+                "api\\.whatsapp\\.com|wa\\.me/|t\\.me/)\\b",
+        )
+    private val insuranceClaimRegex =
+        Regex(
+            "(?i)\\b(?:settlement\\s+of\\s+your\\s+claim|claim\\s+\\d+\\s+for\\s+a\\s+policy|" +
+                "from\\s+your\\s+insurer|policy\\s+period|medi\\s*assist|insurance\\s+claim|" +
+                "health\\s+insurance\\s+claim)\\b",
+        )
     private val failedRegex =
         Regex("(?i)\\b(declined|failed|insufficient funds|unsuccessful)\\b")
     private val mandateRegex =
@@ -93,6 +112,21 @@ object NoiseFilter {
         // 6. Registration/Mandate
         if (mandateRegex.containsMatchIn(body)) {
             return ParseResult.Ignored(IgnoreReason.NOT_A_TRANSACTION)
+        }
+
+        // 7. Spam, scam job offers, WhatsApp links
+        if (spamScamRegex.containsMatchIn(body)) {
+            return ParseResult.Ignored(IgnoreReason.PROMO)
+        }
+
+        // 8. Insurance claim / TPA policy settlement notices
+        if (insuranceClaimRegex.containsMatchIn(body)) {
+            return ParseResult.Ignored(IgnoreReason.NOT_A_TRANSACTION)
+        }
+
+        // 9. Future refund initiated notices
+        if (futureCreditRefundRegex.containsMatchIn(body)) {
+            return ParseResult.Ignored(IgnoreReason.REMINDER)
         }
 
         return null

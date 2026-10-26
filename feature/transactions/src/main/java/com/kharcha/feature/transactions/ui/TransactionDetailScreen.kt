@@ -137,7 +137,6 @@ fun TransactionDetailScreen(
     var showAddTagDialog by remember { mutableStateOf(false) }
     var showReceiptViewDialog by remember { mutableStateOf(false) }
     var showLinkSheet by remember { mutableStateOf(false) }
-    var propagateToAllMerchants by remember { mutableStateOf(true) }
 
     val merchantName =
         transaction.merchantNormalised

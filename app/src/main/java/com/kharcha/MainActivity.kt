@@ -48,6 +48,7 @@ import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.designsystem.component.AddTransactionDialog
 import com.kharcha.core.designsystem.theme.KharchaTheme
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.model.Account
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
@@ -284,6 +285,7 @@ fun MainAppShell(
                 BoxDestinationContent(
                     destination = currentDestination,
                     transactions = transactions,
+                    accounts = accounts,
                     userPreferences = userPreferences,
                     onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
                     onReviewClick = { showReviewQueue = true },
@@ -402,6 +404,7 @@ fun MainAppShell(
 fun BoxDestinationContent(
     destination: AppDestination,
     transactions: List<Transaction>,
+    accounts: List<Account> = emptyList(),
     userPreferences: UserPreferences,
     onNavigateToTransactions: () -> Unit,
     onReviewClick: () -> Unit,

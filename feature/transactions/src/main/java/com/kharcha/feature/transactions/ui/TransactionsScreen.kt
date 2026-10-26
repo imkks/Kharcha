@@ -573,7 +573,7 @@ fun TransactionsScreen(
                     TransactionsSubTab.TRANSACTIONS -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 24.dp),
+                            contentPadding = PaddingValues(bottom = 32.dp),
                         ) {
                             // Hero Month Circular Ring & Stats Overview (Scrolls with transaction list)
                             item {
@@ -765,6 +765,10 @@ fun TransactionsScreen(
                                             }
                                         }
                                     }
+                                }
+
+                                item {
+                                    Spacer(modifier = Modifier.height(24.dp))
                                 }
                             }
                         }
@@ -1513,12 +1517,13 @@ fun MerchantsTabContent(
                                     modifier = Modifier.weight(1f),
                                 ) {
                                     // Green rounded square icon
+                                    val iconBg = MaterialTheme.financialColors.limeAccent.copy(alpha = 0.15f)
                                     Box(
                                         modifier =
                                             Modifier
                                                 .size(42.dp)
                                                 .clip(RoundedCornerShape(12.dp))
-                                                .background(MaterialTheme.financialColors.limeAccent.copy(alpha = 0.15f)),
+                                                .background(iconBg),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Icon(

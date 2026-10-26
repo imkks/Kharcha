@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -156,8 +153,6 @@ fun MainAppShell(
     var transactionsIsAllMonthsSelected by remember { mutableStateOf(false) }
     var transactionsSubTab by remember { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
 
-    val showFab = currentDestination == AppDestination.HOME || currentDestination == AppDestination.TRANSACTIONS
-
     var isPrivacyMode by rememberSaveable { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
     val onTogglePrivacyMode = {
         val newMode = !isPrivacyMode
@@ -286,23 +281,9 @@ fun MainAppShell(
                         items = navItems,
                     )
                 },
-                floatingActionButton = {
-                    if (showFab) {
-                        FloatingActionButton(
-                            onClick = { showAddTransactionDialog = true },
-                            containerColor = MaterialTheme.financialColors.paleLimeAddButton,
-                            contentColor = MaterialTheme.financialColors.onPaleLimeAddButton,
-                            shape = CircleShape,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = stringResource(id = R.string.fab_add_transaction),
-                            )
-                        }
-                    }
-                },
             ) { innerPadding ->
                 BoxDestinationContent(
+                    modifier = Modifier.padding(innerPadding),
                     destination = currentDestination,
                     transactions = transactions,
                     accounts = accounts,
@@ -384,13 +365,18 @@ fun MainAppShell(
                             val currentAccounts = accountRepository.getAccountsSync()
                             for (acc in currentAccounts) {
                                 if (acc.id in linkedIds) {
-                                    accountRepository.saveAccount(acc.copy(linkedPrimaryAccountId = primaryId, isArchived = true))
+                                    accountRepository.saveAccount(
+                                        acc.copy(linkedPrimaryAccountId = primaryId, isArchived = true),
+                                    )
                                 } else if (acc.linkedPrimaryAccountId == primaryId && acc.id !in linkedIds) {
-                                    accountRepository.saveAccount(acc.copy(linkedPrimaryAccountId = null, isArchived = false))
+                                    accountRepository.saveAccount(
+                                        acc.copy(linkedPrimaryAccountId = null, isArchived = false),
+                                    )
                                 }
                             }
                             val transactionsToMove =
-                                transactions.filter { it.accountId in linkedIds }.map { it.copy(accountId = primaryId) }
+                                transactions.filter { it.accountId in linkedIds }
+                                    .map { it.copy(accountId = primaryId) }
                             if (transactionsToMove.isNotEmpty()) {
                                 transactionRepository.updateTransactions(transactionsToMove)
                             }
@@ -598,6 +584,7 @@ fun BoxDestinationContent(
                 onSplitClick = onSplitClick,
                 onDepositClick = onDepositClick,
                 onDuesClick = onDuesClick,
+                modifier = modifier,
             )
         }
         AppDestination.TRANSACTIONS -> {
@@ -626,6 +613,7 @@ fun BoxDestinationContent(
                 onSubTabChange = onSubTabChange,
                 onCategoryClick = onCategoryClick,
                 onMerchantClick = onMerchantClick,
+                modifier = modifier,
             )
         }
         AppDestination.INSIGHTS -> {

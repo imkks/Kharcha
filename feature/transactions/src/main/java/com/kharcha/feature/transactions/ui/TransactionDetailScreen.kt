@@ -218,6 +218,17 @@ fun TransactionDetailScreen(
             instant.atZone(ZoneId.systemDefault()).format(formatter)
         }
 
+    val linkedTxn =
+        remember(transaction.linkedTransactionId, allTransactions) {
+            transaction.linkedTransactionId?.let { id ->
+                allTransactions.find { it.id == id }
+            }
+        }
+    val linkedAccount =
+        remember(linkedTxn, accounts) {
+            linkedTxn?.let { lt -> accounts.find { it.id == lt.accountId } }
+        }
+
     val topBarTitle =
         when (selectedType) {
             TransactionType.Expense -> stringResource(id = R.string.detail_debit_title)
@@ -595,25 +606,13 @@ fun TransactionDetailScreen(
             }
 
             // Linked Transfer / Card Bill Payment Card
-            val linkedTxn =
-                remember(transaction.linkedTransactionId, allTransactions) {
-                    transaction.linkedTransactionId?.let { id ->
-                        allTransactions.find { it.id == id }
-                    }
-                }
-            val linkedAccount =
-                remember(linkedTxn, accounts) {
-                    linkedTxn?.let { lt -> accounts.find { it.id == lt.accountId } }
-                }
-
-            val isRefundLink =
-                linkedTxn != null &&
-                    (selectedType == TransactionType.Refund ||
+            if (linkedTxn != null) {
+                val isRefundLink =
+                    selectedType == TransactionType.Refund ||
                         linkedTxn.type == TransactionType.Refund ||
                         TransactionClassifierHelper.isRefundNarrative(linkedTxn.note) ||
-                        TransactionClassifierHelper.isRefundNarrative(transaction.note))
+                        TransactionClassifierHelper.isRefundNarrative(transaction.note)
 
-            if (linkedTxn != null) {
                 item {
                     val linkedMerchant =
                         linkedTxn.merchantNormalised

@@ -28,9 +28,21 @@ object TransactionClassifierHelper {
         val b = body?.lowercase() ?: ""
         val m = merchant?.lowercase() ?: ""
 
-        if (b.contains("spent") || b.contains("used for a transaction") || b.contains("used at")) {
+        if (b.contains("spent") || b.contains("used for a transaction") ||
+            b.contains("used at") || b.contains("used your") || b.contains("made on")
+        ) {
             return false
         }
+
+        val cardPaymentPattern =
+            Regex(
+                """(?:payment|received|credited|thank you for payment)\b.*(?:towards|for|to|in)\b.*""" +
+                    """(?:credit\s+card|card|cc)\b|""" +
+                    """\btowards\s+(?:your\s+)?(?:[a-zA-Z]+\s+)*(?:credit\s+card|card|cc)\b|""" +
+                    """\b(?:credit\s+card|card|cc)\s+(?:bill|payment)\b|""" +
+                    """\b(?:cred|cheq|cred club|cred\.club)\b|cred@|cheq@""",
+                RegexOption.IGNORE_CASE,
+            )
 
         val cardPhrases =
             listOf(
@@ -45,19 +57,19 @@ object TransactionClassifierHelper {
                 "towards sbi card", "towards hdfc card", "towards icici card",
                 "towards axis card", "towards onecard", "towards rbl card",
                 "towards kotak card", "sbi card payment", "hdfc card payment",
+                "received towards", "payment received towards",
             )
 
-        val appRegex = Regex("""\b(?:cred|cheq|cred club|cred\.club)\b|cred@|cheq@""", RegexOption.IGNORE_CASE)
-
-        val hasCardPhrase = cardPhrases.any { b.contains(it) || m.contains(it) }
-        val hasAppPhrase = appRegex.containsMatchIn(b) || appRegex.containsMatchIn(m)
+        val hasCardPhrase =
+            (cardPhrases.any { b.contains(it) || m.contains(it) } && (b.contains("card") || b.contains("cc"))) ||
+                cardPaymentPattern.containsMatchIn(b) || cardPaymentPattern.containsMatchIn(m)
 
         val isAutoDebitForCard =
             (b.contains("auto debit") || b.contains("autodebit") || b.contains("auto-debit") ||
                 b.contains("standing instruction") || b.contains("nach") || b.contains("e-mandate")) &&
                 (b.contains("card") || b.contains("cc") || b.contains("credit"))
 
-        return hasCardPhrase || hasAppPhrase || isAutoDebitForCard
+        return hasCardPhrase || isAutoDebitForCard
     }
 
     fun isAutoDebit(body: String? = null): Boolean {

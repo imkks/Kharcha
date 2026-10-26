@@ -131,6 +131,12 @@
     <string name="detail_location_action">See map</string>
     <string name="detail_notes_tap_to_add">Tap to add</string>
     <string name="detail_account_expense">Expense</string>
+    <string name="detail_account_income">Income</string>
+    <string name="detail_toast_not_counted_spends">Will not be counted in total spends</string>
+    <string name="detail_toast_counted_spends">Will be counted in total spends</string>
+    <string name="detail_toast_counted_income">Will be counted in income</string>
+    <string name="detail_toast_not_counted_income">Will not be counted in income</string>
+    <string name="detail_split_not_available_credit">Split not available for credit transactions</string>
     <string name="budget_title_monthly">Set Monthly Budget</string>
     <string name="budget_title_category">Set Budget for %1$s</string>
     <string name="budget_amount_label">Budget Amount</string>

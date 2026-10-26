@@ -130,7 +130,7 @@ fun AccountsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        containerColor = MaterialTheme.financialColors.cardBackground,
         modifier = modifier,
     ) {
         Column(
@@ -144,13 +144,13 @@ fun AccountsSheet(
                 text = stringResource(id = R.string.accounts_sheet_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = Color.White,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = stringResource(id = R.string.accounts_sheet_subtitle),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color(0xFF9E9E9E),
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -167,18 +167,13 @@ fun AccountsSheet(
                         shape = RoundedCornerShape(16.dp),
                         colors =
                             CardDefaults.cardColors(
-                                containerColor =
-                                    if (isAllAccountsSelected) {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainer
-                                    },
+                                containerColor = MaterialTheme.financialColors.cardBackground,
                             ),
                         border =
                             if (isAllAccountsSelected) {
-                                BorderStroke(1.dp, MaterialTheme.financialColors.income.copy(alpha = 0.5f))
+                                BorderStroke(1.5.dp, MaterialTheme.financialColors.income)
                             } else {
-                                null
+                                BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider)
                             },
                         modifier =
                             Modifier
@@ -194,7 +189,7 @@ fun AccountsSheet(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                color = MaterialTheme.colorScheme.background,
                                 modifier = Modifier.size(40.dp),
                             ) {
                                 Icon(
@@ -210,7 +205,7 @@ fun AccountsSheet(
                                     text = stringResource(id = R.string.accounts_all),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = Color.White,
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
@@ -220,7 +215,7 @@ fun AccountsSheet(
                                             transactions.size,
                                         ),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = Color(0xFF9E9E9E),
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
@@ -228,7 +223,7 @@ fun AccountsSheet(
                                     text = allExpenseFormatted,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = Color.White,
                                 )
                                 if (isAllAccountsSelected) {
                                     Spacer(modifier = Modifier.height(2.dp))
@@ -246,7 +241,7 @@ fun AccountsSheet(
 
                 item {
                     HorizontalDivider(
-                        color = Color.White.copy(alpha = 0.08f),
+                        color = MaterialTheme.financialColors.hairlineDivider,
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                 }
@@ -268,18 +263,13 @@ fun AccountsSheet(
                         shape = RoundedCornerShape(16.dp),
                         colors =
                             CardDefaults.cardColors(
-                                containerColor =
-                                    if (isSelected) {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainer
-                                    },
+                                containerColor = MaterialTheme.financialColors.cardBackground,
                             ),
                         border =
                             if (isSelected) {
-                                BorderStroke(1.dp, MaterialTheme.financialColors.income.copy(alpha = 0.5f))
+                                BorderStroke(1.5.dp, MaterialTheme.financialColors.income)
                             } else {
-                                null
+                                BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider)
                             },
                         modifier =
                             Modifier
@@ -295,7 +285,7 @@ fun AccountsSheet(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                color = MaterialTheme.colorScheme.background,
                                 modifier = Modifier.size(40.dp),
                             ) {
                                 val isCard =
@@ -327,7 +317,7 @@ fun AccountsSheet(
                                     text = account.name,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = Color.White,
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Row(
@@ -341,7 +331,7 @@ fun AccountsSheet(
                                                 account.transactionCount,
                                             ),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = Color(0xFF9E9E9E),
                                     )
                                     if (account.currentBalanceMinor != null) {
                                         val balFormatted =
@@ -359,7 +349,7 @@ fun AccountsSheet(
                                     text = expenseFormatted,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = Color.White,
                                 )
                                 if (isSelected) {
                                     Spacer(modifier = Modifier.height(2.dp))

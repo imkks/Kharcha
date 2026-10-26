@@ -2,6 +2,7 @@ package com.kharcha.feature.settings.ui
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -104,28 +107,29 @@ fun MoreScreen(
                 shape = RoundedCornerShape(20.dp),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        containerColor = MaterialTheme.financialColors.cardBackground,
                     ),
+                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
                         text = "Kharcha",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = Color.White,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(id = R.string.settings_offline_title),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                        color = MaterialTheme.financialColors.income,
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = stringResource(id = R.string.settings_offline_subtitle),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                        color = Color(0xFF9E9E9E),
                     )
                 }
             }
@@ -139,11 +143,12 @@ fun MoreScreen(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        containerColor = MaterialTheme.financialColors.cardBackground,
                     ),
+                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
             ) {
                 Column {
                     // Monthly Budget Row
@@ -156,7 +161,7 @@ fun MoreScreen(
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = MaterialTheme.financialColors.income,
                                 )
                             }
                         },
@@ -164,7 +169,7 @@ fun MoreScreen(
                     )
 
                     HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        color = MaterialTheme.financialColors.hairlineDivider,
                     )
 
                     // Currency Row
@@ -175,7 +180,7 @@ fun MoreScreen(
                     )
 
                     HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        color = MaterialTheme.financialColors.hairlineDivider,
                     )
 
                     // Privacy Mode Toggle Row
@@ -190,6 +195,13 @@ fun MoreScreen(
                                     isPrivacyEnabled = isChecked
                                     userPreferences.isPrivacyModeEnabled = isChecked
                                 },
+                                colors =
+                                    SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = MaterialTheme.financialColors.income,
+                                        uncheckedThumbColor = Color(0xFF9E9E9E),
+                                        uncheckedTrackColor = Color(0xFF2E2E2E),
+                                    ),
                             )
                         },
                         onClick = {
@@ -199,7 +211,7 @@ fun MoreScreen(
                     )
 
                     HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        color = MaterialTheme.financialColors.hairlineDivider,
                     )
 
                     // Re-scan SMS Inbox Row
@@ -221,11 +233,12 @@ fun MoreScreen(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        containerColor = MaterialTheme.financialColors.cardBackground,
                     ),
+                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
             ) {
                 SettingsActionRow(
                     icon = Icons.Default.Info,
@@ -244,11 +257,12 @@ fun MoreScreen(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        containerColor = MaterialTheme.financialColors.cardBackground,
                     ),
+                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
             ) {
                 Column {
                     SettingsActionRow(
@@ -267,7 +281,7 @@ fun MoreScreen(
                     )
 
                     HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        color = MaterialTheme.financialColors.hairlineDivider,
                     )
 
                     SettingsActionRow(
@@ -296,23 +310,25 @@ fun MoreScreen(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        containerColor = MaterialTheme.financialColors.cardBackground,
                     ),
+                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = stringResource(id = R.string.settings_app_version),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Zero tracking • 100% on-device analytics • MIT License",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color(0xFF9E9E9E),
                     )
                 }
             }

@@ -170,6 +170,10 @@ fun MainAppShell(
                 onNavigateToTransaction = { txnId ->
                     selectedTransactionForDetail = transactions.find { it.id == txnId }
                 },
+                onNavigateToMerchant = { merchantName ->
+                    selectedTransactionForDetail = null
+                    selectedEntityForDetail = SelectedEntity(title = merchantName, isMerchant = true)
+                },
                 onLinkTransactions = { primaryId, secondaryId, isRefund ->
                     scope.launch {
                         transactionRepository.linkTransactions(primaryId, secondaryId, isRefund)

@@ -14,20 +14,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kharcha.core.common.DateTimeFormatterHelper
 import com.kharcha.core.designsystem.R
 import com.kharcha.core.designsystem.theme.financialColors
@@ -66,6 +71,17 @@ fun TransactionRow(
 
     val relativeTime = DateTimeFormatterHelper.formatRelativeTime(transaction.dateTime)
 
+    val isOnline =
+        remember(merchantDisplay) {
+            val lower = merchantDisplay.lowercase()
+            val onlineKeywords =
+                listOf(
+                    "swiggy", "blinkit", "zomato", "amazon", "flipkart", "uber", "ola", "zepto",
+                    "hunger box", "hungerbox", "bigbasket", "bbdaily", "myntra", "dunzo", "instamart",
+                )
+            onlineKeywords.any { lower.contains(it) }
+        }
+
     Row(
         modifier =
             modifier
@@ -100,6 +116,24 @@ fun TransactionRow(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
+                    if (isOnline) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.financialColors.onlineTagBackground,
+                        ) {
+                            Text(
+                                text = "#Online",
+                                style =
+                                    MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    ),
+                                color = MaterialTheme.financialColors.onlineTagText,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                            )
+                        }
+                    }
                     val parseConf = transaction.parseConfidence
                     if (parseConf != null && parseConf < 0.7f) {
                         Spacer(modifier = Modifier.width(6.dp))

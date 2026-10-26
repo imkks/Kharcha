@@ -231,4 +231,33 @@ class NoiseFilterTest {
         assertNotNull(autoDebitResult)
         assertEquals(IgnoreReason.REMINDER, (autoDebitResult as ParseResult.Ignored).reason)
     }
+
+    @Test
+    fun ignoresStatementAlertsAndBrokerPayouts() {
+        val statementSms =
+            RawSms(
+                id = 17,
+                sender = "XX-ICICIB",
+                body = "ICICI Bank Credit Card XX4007 Statement is sent to im*****07@gmail.com. " +
+                    "Total of Rs 13,746.00 or minimum of Rs 690.00 is due by 03-NOV-26.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val statementResult = NoiseFilter.filter(statementSms)
+        assertNotNull(statementResult)
+        assertEquals(IgnoreReason.REMINDER, (statementResult as ParseResult.Ignored).reason)
+
+        val payoutSms =
+            RawSms(
+                id = 18,
+                sender = "XX-ZERODH",
+                body = "Your quarterly settlement payout for Rs.16891.59 for Equity a/c (WW6697) is processed " +
+                    "and credited to your primary bank a/c - Zerodha",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val payoutResult = NoiseFilter.filter(payoutSms)
+        assertNotNull(payoutResult)
+        assertEquals(IgnoreReason.REMINDER, (payoutResult as ParseResult.Ignored).reason)
+    }
 }

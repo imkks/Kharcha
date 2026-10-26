@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +55,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -93,6 +95,7 @@ import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
+import com.kharcha.core.designsystem.component.CategoryIconHelper
 import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
 import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
@@ -142,6 +145,12 @@ fun TransactionDetailScreen(
         transaction.merchantNormalised
             ?: transaction.merchantRaw
             ?: stringResource(id = R.string.detail_original_sms)
+
+    val isCreditTxn =
+        selectedType == TransactionType.Income ||
+            selectedType == TransactionType.Refund ||
+            transaction.type == TransactionType.Income ||
+            transaction.type == TransactionType.Refund
 
     val similarTransactions =
         remember(allTransactions, transaction, merchantName) {
@@ -722,13 +731,18 @@ fun TransactionDetailScreen(
                     }
                 }
             } else {
-                val isExpense = selectedType == TransactionType.Expense
-                val isRefundOrIncome =
-                    selectedType == TransactionType.Refund ||
-                        selectedType == TransactionType.Income ||
-                        TransactionClassifierHelper.isRefundNarrative(transaction.note)
+                val isAcTransfer =
+                    selectedCategory == "A/C Transfer" ||
+                        selectedCategory == "Transfer" ||
+                        selectedType == TransactionType.Transfer
+                val isRefund =
+                    selectedCategory.equals("Refund", ignoreCase = true) ||
+                        selectedType == TransactionType.Refund
+                val isExpense = selectedType == TransactionType.Expense && !isAcTransfer
 
-                if (isExpense || isRefundOrIncome) {
+                val canLink = isAcTransfer || isRefund || isExpense
+
+                if (canLink) {
                     item {
                         Card(
                             modifier =
@@ -753,31 +767,53 @@ fun TransactionDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.weight(1f),
                                 ) {
+                                    val iconTint =
+                                        if (isAcTransfer) {
+                                            MaterialTheme.financialColors.transfer
+                                        } else {
+                                            MaterialTheme.financialColors.income
+                                        }
+                                    val iconRes =
+                                        if (isAcTransfer) {
+                                            DesignR.drawable.ic_category_transfer
+                                        } else {
+                                            DesignR.drawable.ic_arrow_outward
+                                        }
                                     Surface(
                                         shape = CircleShape,
-                                        color = MaterialTheme.financialColors.income.copy(alpha = 0.15f),
+                                        color = iconTint.copy(alpha = 0.15f),
                                         modifier = Modifier.size(38.dp),
                                     ) {
                                         Icon(
-                                            painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
+                                            painter = painterResource(id = iconRes),
                                             contentDescription = null,
-                                            tint = MaterialTheme.financialColors.income,
+                                            tint = iconTint,
                                             modifier = Modifier.padding(9.dp),
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
                                         val linkPromptTitle =
-                                            if (isExpense) {
-                                                stringResource(id = R.string.detail_link_refund_button)
-                                            } else {
-                                                stringResource(id = R.string.detail_link_expense_button)
+                                            when {
+                                                isAcTransfer && isCreditTxn ->
+                                                    stringResource(id = R.string.detail_link_debit_button)
+                                                isAcTransfer && !isCreditTxn ->
+                                                    stringResource(id = R.string.detail_link_credit_button)
+                                                isRefund ->
+                                                    stringResource(id = R.string.detail_link_expense_button)
+                                                else ->
+                                                    stringResource(id = R.string.detail_link_refund_button)
                                             }
                                         val linkPromptSubtitle =
-                                            if (isExpense) {
-                                                "Offset this expense with an incoming refund"
-                                            } else {
-                                                "Link this refund to the original spend"
+                                            when {
+                                                isAcTransfer && isCreditTxn ->
+                                                    stringResource(id = R.string.link_sheet_debit_title)
+                                                isAcTransfer && !isCreditTxn ->
+                                                    stringResource(id = R.string.link_sheet_credit_title)
+                                                isRefund ->
+                                                    stringResource(id = R.string.link_sheet_refund_title)
+                                                else ->
+                                                    stringResource(id = R.string.link_sheet_expense_title)
                                             }
                                         Text(
                                             text = linkPromptTitle,
@@ -795,18 +831,34 @@ fun TransactionDetailScreen(
                                 }
                                 Button(
                                     onClick = { showLinkSheet = true },
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(10.dp),
                                     colors =
                                         ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            containerColor =
+                                                if (isAcTransfer) {
+                                                    MaterialTheme.financialColors.transfer
+                                                } else {
+                                                    MaterialTheme.financialColors.income
+                                                },
+                                            contentColor = Color.Black,
                                         ),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    contentPadding = ButtonDefaults.TextButtonContentPadding,
                                     modifier = Modifier.height(32.dp),
                                 ) {
+                                    val buttonText =
+                                        when {
+                                            isAcTransfer && isCreditTxn ->
+                                                stringResource(id = R.string.detail_link_debit_button)
+                                            isAcTransfer && !isCreditTxn ->
+                                                stringResource(id = R.string.detail_link_credit_button)
+                                            isRefund ->
+                                                stringResource(id = R.string.detail_link_expense_button)
+                                            else ->
+                                                stringResource(id = R.string.detail_link_refund_button)
+                                        }
                                     Text(
-                                        text = "Link",
-                                        style = MaterialTheme.typography.labelMedium,
+                                        text = buttonText,
+                                        style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                     )
                                 }
@@ -1337,35 +1389,75 @@ fun TransactionDetailScreen(
                         }
 
                         // Location Row
+                        val txnLocation =
+                            remember(rawSms, noteText, merchantName) {
+                                LocationHelper.extractLocation(
+                                    rawSms = rawSms,
+                                    note = noteText,
+                                    merchantName = merchantName,
+                                )
+                            }
+
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(enabled = txnLocation != null) {
+                                        txnLocation?.let {
+                                            LocationHelper.openInGoogleMaps(context, it)
+                                        }
+                                    }
+                                    .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = stringResource(id = R.string.detail_location_label),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = stringResource(id = R.string.detail_location_action),
+                                    text = txnLocation?.displayLabel
+                                        ?: stringResource(id = R.string.detail_location_action),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
+                                if (txnLocation != null) {
+                                    Text(
+                                        text = stringResource(id = R.string.detail_location_open_maps),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.financialColors.income,
+                                    )
+                                }
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier =
                                     Modifier
-                                        .size(36.dp)
+                                        .size(38.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(Color.White),
+                                        .background(
+                                            if (txnLocation != null) {
+                                                MaterialTheme.financialColors.income.copy(alpha = 0.15f)
+                                            } else {
+                                                MaterialTheme.colorScheme.surfaceVariant
+                                            },
+                                        ),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     painter = painterResource(id = DesignR.drawable.ic_location),
-                                    contentDescription = null,
-                                    tint = Color.DarkGray,
+                                    contentDescription = stringResource(id = R.string.detail_location_open_maps),
+                                    tint =
+                                        if (txnLocation != null) {
+                                            MaterialTheme.financialColors.income
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
@@ -1425,10 +1517,17 @@ fun TransactionDetailScreen(
         ) {
             CategoryPickerSheetContent(
                 selectedCategory = selectedCategory,
+                isCredit = isCreditTxn,
                 onCategorySelected = { cat ->
                     selectedCategory = cat
-                    if (cat == "Transfer") {
+                    if (cat in INWARD_INCOME_CATEGORIES) {
+                        selectedType = TransactionType.Income
+                    } else if (cat == "Refund") {
+                        selectedType = TransactionType.Refund
+                    } else if (cat in listOf("Transfer", "A/C Transfer", "Bill Payment", "Investment")) {
                         selectedType = TransactionType.Transfer
+                    } else if (cat in EXPENSE_CATEGORIES) {
+                        selectedType = TransactionType.Expense
                     }
                     showCategorySheet = false
                 },
@@ -1785,17 +1884,25 @@ fun TransactionDetailScreen(
         )
     }
 
-    // Link Transaction Sheet (Refund / Expense)
+    // Link Transaction Sheet (Refund / Expense / Transfer)
     if (showLinkSheet) {
+        val isTransfer =
+            selectedCategory == "A/C Transfer" ||
+                selectedCategory == "Transfer" ||
+                selectedType == TransactionType.Transfer
         LinkTransactionSheet(
             targetTransaction = transaction,
             allTransactions = allTransactions,
+            isTransferLink = isTransfer,
+            isCreditTarget = isCreditTxn,
             onLink = { candidate ->
                 val isRefund =
-                    selectedType == TransactionType.Refund ||
+                    !isTransfer && (selectedType == TransactionType.Refund ||
                         candidate.type == TransactionType.Refund ||
+                        selectedCategory.equals("Refund", ignoreCase = true) ||
+                        candidate.categorySource.equals("Refund", ignoreCase = true) ||
                         TransactionClassifierHelper.isRefundNarrative(candidate.note) ||
-                        TransactionClassifierHelper.isRefundNarrative(transaction.note)
+                        TransactionClassifierHelper.isRefundNarrative(transaction.note))
                 onLinkTransactions?.invoke(transaction.id, candidate.id, isRefund)
                 showLinkSheet = false
             },
@@ -1804,22 +1911,55 @@ fun TransactionDetailScreen(
     }
 }
 
+internal val EXPENSE_CATEGORIES =
+    listOf(
+        "Bills",
+        "Donation",
+        "EMI",
+        "Entertainment",
+        "Food & Drinks",
+        "Fuel",
+        "Groceries",
+        "Health",
+        "Investment",
+        "Other",
+        "Shopping",
+        "Transfer",
+        "Travel",
+        "Shared",
+    )
+
+internal val INWARD_INCOME_CATEGORIES =
+    listOf(
+        "Bank Deposit",
+        "Business",
+        "Interest",
+        "Salary",
+    )
+
+internal val INWARD_NON_INCOME_CATEGORIES =
+    listOf(
+        "A/C Transfer",
+        "Bill Payment",
+        "Credit",
+        "Investment",
+        "Loan",
+        "Recharge",
+        "Refund",
+        "Reimbursement",
+        "Rewards",
+    )
+
 @Composable
 internal fun CategoryPickerSheetContent(
     selectedCategory: String,
     onCategorySelected: (String) -> Unit,
-    @Suppress("UNUSED_PARAMETER") onDismiss: () -> Unit,
+    onDismiss: () -> Unit,
+    isCredit: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    val filteredCategories =
-        remember(searchQuery) {
-            if (searchQuery.isBlank()) {
-                DEFAULT_CATEGORIES
-            } else {
-                DEFAULT_CATEGORIES.filter { it.contains(searchQuery.trim(), ignoreCase = true) }
-            }
-        }
+    var newCategoryText by remember { mutableStateOf("") }
+    var newCatIsIncome by remember { mutableStateOf(true) }
 
     Column(
         modifier =
@@ -1828,84 +1968,299 @@ internal fun CategoryPickerSheetContent(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp),
     ) {
-        Text(
-            text = stringResource(id = R.string.detail_category_sheet_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = { Text(text = stringResource(id = R.string.detail_category_search_hint)) },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true,
-        )
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(id = R.string.detail_category_sheet_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
         ) {
-            items(filteredCategories) { category ->
-                val isSelected = category.equals(selectedCategory, ignoreCase = true)
-                Surface(
+            if (isCredit) {
+                CategorySectionHeader(
+                    title = stringResource(id = R.string.category_section_mark_as_income),
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                CategoryGrid(
+                    categories = INWARD_INCOME_CATEGORIES,
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = onCategorySelected,
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                CategorySectionHeader(
+                    title = stringResource(id = R.string.category_section_mark_as_not_income),
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                CategoryGrid(
+                    categories = INWARD_NON_INCOME_CATEGORIES,
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = onCategorySelected,
+                )
+            } else {
+                CategoryGrid(
+                    categories = EXPENSE_CATEGORIES,
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = onCategorySelected,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+            ) {
+                Row(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onCategorySelected(category) },
-                    shape = RoundedCornerShape(12.dp),
-                    color =
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            Color.Transparent
-                        },
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
+                    Box(
                         modifier =
                             Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CategoryBadge(categoryName = category, size = 36.dp)
-                            Spacer(modifier = Modifier.width(12.dp))
+                                .size(24.dp)
+                                .background(
+                                    color =
+                                        if (isCredit && newCatIsIncome) {
+                                            MaterialTheme.financialColors.income
+                                        } else {
+                                            MaterialTheme.financialColors.expense
+                                        },
+                                    shape = CircleShape,
+                                ),
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    OutlinedTextField(
+                        value = newCategoryText,
+                        onValueChange = { newCategoryText = it },
+                        placeholder = {
                             Text(
-                                text = category,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color =
-                                    if (isSelected) {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    },
+                                text = stringResource(id = R.string.category_new_hint),
+                                style = MaterialTheme.typography.bodyMedium,
                             )
-                        }
-                        if (isSelected) {
+                        },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors =
+                            OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent,
+                            ),
+                    )
+                    if (newCategoryText.isNotBlank()) {
+                        IconButton(
+                            onClick = {
+                                val trimmed = newCategoryText.trim()
+                                if (trimmed.isNotBlank()) {
+                                    onCategorySelected(trimmed)
+                                }
+                            },
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MaterialTheme.financialColors.income,
                             )
                         }
                     }
                 }
             }
+
+            if (isCredit) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(id = R.string.category_mark_as_income_toggle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(id = R.string.category_mark_as_income_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Switch(
+                        checked = newCatIsIncome,
+                        onCheckedChange = { newCatIsIncome = it },
+                        colors =
+                            SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.surface,
+                                checkedTrackColor = MaterialTheme.financialColors.income,
+                            ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategorySectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+        )
+        Text(
+            text = "  $title  ",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+        )
+    }
+}
+
+@Composable
+private fun CategoryGrid(
+    categories: List<String>,
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val chunked = categories.chunked(3)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        for (row in chunked) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                for (cat in row) {
+                    CategoryGridItem(
+                        category = cat,
+                        isSelected = cat.equals(selectedCategory, ignoreCase = true),
+                        onClick = { onCategorySelected(cat) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                for (i in 0 until (3 - row.size)) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryGridItem(
+    category: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val iconRes = CategoryIconHelper.getCategoryIcon(category)
+    val colorToken = CategoryColors.forCategory(category)
+    val incomeGreen = MaterialTheme.financialColors.income
+
+    Column(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick)
+                .padding(vertical = 6.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .background(
+                        color =
+                            if (isSelected) {
+                                incomeGreen.copy(alpha = 0.18f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
+                        shape = CircleShape,
+                    )
+                    .then(
+                        if (isSelected) {
+                            Modifier.border(2.dp, incomeGreen, CircleShape)
+                        } else {
+                            Modifier.border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                                CircleShape,
+                            )
+                        },
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(id = iconRes),
+                contentDescription = category,
+                modifier = Modifier.size(24.dp),
+                tint = if (isSelected) incomeGreen else colorToken.color,
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = category,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            color = if (isSelected) incomeGreen else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (isSelected) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier =
+                    Modifier
+                        .width(20.dp)
+                        .height(3.dp)
+                        .background(incomeGreen, RoundedCornerShape(2.dp)),
+            )
         }
     }
 }

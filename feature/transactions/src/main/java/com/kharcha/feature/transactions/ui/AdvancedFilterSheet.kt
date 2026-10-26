@@ -395,8 +395,6 @@ fun AdvancedFilterSheet(
                                         stringResource(id = R.string.transactions_filter_expense),
                                     TransactionType.Income to
                                         stringResource(id = R.string.transactions_filter_income),
-                                    TransactionType.Transfer to
-                                        stringResource(id = R.string.transactions_filter_transfer),
                                 )
                             types.forEach { (type, label) ->
                                 val isSelected = draftFilter.types.contains(type)

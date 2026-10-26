@@ -1075,4 +1075,48 @@ class SmsParserTest {
         assertEquals(Channel.UPI, txn.channel)
         assertEquals(Direction.DEBIT, txn.direction)
     }
+
+    @Test
+    fun testIciciUpiDebitWithPayeeCredited() {
+        val sms =
+            RawSms(
+                id = 51,
+                sender = "VM-ICICIB",
+                body = "ICICI Bank Acct XX321 debited for Rs 188.00 on 13-Aug-26; Zepto credited. " +
+                    "UPI:312420876077. Call 18002662 for dispute. SMS BLOCK 321 to 9215676766.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(18800L, txn.amountMinor)
+        assertEquals("321", txn.accountLast4)
+        assertEquals("ICICI", txn.bankName)
+        assertEquals("Zepto", txn.merchantRaw?.trim())
+        assertEquals("312420876077", txn.refNumber)
+        assertEquals(Channel.UPI, txn.channel)
+        assertEquals(Direction.DEBIT, txn.direction)
+    }
+
+    @Test
+    fun testIdfcCardRefund() {
+        val sms =
+            RawSms(
+                id = 52,
+                sender = "VM-IDFCFB",
+                body = "Transaction of INR 739.00 is refunded to IDFC FIRST Bank Credit Card XX5625 " +
+                    "on 19-Oct-26 at 01:40 PM. Avl Limit: INR 3,36,043.64.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(73900L, txn.amountMinor)
+        assertEquals("5625", txn.accountLast4)
+        assertEquals("IDFC", txn.bankName)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals(Direction.CREDIT, txn.direction)
+    }
 }

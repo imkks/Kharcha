@@ -22,6 +22,19 @@ object NoiseFilter {
     private val winCongratRegex = Regex("(?i)\\b(congratulations|congrats|won|win)\\b")
     private val reminderRegex =
         Regex("(?i)\\b(reminder|due date|minimum due|overdue)\\b")
+    private val statementAlertRegex =
+        Regex(
+            "(?i)\\b(?:credit\\s+card|card)\\s+[x\\*\\d]+\\s+statement\\s+is\\s+sent\\b|" +
+                "\\bstatement\\s+is\\s+sent\\s+to\\b|" +
+                "\\b(?:e-?statement|monthly\\s+statement)\\b.*\\b(?:sent|generated|due)\\b|" +
+                "\\btotal\\s+(?:of\\s+)?(?:rs\\.?|inr|₹)?\\s*[\\d,]+\\.?\\d*\\s+or\\s+minimum\\s+" +
+                "(?:of\\s+)?(?:rs\\.?|inr|₹)?\\s*[\\d,]+\\.?\\d*\\s+is\\s+due\\b",
+        )
+    private val brokerPayoutRegex =
+        Regex(
+            "(?i)\\b(?:quarterly\\s+settlement\\s+payout|funds\\s+payout)\\b.*" +
+                "\\b(?:processed|credited\\s+to\\s+your\\s+primary\\s+bank)\\b",
+        )
     private val preDebitMandateRegex =
         Regex(
             "(?i)\\b(e-?mandate!?|mandate\\s+(?:alert|notification|details?)|" +
@@ -89,8 +102,10 @@ object NoiseFilter {
             return ParseResult.Ignored(IgnoreReason.PROMO)
         }
 
-        // 3. Reminder & Pre-debit e-mandate notices
+        // 3. Reminder, Statement Alerts & Pre-debit e-mandate notices
         if (reminderRegex.containsMatchIn(body) ||
+            statementAlertRegex.containsMatchIn(body) ||
+            brokerPayoutRegex.containsMatchIn(body) ||
             preDebitMandateRegex.containsMatchIn(body) ||
             futureDebitRegex.containsMatchIn(body) ||
             maintainBalanceRegex.containsMatchIn(body) ||

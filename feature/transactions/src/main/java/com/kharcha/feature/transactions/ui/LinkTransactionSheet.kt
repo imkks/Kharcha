@@ -59,6 +59,8 @@ fun LinkTransactionSheet(
     onLink: (candidate: Transaction) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    isTransferLink: Boolean = false,
+    isCreditTarget: Boolean = false,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var searchQuery by remember { mutableStateOf("") }
@@ -70,15 +72,28 @@ fun LinkTransactionSheet(
             ?: ""
 
     val eligibleCandidates =
-        remember(allTransactions, targetTransaction, isLinkingToRefund) {
+        remember(allTransactions, targetTransaction, isTransferLink, isCreditTarget, isLinkingToRefund) {
             allTransactions.filter { candidate ->
                 if (candidate.id == targetTransaction.id) return@filter false
-                if (isLinkingToRefund) {
-                    candidate.type == TransactionType.Refund ||
+                if (isTransferLink) {
+                    if (isCreditTarget) {
+                        // On credit side -> link debit
+                        candidate.type == TransactionType.Expense ||
+                            candidate.type == TransactionType.Transfer
+                    } else {
+                        // On debit side -> link credit
                         candidate.type == TransactionType.Income ||
-                        TransactionClassifierHelper.isRefundNarrative(candidate.note)
+                            candidate.type == TransactionType.Transfer ||
+                            candidate.type == TransactionType.Refund
+                    }
                 } else {
-                    candidate.type == TransactionType.Expense
+                    if (isLinkingToRefund) {
+                        candidate.categorySource.equals("Refund", ignoreCase = true) ||
+                            candidate.type == TransactionType.Refund ||
+                            TransactionClassifierHelper.isRefundNarrative(candidate.note)
+                    } else {
+                        candidate.type == TransactionType.Expense
+                    }
                 }
             }
         }
@@ -118,7 +133,13 @@ fun LinkTransactionSheet(
         }
 
     val title =
-        if (isLinkingToRefund) {
+        if (isTransferLink) {
+            if (isCreditTarget) {
+                stringResource(id = R.string.link_sheet_debit_title)
+            } else {
+                stringResource(id = R.string.link_sheet_credit_title)
+            }
+        } else if (isLinkingToRefund) {
             stringResource(id = R.string.link_sheet_expense_title)
         } else {
             stringResource(id = R.string.link_sheet_refund_title)

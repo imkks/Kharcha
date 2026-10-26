@@ -106,6 +106,7 @@ class MoreScreenTest {
     fun testAccountLinkingGroupingLogic() {
         val primaryAccountId = 100L
         val linkedSubAccountIds = setOf(101L, 102L)
+        val allAssociatedIds = setOf(primaryAccountId) + linkedSubAccountIds
 
         val txns = listOf(
             createTxn(id = 1L).copy(accountId = 101L),
@@ -113,17 +114,17 @@ class MoreScreenTest {
             createTxn(id = 3L).copy(accountId = 999L),
         )
 
-        val updatedTxns = txns.map { txn ->
-            if (txn.accountId in linkedSubAccountIds) {
-                txn.copy(accountId = primaryAccountId)
-            } else {
-                txn
-            }
-        }
+        val associatedTxns = txns.filter { it.accountId in allAssociatedIds }
+        assertEquals(2, associatedTxns.size)
+        assertTrue(associatedTxns.any { it.accountId == 101L })
+        assertTrue(associatedTxns.any { it.accountId == 102L })
 
-        assertEquals(primaryAccountId, updatedTxns[0].accountId)
-        assertEquals(primaryAccountId, updatedTxns[1].accountId)
-        assertEquals(999L, updatedTxns[2].accountId)
+        // When unlinking 102L:
+        val remainingLinkedIds = linkedSubAccountIds - 102L
+        val updatedAssociatedIds = setOf(primaryAccountId) + remainingLinkedIds
+        val updatedTxns = txns.filter { it.accountId in updatedAssociatedIds }
+        assertEquals(1, updatedTxns.size)
+        assertEquals(101L, updatedTxns[0].accountId)
     }
 
     @Test

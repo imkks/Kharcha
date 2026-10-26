@@ -161,6 +161,26 @@ fun MainAppShell(
     }
 
     CompositionLocalProvider(LocalPrivacyMode provides isPrivacyMode) {
+        BackHandler(enabled = showWeeklySummaryScreen) { showWeeklySummaryScreen = false }
+        BackHandler(enabled = showSearchScreen) { showSearchScreen = false }
+        BackHandler(enabled = showReportSmsScreen) { showReportSmsScreen = false }
+        BackHandler(enabled = showReviewQueue) { showReviewQueue = false }
+        BackHandler(enabled = showAddTransactionDialog) { showAddTransactionDialog = false }
+        BackHandler(enabled = showSetBudgetSheet) { showSetBudgetSheet = false }
+        BackHandler(
+            enabled = currentDestination != AppDestination.HOME &&
+                selectedTransactionForDetail == null &&
+                selectedEntityForDetail == null &&
+                !showSearchScreen &&
+                !showWeeklySummaryScreen &&
+                !showReportSmsScreen &&
+                !showReviewQueue &&
+                !showAddTransactionDialog &&
+                !showSetBudgetSheet,
+        ) {
+            currentDestination = AppDestination.HOME
+        }
+
         if (selectedTransactionForDetail != null) {
             BackHandler { selectedTransactionForDetail = null }
             val txn = selectedTransactionForDetail!!
@@ -366,21 +386,15 @@ fun MainAppShell(
                             for (acc in currentAccounts) {
                                 if (acc.id in linkedIds) {
                                     accountRepository.saveAccount(
-                                        acc.copy(linkedPrimaryAccountId = primaryId, isArchived = true),
+                                        acc.copy(linkedPrimaryAccountId = primaryId),
                                     )
                                 } else if (acc.linkedPrimaryAccountId == primaryId && acc.id !in linkedIds) {
                                     accountRepository.saveAccount(
-                                        acc.copy(linkedPrimaryAccountId = null, isArchived = false),
+                                        acc.copy(linkedPrimaryAccountId = null),
                                     )
                                 }
                             }
-                            val transactionsToMove =
-                                transactions.filter { it.accountId in linkedIds }
-                                    .map { it.copy(accountId = primaryId) }
-                            if (transactionsToMove.isNotEmpty()) {
-                                transactionRepository.updateTransactions(transactionsToMove)
-                            }
-                            snackbarHostState.showSnackbar("Accounts linked and transactions grouped")
+                            snackbarHostState.showSnackbar("Accounts linked and grouped successfully")
                         }
                     },
                     onReportSmsClick = { showReportSmsScreen = true },

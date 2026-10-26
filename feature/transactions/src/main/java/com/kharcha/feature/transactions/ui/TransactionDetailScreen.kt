@@ -660,7 +660,7 @@ fun TransactionDetailScreen(
                                             if (isExpense) {
                                                 TransactionType.Expense
                                             } else {
-                                                TransactionType.Income
+                                                TransactionType.Ignored
                                             }
                                         val msg =
                                             if (isExpense) {
@@ -2048,6 +2048,7 @@ fun TransactionDetailScreen(
 
 internal val EXPENSE_CATEGORIES =
     listOf(
+        "Not Categorised",
         "Bills",
         "Donation",
         "EMI",
@@ -2057,11 +2058,11 @@ internal val EXPENSE_CATEGORIES =
         "Groceries",
         "Health",
         "Investment",
-        "Other",
         "Shopping",
         "Transfer",
         "Travel",
         "Shared",
+        "Other",
     )
 
 internal val INWARD_INCOME_CATEGORIES =

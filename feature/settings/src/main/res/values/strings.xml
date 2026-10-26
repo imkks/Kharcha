@@ -94,4 +94,11 @@
     <string name="settings_save">Save</string>
     <string name="settings_cancel">Cancel</string>
     <string name="settings_close">Close</string>
+    <string name="settings_auto_link_title">Auto-link Cards by Bank</string>
+    <string name="settings_status_linked">Linked</string>
+    <string name="settings_status_unlinked">Unlinked</string>
+    <string name="settings_suggested_match">Suggested Match</string>
+    <string name="settings_unlink_action">Unlink</string>
+    <string name="settings_linked_to_format">Linked to %1$s</string>
+    <string name="settings_select_primary_bank">Select Bank Account</string>
 </resources>

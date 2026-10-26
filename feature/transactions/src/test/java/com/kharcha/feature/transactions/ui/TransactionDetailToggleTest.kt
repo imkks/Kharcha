@@ -12,7 +12,7 @@ class TransactionDetailToggleTest {
     @Test
     fun testDebitExpenseToggleStateAndToastMapping() {
         fun onDebitToggle(isExpense: Boolean): Pair<TransactionType, Int> {
-            val newType = if (isExpense) TransactionType.Expense else TransactionType.Income
+            val newType = if (isExpense) TransactionType.Expense else TransactionType.Ignored
             val toastRes = if (isExpense) {
                 R.string.detail_toast_counted_spends
             } else {
@@ -22,7 +22,7 @@ class TransactionDetailToggleTest {
         }
 
         val toggledOff = onDebitToggle(false)
-        assertEquals(TransactionType.Income, toggledOff.first)
+        assertEquals(TransactionType.Ignored, toggledOff.first)
         assertEquals(R.string.detail_toast_not_counted_spends, toggledOff.second)
 
         val toggledOn = onDebitToggle(true)

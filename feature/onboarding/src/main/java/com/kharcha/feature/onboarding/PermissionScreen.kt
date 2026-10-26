@@ -2,6 +2,7 @@ package com.kharcha.feature.onboarding
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,13 +45,22 @@ import com.kharcha.core.designsystem.theme.financialColors
 
 @Composable
 fun PermissionScreen(
-    onRequestPermission: () -> Unit,
+    onRequestPermission: (selectedWindow: String) -> Unit,
     onUseManualMode: () -> Unit,
     onOpenSettings: () -> Unit,
     isDenied: Boolean,
 ) {
     val colors = MaterialTheme.financialColors
     val scrollState = rememberScrollState()
+    var selectedWindow by remember { mutableStateOf("90 days") }
+
+    val windowOptions =
+        listOf(
+            "30 days" to stringResource(id = R.string.onboarding_setup_30_days),
+            "90 days" to stringResource(id = R.string.onboarding_setup_90_days),
+            "6 months" to stringResource(id = R.string.onboarding_setup_6_months),
+            "All" to stringResource(id = R.string.onboarding_setup_all),
+        )
 
     Column(
         modifier =
@@ -62,7 +76,7 @@ fun PermissionScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // SMS Icon Badge
             Box(
@@ -82,7 +96,7 @@ fun PermissionScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = stringResource(id = R.string.onboarding_permission_title),
@@ -94,7 +108,7 @@ fun PermissionScreen(
                 textAlign = TextAlign.Center,
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = stringResource(id = R.string.onboarding_permission_subtitle),
@@ -104,7 +118,7 @@ fun PermissionScreen(
                 modifier = Modifier.padding(horizontal = 8.dp),
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Permission Points Card
             Column(
@@ -114,8 +128,8 @@ fun PermissionScreen(
                         .clip(RoundedCornerShape(20.dp))
                         .background(colors.cardBackground)
                         .border(1.dp, colors.hairlineDivider, RoundedCornerShape(20.dp))
-                        .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                        .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 PermissionBulletRow(
                     text = stringResource(id = R.string.onboarding_permission_point_automated),
@@ -137,8 +151,63 @@ fun PermissionScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Import Window Selector Card
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(colors.cardBackground)
+                        .border(1.dp, colors.hairlineDivider, RoundedCornerShape(18.dp))
+                        .padding(16.dp),
+            ) {
+                Text(
+                    text = stringResource(id = R.string.onboarding_import_window_title),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.textPrimary,
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    windowOptions.forEach { (key, label) ->
+                        val isSelected = selectedWindow == key
+                        Box(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isSelected) colors.limeAccent else colors.raisedRowBackground,
+                                    )
+                                    .then(
+                                        if (isSelected) {
+                                            Modifier.border(1.dp, colors.limeAccent, CircleShape)
+                                        } else {
+                                            Modifier.border(1.dp, colors.hairlineDivider, CircleShape)
+                                        },
+                                    )
+                                    .clickable { selectedWindow = key }
+                                    .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isSelected) colors.onLimeAccent else colors.textSecondary,
+                            )
+                        }
+                    }
+                }
+            }
+
             if (isDenied) {
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Box(
                     modifier =
                         Modifier
@@ -159,7 +228,7 @@ fun PermissionScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Actions
         Column(
@@ -167,7 +236,7 @@ fun PermissionScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Button(
-                onClick = onRequestPermission,
+                onClick = { onRequestPermission(selectedWindow) },
                 shape = CircleShape,
                 colors =
                     ButtonDefaults.buttonColors(

@@ -76,6 +76,16 @@ class OnboardingViewModelTest {
         }
 
     @Test
+    fun onPermissionGrantedWithCustomWindowStartsImport() =
+        runTest(testDispatcher) {
+            coEvery { inboxReader.getSmsCount(any()) } returns 0
+            viewModel.onPermissionResult(true, "6 months")
+            advanceUntilIdle()
+            assertEquals(OnboardingState.IMPORT_PROGRESS, viewModel.uiState.value.currentState)
+            assertTrue(viewModel.uiState.value.isImportComplete)
+        }
+
+    @Test
     fun onPermissionDeniedSetsFlag() {
         viewModel.onPermissionResult(false)
         assertEquals(true, viewModel.uiState.value.isPermissionDenied)

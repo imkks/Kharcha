@@ -18,6 +18,7 @@
     <string name="onboarding_permission_point_automated">Automates manual expense tracking</string>
     <string name="onboarding_permission_point_accounts">Auto-detects bank accounts, cards &amp; UPI</string>
     <string name="onboarding_permission_point_private">Personal SMS and OTPs are strictly ignored</string>
+    <string name="onboarding_import_window_title">Scan SMS from</string>
     <string name="onboarding_permission_cta">Allow SMS Access</string>
     <string name="onboarding_grant_permission">Allow SMS Access</string>
     <string name="onboarding_use_manual">Continue Manually</string>

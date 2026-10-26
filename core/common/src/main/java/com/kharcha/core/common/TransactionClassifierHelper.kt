@@ -57,8 +57,11 @@ object TransactionClassifierHelper {
                 "credited to card ending", "in your credit card account",
                 "towards sbi card", "towards hdfc card", "towards icici card",
                 "towards axis card", "towards onecard", "towards rbl card",
-                "towards kotak card", "sbi card payment", "hdfc card payment",
+                "towards kotak card", "sbi card payment", "hdfc card payment", "icici card payment",
                 "received towards", "payment received towards",
+                "paid towards card", "paid to card", "paid to credit card",
+                "bill paid for card", "card bill paid", "cc bill paid",
+                "auto debit towards card", "autodebit towards card",
             )
 
         val hasCardPhrase =

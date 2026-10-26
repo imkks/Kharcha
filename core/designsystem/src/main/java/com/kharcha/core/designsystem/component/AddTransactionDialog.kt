@@ -85,6 +85,7 @@ import java.util.Locale
 
 private val EXPENSE_CATEGORIES =
     listOf(
+        "Not Categorised",
         "Food & Drinks",
         "Groceries",
         "Shopping",
@@ -128,7 +129,7 @@ fun AddTransactionDialog(
 
     var selectedCategory by remember(switchOption) {
         mutableStateOf(
-            if (switchOption == TransactionTypeSwitchOption.SPEND) "Food & Drinks" else "Salary",
+            if (switchOption == TransactionTypeSwitchOption.SPEND) "Not Categorised" else "Salary",
         )
     }
     var isCategoryPickerExpanded by remember { mutableStateOf(false) }

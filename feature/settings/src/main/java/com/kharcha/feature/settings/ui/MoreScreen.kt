@@ -426,14 +426,24 @@ fun MoreScreen(
 
     // 2. Link Accounts Bottom Sheet (Screenshot 3)
     if (showLinkAccountsSheet && primaryAccountForLinking != null) {
-        val primary = primaryAccountForLinking!!
-        val candidateAccounts =
-            remember(accounts, primary) {
-                accounts.filter { it.id != primary.id }
+        var currentPrimary by remember(primaryAccountForLinking) { mutableStateOf(primaryAccountForLinking!!) }
+        val availablePrimaries =
+            remember(accounts) {
+                accounts.filter { it.linkedPrimaryAccountId == null }
             }
-        var selectedSubAccountIds by remember(primary, candidateAccounts) {
+        val candidateAccounts =
+            remember(accounts, currentPrimary) {
+                accounts.filter { it.id != currentPrimary.id }
+                    .sortedByDescending { candidate ->
+                        val isSameBank =
+                            candidate.bankName?.equals(currentPrimary.bankName, ignoreCase = true) == true ||
+                                candidate.name.contains(currentPrimary.bankName ?: "", ignoreCase = true)
+                        if (candidate.linkedPrimaryAccountId == currentPrimary.id) 2 else if (isSameBank) 1 else 0
+                    }
+            }
+        var selectedSubAccountIds by remember(currentPrimary, candidateAccounts) {
             mutableStateOf(
-                candidateAccounts.filter { it.linkedPrimaryAccountId == primary.id }.map { it.id }.toSet(),
+                candidateAccounts.filter { it.linkedPrimaryAccountId == currentPrimary.id }.map { it.id }.toSet(),
             )
         }
 
@@ -457,20 +467,73 @@ fun MoreScreen(
                         .padding(horizontal = 24.dp, vertical = 10.dp)
                         .padding(bottom = 24.dp),
             ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.settings_link_accounts_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                    TextButton(
+                        onClick = {
+                            val matchingIds =
+                                candidateAccounts.filter {
+                                    it.bankName?.equals(currentPrimary.bankName, ignoreCase = true) == true ||
+                                        it.name.contains(currentPrimary.bankName ?: "", ignoreCase = true)
+                                }.map { it.id }.toSet()
+                            selectedSubAccountIds = selectedSubAccountIds + matchingIds
+                        },
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.settings_auto_link_title),
+                            color = MaterialTheme.financialColors.limeAccent,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = stringResource(id = R.string.settings_link_accounts_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(id = R.string.settings_link_accounts_dialog_desc, "${primary.name} - ${primary.last4 ?: "••••"}"),
+                    text = stringResource(id = R.string.settings_link_accounts_dialog_desc, "${currentPrimary.name} - ${currentPrimary.last4 ?: "••••"}"),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.financialColors.textSecondary,
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                if (availablePrimaries.size > 1) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = stringResource(id = R.string.settings_select_primary_bank),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.financialColors.textSecondary,
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        availablePrimaries.forEach { bankAcc ->
+                            val isSelected = bankAcc.id == currentPrimary.id
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isSelected) MaterialTheme.financialColors.limeAccent else MaterialTheme.financialColors.raisedRowBackground,
+                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.financialColors.limeAccent else MaterialTheme.financialColors.hairlineDivider),
+                                modifier = Modifier.clickable { currentPrimary = bankAcc },
+                            ) {
+                                Text(
+                                    text = "${bankAcc.name} (${bankAcc.last4 ?: "••••"})",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = if (isSelected) MaterialTheme.financialColors.onLimeAccent else MaterialTheme.financialColors.textPrimary,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Primary account row
                 Row(
@@ -492,17 +555,28 @@ fun MoreScreen(
                         }
                     }
                     Spacer(modifier = Modifier.width(14.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = primary.name,
+                            text = currentPrimary.name,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                         )
                         Text(
-                            text = primary.last4 ?: "••••",
+                            text = currentPrimary.last4 ?: "••••",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.financialColors.textSecondary,
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.financialColors.limeAccent.copy(alpha = 0.15f),
+                    ) {
+                        Text(
+                            text = "Primary Account",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.financialColors.limeAccent,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                     }
                 }
@@ -517,6 +591,9 @@ fun MoreScreen(
                     ) {
                         candidateAccounts.forEach { candidate ->
                             val isChecked = selectedSubAccountIds.contains(candidate.id)
+                            val isSameBank =
+                                candidate.bankName?.equals(currentPrimary.bankName, ignoreCase = true) == true ||
+                                    candidate.name.contains(currentPrimary.bankName ?: "", ignoreCase = true)
                             Row(
                                 modifier =
                                     Modifier
@@ -551,11 +628,11 @@ fun MoreScreen(
                                 Surface(
                                     modifier = Modifier.size(34.dp),
                                     shape = RoundedCornerShape(6.dp),
-                                    color = Color(0xFFC0392B),
+                                    color = if (candidate.type == AccountType.CreditCard) Color(0xFF1E3A8A) else Color(0xFFC0392B),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
-                                            painter = painterResource(id = DesignR.drawable.ic_bank),
+                                            painter = painterResource(id = if (candidate.type == AccountType.CreditCard) DesignR.drawable.ic_category_credit else DesignR.drawable.ic_bank),
                                             contentDescription = null,
                                             tint = Color.White,
                                             modifier = Modifier.size(18.dp),
@@ -570,11 +647,53 @@ fun MoreScreen(
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color.White,
                                     )
-                                    Text(
-                                        text = candidate.last4 ?: "XXXX",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.financialColors.textSecondary,
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        Text(
+                                            text = candidate.last4 ?: "XXXX",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.financialColors.textSecondary,
+                                        )
+                                        if (isChecked) {
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = MaterialTheme.financialColors.limeAccent.copy(alpha = 0.2f),
+                                            ) {
+                                                Text(
+                                                    text = stringResource(id = R.string.settings_status_linked),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.financialColors.limeAccent,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                )
+                                            }
+                                        } else if (isSameBank) {
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = MaterialTheme.financialColors.chartBlue.copy(alpha = 0.2f),
+                                            ) {
+                                                Text(
+                                                    text = stringResource(id = R.string.settings_suggested_match),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.financialColors.chartBlueHighlight,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                )
+                                            }
+                                        } else {
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = MaterialTheme.financialColors.raisedRowBackground,
+                                            ) {
+                                                Text(
+                                                    text = stringResource(id = R.string.settings_status_unlinked),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.financialColors.textSecondary,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                                 Checkbox(
                                     checked = isChecked,
@@ -614,7 +733,7 @@ fun MoreScreen(
                     }
                     Button(
                         onClick = {
-                            onMergeAccounts?.invoke(primary.id, selectedSubAccountIds)
+                            onMergeAccounts?.invoke(currentPrimary.id, selectedSubAccountIds)
                             showLinkAccountsSheet = false
                         },
                         colors =
@@ -784,6 +903,90 @@ fun MoreScreen(
                         contentDescription = null,
                         tint = MaterialTheme.financialColors.textSecondary,
                     )
+                }
+
+                HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                // 4. Link / Unlink Sub-accounts Row
+                if (targetAccount.linkedPrimaryAccountId != null) {
+                    val parentBank = accounts.find { it.id == targetAccount.linkedPrimaryAccountId }
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(id = R.string.settings_linked_to_format, parentBank?.name ?: "Bank"),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Card is currently linked to ${parentBank?.name}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.financialColors.textSecondary,
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                val unlinked = targetAccount.copy(linkedPrimaryAccountId = null)
+                                onSaveAccount(unlinked)
+                                selectedAccountForSettings = null
+                            },
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.settings_unlink_action),
+                                color = MaterialTheme.financialColors.warning,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                } else {
+                    val linkedChildren = accounts.filter { it.linkedPrimaryAccountId == targetAccount.id }
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    primaryAccountForLinking = targetAccount
+                                    showLinkAccountsSheet = true
+                                    selectedAccountForSettings = null
+                                }
+                                .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(id = R.string.settings_link_accounts_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text =
+                                    if (linkedChildren.isNotEmpty()) {
+                                        "${linkedChildren.size} credit card(s) linked"
+                                    } else {
+                                        "Link cards or sub-accounts"
+                                    },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.financialColors.textSecondary,
+                            )
+                        }
+                        Icon(
+                            painter = painterResource(id = DesignR.drawable.ic_chevron_right),
+                            contentDescription = null,
+                            tint = MaterialTheme.financialColors.textSecondary,
+                        )
+                    }
                 }
             }
         }
@@ -1054,7 +1257,14 @@ fun MoreScreen(
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = Color.White,
                                                 )
-                                                val sub = "${acc.bankName ?: ""} ••${acc.last4 ?: "----"}"
+                                                val parent = if (acc.linkedPrimaryAccountId != null) accounts.find { it.id == acc.linkedPrimaryAccountId } else null
+                                                val linkedCount = accounts.count { it.linkedPrimaryAccountId == acc.id }
+                                                val linkTag = when {
+                                                    parent != null -> " • Linked to ${parent.name}"
+                                                    linkedCount > 0 -> " • $linkedCount cards linked"
+                                                    else -> ""
+                                                }
+                                                val sub = "${acc.bankName ?: ""} ••${acc.last4 ?: "----"}$linkTag"
                                                 Text(
                                                     text = sub,
                                                     style = MaterialTheme.typography.bodySmall,

@@ -83,13 +83,15 @@ fun AccountsSheet(
         remember(transactions, accounts) {
             if (accounts.isNotEmpty()) {
                 accounts.map { acc ->
-                    val txns = transactions.filter { it.accountId == acc.id }
+                    val linkedIds = accounts.filter { it.linkedPrimaryAccountId == acc.id }.map { it.id }.toSet()
+                    val allAssociatedIds = setOf(acc.id) + linkedIds
+                    val txns = transactions.filter { it.accountId in allAssociatedIds }
                     val expenseSum =
                         txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
                     AccountOption(
                         key = "acc_${acc.id}",
                         name = acc.name,
-                        accountIds = setOf(acc.id),
+                        accountIds = allAssociatedIds,
                         channels = if (acc.type == AccountType.CreditCard) setOf(Channel.CARD) else emptySet(),
                         totalExpenseMinor = expenseSum,
                         transactionCount = txns.size,

@@ -9,6 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -25,6 +28,7 @@ fun OnboardingRoute(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var pendingImportWindow by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("90 days") }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -33,7 +37,7 @@ fun OnboardingRoute(
             val hasSms =
                 permissions[Manifest.permission.READ_SMS] == true ||
                     permissions[Manifest.permission.RECEIVE_SMS] == true
-            viewModel.onPermissionResult(hasSms)
+            viewModel.onPermissionResult(hasSms, pendingImportWindow)
         }
 
     when (uiState.currentState) {
@@ -44,7 +48,8 @@ fun OnboardingRoute(
         }
         OnboardingState.PERMISSION -> {
             PermissionScreen(
-                onRequestPermission = {
+                onRequestPermission = { chosenWindow ->
+                    pendingImportWindow = chosenWindow
                     permissionLauncher.launch(
                         arrayOf(
                             Manifest.permission.READ_SMS,

@@ -11,17 +11,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -37,17 +32,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
+import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.AddTransactionDialog
+import com.kharcha.core.designsystem.component.AxioBottomNavBar
+import com.kharcha.core.designsystem.component.AxioNavItem
+import com.kharcha.core.designsystem.component.KharchaPillSnackbar
 import com.kharcha.core.designsystem.theme.KharchaTheme
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
@@ -58,6 +58,7 @@ import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.review.ui.ReviewQueueScreen
 import com.kharcha.feature.settings.ui.MoreScreen
 import com.kharcha.feature.transactions.ui.EntityTransactionsScreen
+import com.kharcha.feature.transactions.ui.SetBudgetSheet
 import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import com.kharcha.feature.transactions.ui.TransactionsSubTab
@@ -73,12 +74,12 @@ data class SelectedEntity(
 
 enum class AppDestination(
     val labelRes: Int,
-    val icon: ImageVector,
+    val iconRes: Int,
 ) {
-    HOME(R.string.nav_home, Icons.Default.Home),
-    TRANSACTIONS(R.string.nav_transactions, Icons.AutoMirrored.Filled.List),
-    INSIGHTS(R.string.nav_insights, Icons.Default.Info),
-    MORE(R.string.nav_more, Icons.Default.Settings),
+    TRANSACTIONS(R.string.nav_transactions, DesignR.drawable.ic_category_transfer),
+    HOME(R.string.nav_home, DesignR.drawable.ic_bar_chart),
+    INSIGHTS(R.string.nav_insights, DesignR.drawable.ic_trending_up),
+    MORE(R.string.nav_more, DesignR.drawable.ic_settings),
 }
 
 @AndroidEntryPoint
@@ -141,6 +142,7 @@ fun MainAppShell(
     var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
     var selectedEntityForDetail by remember { mutableStateOf<SelectedEntity?>(null) }
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
+    var showSetBudgetSheet by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
     var transactionsFilter by remember { mutableStateOf(TransactionFilter()) }
     var transactionsYearMonth by remember { mutableStateOf<YearMonth?>(YearMonth.now()) }
@@ -251,28 +253,35 @@ fun MainAppShell(
             )
         } else {
             Scaffold(
-                snackbarHost = { SnackbarHost(snackbarHostState) },
+                snackbarHost = {
+                    SnackbarHost(snackbarHostState) { data ->
+                        KharchaPillSnackbar(snackbarData = data)
+                    }
+                },
                 bottomBar = {
-                    NavigationBar {
-                        AppDestination.entries.forEach { destination ->
-                            NavigationBarItem(
-                                selected = currentDestination == destination,
-                                onClick = { currentDestination = destination },
-                                icon = {
-                                    Icon(
-                                        imageVector = destination.icon,
-                                        contentDescription = stringResource(id = destination.labelRes),
-                                    )
-                                },
-                                label = { Text(text = stringResource(id = destination.labelRes)) },
+                    val navItems =
+                        AppDestination.entries.map { dest ->
+                            AxioNavItem(
+                                icon = painterResource(id = dest.iconRes),
+                                contentDescription = stringResource(id = dest.labelRes),
                             )
                         }
-                    }
+                    val selectedIndex = AppDestination.entries.indexOf(currentDestination).coerceAtLeast(0)
+                    AxioBottomNavBar(
+                        selectedIndex = selectedIndex,
+                        onItemSelected = { index ->
+                            currentDestination = AppDestination.entries[index]
+                        },
+                        items = navItems,
+                    )
                 },
                 floatingActionButton = {
                     if (showFab) {
                         FloatingActionButton(
                             onClick = { showAddTransactionDialog = true },
+                            containerColor = MaterialTheme.financialColors.paleLimeAddButton,
+                            contentColor = MaterialTheme.financialColors.onPaleLimeAddButton,
+                            shape = CircleShape,
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
@@ -338,10 +347,36 @@ fun MainAppShell(
                             userPreferences.setCategoryBudgetMinor(category, budgetMinor)
                         }
                     },
+                    onSetBudgetClick = { showSetBudgetSheet = true },
+                    onAddTransactionClick = { showAddTransactionDialog = true },
+                    onTrendsClick = { currentDestination = AppDestination.INSIGHTS },
+                    onCategoriesClick = {
+                        transactionsSubTab = TransactionsSubTab.CATEGORIES
+                        currentDestination = AppDestination.TRANSACTIONS
+                    },
+                    onSearchClick = {
+                        transactionsSubTab = TransactionsSubTab.TRANSACTIONS
+                        currentDestination = AppDestination.TRANSACTIONS
+                    },
                     modifier = Modifier.padding(innerPadding),
                 )
             }
         }
+    }
+
+    if (showSetBudgetSheet) {
+        SetBudgetSheet(
+            currentBudgetMinor = userPreferences.monthlyBudgetMinor,
+            onSaveBudget = { category, budgetMinor ->
+                if (category == null) {
+                    userPreferences.monthlyBudgetMinor = budgetMinor
+                } else {
+                    userPreferences.setCategoryBudgetMinor(category, budgetMinor)
+                }
+                showSetBudgetSheet = false
+            },
+            onDismiss = { showSetBudgetSheet = false },
+        )
     }
 
     if (showReviewQueue) {
@@ -429,6 +464,11 @@ fun BoxDestinationContent(
     transactionsSubTab: TransactionsSubTab = TransactionsSubTab.TRANSACTIONS,
     onSubTabChange: (TransactionsSubTab) -> Unit = {},
     onUpdateBudget: (String?, Long) -> Unit = { _, _ -> },
+    onSetBudgetClick: () -> Unit = {},
+    onAddTransactionClick: () -> Unit = {},
+    onTrendsClick: () -> Unit = {},
+    onCategoriesClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -441,6 +481,11 @@ fun BoxDestinationContent(
                 onTransactionClick = onTransactionClick,
                 onCategoryClick = onCategoryClick,
                 onPrivacyToggle = onPrivacyToggle,
+                onSetBudgetClick = onSetBudgetClick,
+                onAddTransactionClick = onAddTransactionClick,
+                onTrendsClick = onTrendsClick,
+                onCategoriesClick = onCategoriesClick,
+                onSearchClick = onSearchClick,
             )
         }
         AppDestination.TRANSACTIONS -> {

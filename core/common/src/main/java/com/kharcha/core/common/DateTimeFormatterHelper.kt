@@ -12,13 +12,13 @@ import java.util.Locale
  */
 object DateTimeFormatterHelper {
     private val timeFormatter =
-        DateTimeFormatter.ofPattern("hh:mm a", Locale.getDefault())
+        DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH)
     private val sameYearDateFormatter =
-        DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+        DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
     private val fullDateFormatter =
-        DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
+        DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
     private val detailDateTimeFormatter =
-        DateTimeFormatter.ofPattern("d MMM yyyy, hh:mm a", Locale.getDefault())
+        DateTimeFormatter.ofPattern("d MMM yyyy, hh:mm a", Locale.ENGLISH)
 
     fun formatRelativeTime(
         epochMillis: Long,

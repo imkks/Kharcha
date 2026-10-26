@@ -81,13 +81,14 @@ class UserPreferencesTest {
 
     @Test
     fun testCustomCategories() {
+        every { sharedPreferences.getString("key_custom_spend_categories_json", null) } returns null
         every { sharedPreferences.getString("key_custom_categories_json", null) } returns null
         assertTrue(userPreferences.getCustomCategories().isEmpty())
 
         userPreferences.addCustomCategory("Chicken")
-        verify { editor.putString("key_custom_categories_json", any()) }
+        verify { editor.putString("key_custom_spend_categories_json", any()) }
 
-        every { sharedPreferences.getString("key_custom_categories_json", null) } returns
+        every { sharedPreferences.getString("key_custom_spend_categories_json", null) } returns
             """["Chicken","Gym"]"""
         val customCats = userPreferences.getCustomCategories()
         assertEquals(2, customCats.size)
@@ -95,7 +96,38 @@ class UserPreferencesTest {
         assertTrue(customCats.contains("Gym"))
 
         userPreferences.removeCustomCategory("Chicken")
-        verify { editor.putString("key_custom_categories_json", any()) }
+        verify { editor.putString("key_custom_spend_categories_json", any()) }
+    }
+
+    @Test
+    fun testSpendAndCreditCategories() {
+        every { sharedPreferences.getString("key_custom_spend_categories_json", null) } returns null
+        every { sharedPreferences.getString("key_custom_categories_json", null) } returns null
+        assertTrue(userPreferences.getCustomSpendCategories().isEmpty())
+
+        userPreferences.addCustomSpendCategory("Groceries Special")
+        verify { editor.putString("key_custom_spend_categories_json", any()) }
+
+        every { sharedPreferences.getString("key_custom_credit_categories_json", null) } returns null
+        assertTrue(userPreferences.getCustomCreditCategories().isEmpty())
+
+        userPreferences.addCustomCreditCategory("Crypto Dividend")
+        verify { editor.putString("key_custom_credit_categories_json", any()) }
+    }
+
+    @Test
+    fun testPreferencesToggles() {
+        every { sharedPreferences.getBoolean("key_launch_in_money_manager", true) } returns true
+        assertTrue(userPreferences.isLaunchInMoneyManagerEnabled)
+
+        userPreferences.isLaunchInMoneyManagerEnabled = false
+        verify { editor.putBoolean("key_launch_in_money_manager", false) }
+
+        every { sharedPreferences.getLong("key_auto_transfer_threshold", 10_000_00L) } returns 10_000_00L
+        assertEquals(10_000_00L, userPreferences.autoTransferThresholdPaise)
+
+        userPreferences.autoTransferThresholdPaise = 25_000_00L
+        verify { editor.putLong("key_auto_transfer_threshold", 25_000_00L) }
     }
 
     @Test

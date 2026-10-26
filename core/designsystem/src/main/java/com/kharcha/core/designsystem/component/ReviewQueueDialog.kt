@@ -58,6 +58,33 @@ val DEFAULT_CATEGORIES =
         "Other",
     )
 
+val DEFAULT_SPEND_CATEGORIES =
+    listOf(
+        "Food & Dining",
+        "Groceries",
+        "Shopping",
+        "Transport",
+        "Bills & Utilities",
+        "Entertainment",
+        "Health",
+        "Investments",
+        "Education",
+        "Travel",
+        "Personal Care",
+        "Other",
+    )
+
+val DEFAULT_CREDIT_CATEGORIES =
+    listOf(
+        "Salary",
+        "Refund",
+        "Cashback",
+        "Investment Return",
+        "Allowance",
+        "Reimbursement",
+        "Other",
+    )
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReviewQueueDialog(

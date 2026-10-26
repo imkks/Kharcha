@@ -51,8 +51,6 @@ fun SelectAccountSheet(
     includeAllAccountsOption: Boolean = false,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val hairline = MaterialTheme.financialColors.hairlineDivider
-    val lime = MaterialTheme.financialColors.income
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

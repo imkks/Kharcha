@@ -8,6 +8,8 @@ interface UserPreferences {
     var isOnboardingCompleted: Boolean
     var monthlyBudgetMinor: Long
     var isPrivacyModeEnabled: Boolean
+    var isLaunchInMoneyManagerEnabled: Boolean
+    var autoTransferThresholdPaise: Long
     fun getMerchantCategoryRules(): Map<String, String>
     fun setMerchantCategory(merchant: String, category: String)
     fun removeMerchantCategoryRule(merchant: String)
@@ -18,6 +20,12 @@ interface UserPreferences {
     fun getCustomCategories(): Set<String>
     fun addCustomCategory(category: String)
     fun removeCustomCategory(category: String)
+    fun getCustomSpendCategories(): Set<String>
+    fun addCustomSpendCategory(category: String)
+    fun removeCustomSpendCategory(category: String)
+    fun getCustomCreditCategories(): Set<String>
+    fun addCustomCreditCategory(category: String)
+    fun removeCustomCreditCategory(category: String)
     fun clear()
 }
 
@@ -36,6 +44,14 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
     override var isPrivacyModeEnabled: Boolean
         get() = prefs.getBoolean(KEY_PRIVACY_MODE_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_PRIVACY_MODE_ENABLED, value).apply()
+
+    override var isLaunchInMoneyManagerEnabled: Boolean
+        get() = prefs.getBoolean(KEY_LAUNCH_IN_MONEY_MANAGER, true)
+        set(value) = prefs.edit().putBoolean(KEY_LAUNCH_IN_MONEY_MANAGER, value).apply()
+
+    override var autoTransferThresholdPaise: Long
+        get() = prefs.getLong(KEY_AUTO_TRANSFER_THRESHOLD, 10_000_00L)
+        set(value) = prefs.edit().putLong(KEY_AUTO_TRANSFER_THRESHOLD, value).apply()
 
     override fun getMerchantCategoryRules(): Map<String, String> {
         val raw = prefs.getString(KEY_MERCHANT_RULES, null) ?: return emptyMap()
@@ -76,8 +92,16 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         return getMerchantCategoryRules()[normalized]
     }
 
-    override fun getCustomCategories(): Set<String> {
-        val raw = prefs.getString(KEY_CUSTOM_CATEGORIES, null) ?: return emptySet()
+    override fun getCustomCategories(): Set<String> = getCustomSpendCategories()
+
+    override fun addCustomCategory(category: String) = addCustomSpendCategory(category)
+
+    override fun removeCustomCategory(category: String) = removeCustomSpendCategory(category)
+
+    override fun getCustomSpendCategories(): Set<String> {
+        val raw = prefs.getString(KEY_CUSTOM_SPEND_CATEGORIES, null)
+            ?: prefs.getString(KEY_CUSTOM_CATEGORIES, null)
+            ?: return emptySet()
         return try {
             val jsonArray = org.json.JSONArray(raw)
             val result = mutableSetOf<String>()
@@ -93,22 +117,57 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         }
     }
 
-    override fun addCustomCategory(category: String) {
+    override fun addCustomSpendCategory(category: String) {
         val trimmed = category.trim()
         if (trimmed.isBlank()) return
-        val current = getCustomCategories().toMutableSet()
+        val current = getCustomSpendCategories().toMutableSet()
         current.add(trimmed)
         val jsonArray = org.json.JSONArray(current.toList())
-        prefs.edit().putString(KEY_CUSTOM_CATEGORIES, jsonArray.toString()).apply()
+        prefs.edit().putString(KEY_CUSTOM_SPEND_CATEGORIES, jsonArray.toString()).apply()
     }
 
-    override fun removeCustomCategory(category: String) {
+    override fun removeCustomSpendCategory(category: String) {
         val trimmed = category.trim()
         if (trimmed.isBlank()) return
-        val current = getCustomCategories().toMutableSet()
+        val current = getCustomSpendCategories().toMutableSet()
         current.remove(trimmed)
         val jsonArray = org.json.JSONArray(current.toList())
-        prefs.edit().putString(KEY_CUSTOM_CATEGORIES, jsonArray.toString()).apply()
+        prefs.edit().putString(KEY_CUSTOM_SPEND_CATEGORIES, jsonArray.toString()).apply()
+    }
+
+    override fun getCustomCreditCategories(): Set<String> {
+        val raw = prefs.getString(KEY_CUSTOM_CREDIT_CATEGORIES, null) ?: return emptySet()
+        return try {
+            val jsonArray = org.json.JSONArray(raw)
+            val result = mutableSetOf<String>()
+            for (i in 0 until jsonArray.length()) {
+                val cat = jsonArray.optString(i)?.trim()
+                if (!cat.isNullOrBlank()) {
+                    result.add(cat)
+                }
+            }
+            result
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    override fun addCustomCreditCategory(category: String) {
+        val trimmed = category.trim()
+        if (trimmed.isBlank()) return
+        val current = getCustomCreditCategories().toMutableSet()
+        current.add(trimmed)
+        val jsonArray = org.json.JSONArray(current.toList())
+        prefs.edit().putString(KEY_CUSTOM_CREDIT_CATEGORIES, jsonArray.toString()).apply()
+    }
+
+    override fun removeCustomCreditCategory(category: String) {
+        val trimmed = category.trim()
+        if (trimmed.isBlank()) return
+        val current = getCustomCreditCategories().toMutableSet()
+        current.remove(trimmed)
+        val jsonArray = org.json.JSONArray(current.toList())
+        prefs.edit().putString(KEY_CUSTOM_CREDIT_CATEGORIES, jsonArray.toString()).apply()
     }
 
     override fun getAllCategoryBudgets(): Map<String, Long> {
@@ -157,6 +216,10 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_MERCHANT_RULES = "key_merchant_rules_json"
         private const val KEY_CATEGORY_BUDGETS = "key_category_budgets_json"
         private const val KEY_CUSTOM_CATEGORIES = "key_custom_categories_json"
+        private const val KEY_CUSTOM_SPEND_CATEGORIES = "key_custom_spend_categories_json"
+        private const val KEY_CUSTOM_CREDIT_CATEGORIES = "key_custom_credit_categories_json"
+        private const val KEY_LAUNCH_IN_MONEY_MANAGER = "key_launch_in_money_manager"
+        private const val KEY_AUTO_TRANSFER_THRESHOLD = "key_auto_transfer_threshold"
         const val DEFAULT_BUDGET_PAISE: Long = 30_000_00L
     }
 }

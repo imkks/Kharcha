@@ -143,6 +143,7 @@ fun TransactionDetailScreen(
     var showAddTagDialog by remember { mutableStateOf(false) }
     var showReceiptViewDialog by remember { mutableStateOf(false) }
     var showLinkSheet by remember { mutableStateOf(false) }
+    var showLinkDuplicateSheet by remember { mutableStateOf(false) }
 
     val merchantName =
         transaction.merchantNormalised
@@ -298,30 +299,6 @@ fun TransactionDetailScreen(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = null,
                             tint = Color.White,
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = stringResource(id = R.string.detail_action_delete),
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            },
-                            onClick = {
-                                showMenu = false
-                                showDeleteDialog = true
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                )
-                            },
                         )
                     }
                 },
@@ -498,7 +475,16 @@ fun TransactionDetailScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Clickable Category Pill: [ 🛒 Groceries ]
+                        val categoryDisplayName =
+                            when {
+                                selectedCategory.isBlank() ||
+                                    selectedCategory.equals("Unknown", ignoreCase = true) ||
+                                    selectedCategory.equals("Other", ignoreCase = true) ->
+                                    stringResource(id = R.string.detail_category_not_categorised)
+                                else -> selectedCategory
+                            }
+
+                        // Clickable Category Pill: [ 🛒 Groceries / Not Categorised ]
                         Surface(
                             shape = CircleShape,
                             color = MaterialTheme.financialColors.cardBackground,
@@ -518,7 +504,7 @@ fun TransactionDetailScreen(
                                     size = 20.dp,
                                 )
                                 Text(
-                                    text = selectedCategory,
+                                    text = categoryDisplayName,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color.White,
@@ -817,142 +803,7 @@ fun TransactionDetailScreen(
                     }
                 }
             } else {
-                val isAcTransfer =
-                    selectedCategory == "A/C Transfer" ||
-                        selectedCategory == "Transfer" ||
-                        selectedType == TransactionType.Transfer
-                val isRefund =
-                    selectedCategory.equals("Refund", ignoreCase = true) ||
-                        selectedType == TransactionType.Refund
-                val isExpense = selectedType == TransactionType.Expense && !isAcTransfer
-
-                val canLink = isAcTransfer || isRefund || isExpense
-
-                if (canLink) {
-                    item {
-                        Card(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable { showLinkSheet = true },
-                            shape = RoundedCornerShape(20.dp),
-                            colors =
-                                CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.financialColors.cardBackground,
-                                ),
-                            border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-                        ) {
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    val iconTint =
-                                        if (isAcTransfer) {
-                                            MaterialTheme.financialColors.transfer
-                                        } else {
-                                            MaterialTheme.financialColors.income
-                                        }
-                                    val iconRes =
-                                        if (isAcTransfer) {
-                                            DesignR.drawable.ic_category_transfer
-                                        } else {
-                                            DesignR.drawable.ic_arrow_outward
-                                        }
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = iconTint.copy(alpha = 0.15f),
-                                        modifier = Modifier.size(38.dp),
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = iconRes),
-                                            contentDescription = null,
-                                            tint = iconTint,
-                                            modifier = Modifier.padding(9.dp),
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        val linkPromptTitle =
-                                            when {
-                                                isAcTransfer && isCreditTxn ->
-                                                    stringResource(id = R.string.detail_link_debit_button)
-                                                isAcTransfer && !isCreditTxn ->
-                                                    stringResource(id = R.string.detail_link_credit_button)
-                                                isRefund ->
-                                                    stringResource(id = R.string.detail_link_expense_button)
-                                                else ->
-                                                    stringResource(id = R.string.detail_link_refund_button)
-                                            }
-                                        val linkPromptSubtitle =
-                                            when {
-                                                isAcTransfer && isCreditTxn ->
-                                                    stringResource(id = R.string.link_sheet_debit_title)
-                                                isAcTransfer && !isCreditTxn ->
-                                                    stringResource(id = R.string.link_sheet_credit_title)
-                                                isRefund ->
-                                                    stringResource(id = R.string.link_sheet_refund_title)
-                                                else ->
-                                                    stringResource(id = R.string.link_sheet_expense_title)
-                                            }
-                                        Text(
-                                            text = linkPromptTitle,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = linkPromptSubtitle,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                                Button(
-                                    onClick = { showLinkSheet = true },
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor =
-                                                if (isAcTransfer) {
-                                                    MaterialTheme.financialColors.transfer
-                                                } else {
-                                                    MaterialTheme.financialColors.income
-                                                },
-                                            contentColor = Color.Black,
-                                        ),
-                                    contentPadding = ButtonDefaults.TextButtonContentPadding,
-                                    modifier = Modifier.height(32.dp),
-                                ) {
-                                    val buttonText =
-                                        when {
-                                            isAcTransfer && isCreditTxn ->
-                                                stringResource(id = R.string.detail_link_debit_button)
-                                            isAcTransfer && !isCreditTxn ->
-                                                stringResource(id = R.string.detail_link_credit_button)
-                                            isRefund ->
-                                                stringResource(id = R.string.detail_link_expense_button)
-                                            else ->
-                                                stringResource(id = R.string.detail_link_refund_button)
-                                        }
-                                    Text(
-                                        text = buttonText,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } else if (selectedType == TransactionType.Transfer) {
+                if (selectedType == TransactionType.Transfer) {
                     val targetCard =
                         TransactionClassifierHelper.extractTargetCardLast4(transaction.note ?: "")
                     if (targetCard != null) {
@@ -2056,6 +1907,142 @@ fun TransactionDetailScreen(
             },
             onDismiss = { showLinkSheet = false },
         )
+    }
+
+    // Link Duplicate Transaction Sheet
+    if (showLinkDuplicateSheet) {
+        LinkTransactionSheet(
+            targetTransaction = transaction,
+            allTransactions = allTransactions,
+            isTransferLink = false,
+            isCreditTarget = isCreditTxn,
+            onLink = { candidate ->
+                onLinkTransactions?.invoke(transaction.id, candidate.id, false)
+                showLinkDuplicateSheet = false
+            },
+            onDismiss = { showLinkDuplicateSheet = false },
+        )
+    }
+
+    // 3-dots Menu Options Modal Bottom Sheet (Screenshot 5)
+    if (showMenu) {
+        ModalBottomSheet(
+            onDismissRequest = { showMenu = false },
+            containerColor = MaterialTheme.financialColors.cardBackground,
+            dragHandle = {
+                Surface(
+                    modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                    color = MaterialTheme.financialColors.hairlineDivider,
+                    shape = RoundedCornerShape(2.dp),
+                ) {
+                    Box(modifier = Modifier.size(width = 36.dp, height = 4.dp))
+                }
+            },
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = stringResource(id = R.string.detail_menu_options_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+
+                // 1. Link refund
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                showMenu = false
+                                showLinkSheet = true
+                            }
+                            .padding(vertical = 14.dp, horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
+                        contentDescription = null,
+                        tint = MaterialTheme.financialColors.textSecondary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = stringResource(id = R.string.detail_menu_link_refund),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White,
+                    )
+                }
+
+                // 2. Link duplicate
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                showMenu = false
+                                showLinkDuplicateSheet = true
+                            }
+                            .padding(vertical = 14.dp, horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(id = DesignR.drawable.ic_copy),
+                        contentDescription = null,
+                        tint = MaterialTheme.financialColors.textSecondary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = stringResource(id = R.string.detail_menu_link_duplicate),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White,
+                    )
+                }
+
+                HorizontalDivider(
+                    color = MaterialTheme.financialColors.hairlineDivider,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+
+                // 3. Delete transaction
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                showMenu = false
+                                showDeleteDialog = true
+                            }
+                            .padding(vertical = 14.dp, horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = stringResource(id = R.string.detail_menu_delete_transaction),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
     }
 }
 

@@ -1013,35 +1013,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // 11. Deposits Promo Card
-            item {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.home_deposits_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.financialColors.textPrimary,
-                        )
-                        Icon(
-                            painter = painterResource(id = DesignR.drawable.ic_chevron_right),
-                            contentDescription = null,
-                            tint = MaterialTheme.financialColors.textSecondary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    PromoCard(onActionClick = onDepositClick)
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+
 
             // 12. Credit Cards Carousel
             item {

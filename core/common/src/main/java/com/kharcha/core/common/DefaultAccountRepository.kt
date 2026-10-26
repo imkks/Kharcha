@@ -26,7 +26,7 @@ class DefaultAccountRepository(
                     context.filesDir
                 } catch (_: Exception) {
                     null
-                } ?: File(System.getProperty("java.io.tmpdir", "."))
+                } ?: File(System.getProperty("java.io.tmpdir") ?: ".")
             return File(dir, "accounts.json")
         }
 
@@ -259,6 +259,8 @@ class DefaultAccountRepository(
         account.currentBalance?.let { obj.put("currentBalance", it) }
         account.balanceUpdatedAt?.let { obj.put("balanceUpdatedAt", it) }
         obj.put("isArchived", account.isArchived)
+        obj.put("isCountedAsExpense", account.isCountedAsExpense)
+        account.linkedPrimaryAccountId?.let { obj.put("linkedPrimaryAccountId", it) }
         return obj
     }
 
@@ -286,6 +288,13 @@ class DefaultAccountRepository(
                 null
             }
 
+        val linkedPrimary =
+            if (json.has("linkedPrimaryAccountId") && !json.isNull("linkedPrimaryAccountId")) {
+                json.getLong("linkedPrimaryAccountId")
+            } else {
+                null
+            }
+
         return Account(
             id = json.optLong("id"),
             name = json.optString("name", "Account"),
@@ -295,6 +304,8 @@ class DefaultAccountRepository(
             currentBalance = bal,
             balanceUpdatedAt = updated,
             isArchived = json.optBoolean("isArchived", false),
+            isCountedAsExpense = json.optBoolean("isCountedAsExpense", true),
+            linkedPrimaryAccountId = linkedPrimary,
         )
     }
 

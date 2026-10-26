@@ -101,4 +101,55 @@ class MoreScreenTest {
         assertTrue(combined.contains("Chicken"))
         assertTrue(combined.contains("Gym"))
     }
+
+    @Test
+    fun testAccountLinkingGroupingLogic() {
+        val primaryAccountId = 100L
+        val linkedSubAccountIds = setOf(101L, 102L)
+
+        val txns = listOf(
+            createTxn(id = 1L).copy(accountId = 101L),
+            createTxn(id = 2L).copy(accountId = 102L),
+            createTxn(id = 3L).copy(accountId = 999L),
+        )
+
+        val updatedTxns = txns.map { txn ->
+            if (txn.accountId in linkedSubAccountIds) {
+                txn.copy(accountId = primaryAccountId)
+            } else {
+                txn
+            }
+        }
+
+        assertEquals(primaryAccountId, updatedTxns[0].accountId)
+        assertEquals(primaryAccountId, updatedTxns[1].accountId)
+        assertEquals(999L, updatedTxns[2].accountId)
+    }
+
+    @Test
+    fun testAccountExpensePacingFilter() {
+        val accounts = listOf(
+            com.kharcha.core.model.Account(
+                id = 1L,
+                name = "HDFC",
+                bankName = "HDFC",
+                last4 = "1234",
+                type = com.kharcha.core.model.AccountType.Savings,
+                isCountedAsExpense = true,
+            ),
+            com.kharcha.core.model.Account(
+                id = 2L,
+                name = "Office Reimbursement Card",
+                bankName = "Axis",
+                last4 = "5678",
+                type = com.kharcha.core.model.AccountType.CreditCard,
+                isCountedAsExpense = false,
+            ),
+        )
+
+        val expenseAccountIds = accounts.filter { it.isCountedAsExpense }.map { it.id }.toSet()
+        assertEquals(1, expenseAccountIds.size)
+        assertTrue(expenseAccountIds.contains(1L))
+        assertFalse(expenseAccountIds.contains(2L))
+    }
 }

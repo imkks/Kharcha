@@ -2,9 +2,13 @@ package com.kharcha.feature.settings.ui
 
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -18,9 +22,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
@@ -37,19 +43,23 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -59,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -73,7 +84,8 @@ import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
-import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
+import com.kharcha.core.designsystem.component.DEFAULT_CREDIT_CATEGORIES
+import com.kharcha.core.designsystem.component.DEFAULT_SPEND_CATEGORIES
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
@@ -81,6 +93,7 @@ import com.kharcha.core.model.Transaction
 import com.kharcha.feature.settings.R
 import java.io.File
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreScreen(
     transactions: List<Transaction>,
@@ -90,381 +103,726 @@ fun MoreScreen(
     onUpdateMonthlyBudget: (Long) -> Unit = {},
     accounts: List<Account> = emptyList(),
     onSaveAccount: (Account) -> Unit = {},
+    onMergeAccounts: ((primaryAccountId: Long, redundantAccountIds: Set<Long>) -> Unit)? = null,
     onApplyMerchantRuleToTransactions: ((merchant: String, category: String) -> Unit)? = null,
+    onWeeklySummaryClick: () -> Unit = {},
+    onReportSmsClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    var isPrivacyEnabled by remember { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
-    var currentBudget by remember { mutableStateOf(userPreferences.monthlyBudgetMinor) }
+    var showPreferencesScreen by remember { mutableStateOf(false) }
 
-    var showBudgetDialog by remember { mutableStateOf(false) }
-    var showRulesDialog by remember { mutableStateOf(false) }
-    var showAddRuleDialog by remember { mutableStateOf(false) }
-    var showCategoriesDialog by remember { mutableStateOf(false) }
-    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    // State for Dialogs and Sheets
     var showAccountsDialog by remember { mutableStateOf(false) }
     var showAddAccountDialog by remember { mutableStateOf(false) }
+    var selectedAccountForSettings by remember { mutableStateOf<Account?>(null) }
+    var editingAccount by remember { mutableStateOf<Account?>(null) }
+
+    var showLinkAccountsSheet by remember { mutableStateOf(false) }
+    var primaryAccountForLinking by remember { mutableStateOf<Account?>(null) }
+
+    var showSpendCategoriesSheet by remember { mutableStateOf(false) }
+    var showAddSpendCategoryDialog by remember { mutableStateOf(false) }
+
+    var showCreditCategoriesSheet by remember { mutableStateOf(false) }
+    var showAddCreditCategoryDialog by remember { mutableStateOf(false) }
+
+    var showRulesDialog by remember { mutableStateOf(false) }
+    var showAddRuleDialog by remember { mutableStateOf(false) }
+
+    var showTransferThresholdDialog by remember { mutableStateOf(false) }
+    var showBudgetDialog by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+
+    var categoriesRevision by remember { mutableIntStateOf(0) }
+    val customSpendCategories =
+        remember(categoriesRevision, showSpendCategoriesSheet) {
+            userPreferences.getCustomSpendCategories()
+        }
+    val allSpendCategories =
+        remember(customSpendCategories) {
+            (DEFAULT_SPEND_CATEGORIES + customSpendCategories).distinct()
+        }
+
+    val customCreditCategories =
+        remember(categoriesRevision, showCreditCategoriesSheet) {
+            userPreferences.getCustomCreditCategories()
+        }
+    val allCreditCategories =
+        remember(customCreditCategories) {
+            (DEFAULT_CREDIT_CATEGORIES + customCreditCategories).distinct()
+        }
 
     var rulesRevision by remember { mutableIntStateOf(0) }
     val rules = remember(rulesRevision, showRulesDialog) { userPreferences.getMerchantCategoryRules() }
-    val rulesCount = rules.size
 
-    var categoriesRevision by remember { mutableIntStateOf(0) }
-    val customCategories =
-        remember(categoriesRevision, showCategoriesDialog) {
-            userPreferences.getCustomCategories()
-        }
-    val customCategoriesCount = customCategories.size
-    val allCategories = remember(customCategories) { (DEFAULT_CATEGORIES + customCategories).distinct() }
+    var isMoneyManagerDefault by remember {
+        mutableStateOf(userPreferences.isLaunchInMoneyManagerEnabled)
+    }
 
-    val unreviewedCount =
-        remember(transactions) {
-            transactions.count {
-                !it.isReviewed || it.categorySource == "Other" || (it.parseConfidence ?: 1.0f) < 0.8f
-            }
-        }
-
-    LazyColumn(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        item {
-            Text(
-                text = stringResource(id = R.string.settings_screen_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-
-        // 1. App Banner Card
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.financialColors.cardBackground,
-                    ),
-                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Kharcha",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(id = R.string.settings_offline_title),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.financialColors.limeAccent,
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = stringResource(id = R.string.settings_offline_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.financialColors.textSecondary,
-                    )
-                }
-            }
-        }
-
-        // 2. Accounts & Cards Section
-        item {
-            SettingsSectionHeader(title = stringResource(id = R.string.settings_section_accounts))
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.financialColors.cardBackground,
-                    ),
-                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-            ) {
-                SettingsActionRow(
-                    painter = painterResource(id = DesignR.drawable.ic_channel_card),
-                    title = stringResource(id = R.string.settings_manage_accounts_title),
-                    subtitle = stringResource(id = R.string.settings_manage_accounts_subtitle, accounts.size),
-                    trailing = {
-                        Icon(
-                            painter = painterResource(id = DesignR.drawable.ic_chevron_right),
-                            contentDescription = null,
-                            tint = MaterialTheme.financialColors.textSecondary,
-                            modifier = Modifier.size(18.dp),
+    if (showPreferencesScreen) {
+        BackHandler { showPreferencesScreen = false }
+        PreferencesScreenView(
+            accounts = accounts,
+            userPreferences = userPreferences,
+            isMoneyManagerDefault = isMoneyManagerDefault,
+            onToggleMoneyManagerDefault = {
+                isMoneyManagerDefault = it
+                userPreferences.isLaunchInMoneyManagerEnabled = it
+            },
+            onManageAccountsClick = { showAccountsDialog = true },
+            onLinkAccountsClick = {
+                primaryAccountForLinking = accounts.firstOrNull { it.linkedPrimaryAccountId == null }
+                showLinkAccountsSheet = true
+            },
+            onSpendCategoriesClick = { showSpendCategoriesSheet = true },
+            onCreditCategoriesClick = { showCreditCategoriesSheet = true },
+            onRulesClick = { showRulesDialog = true },
+            onMarkTransferClick = { showTransferThresholdDialog = true },
+            onResetOnboarding = onResetOnboarding,
+            onBack = { showPreferencesScreen = false },
+            modifier = modifier,
+        )
+    } else {
+        // Main Account Screen (Screenshot 1)
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(id = R.string.settings_account_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
                         )
                     },
-                    onClick = { showAccountsDialog = true },
+                    colors =
+                        TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.background,
+                        ),
                 )
-            }
-        }
-
-        // 3. General Section
-        item {
-            SettingsSectionHeader(title = stringResource(id = R.string.settings_section_general))
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.financialColors.cardBackground,
-                    ),
-                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+            },
+            containerColor = MaterialTheme.colorScheme.background,
+            modifier = modifier.fillMaxSize(),
+        ) { innerPadding ->
+            LazyColumn(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Column {
-                    // Monthly Budget Row
-                    SettingsActionRow(
-                        icon = Icons.Default.Edit,
-                        title = stringResource(id = R.string.settings_budget_title),
-                        subtitle = MoneyFormatter.formatMinorUnits(currentBudget),
-                        trailing = {
-                            IconButton(onClick = { showBudgetDialog = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.financialColors.limeAccent,
+                // 1. Profile Header Row
+                item {
+                    Row(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.financialColors.limeAccent,
+                            modifier = Modifier.size(48.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "K",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.financialColors.onLimeAccent,
                                 )
                             }
-                        },
-                        onClick = { showBudgetDialog = true },
-                    )
-
-                    HorizontalDivider(
-                        color = MaterialTheme.financialColors.hairlineDivider,
-                    )
-
-                    // Currency Row
-                    SettingsActionRow(
-                        icon = Icons.Default.Check,
-                        title = stringResource(id = R.string.settings_currency_title),
-                        subtitle = stringResource(id = R.string.settings_currency_val),
-                    )
-
-                    HorizontalDivider(
-                        color = MaterialTheme.financialColors.hairlineDivider,
-                    )
-
-                    // Privacy Mode Toggle Row
-                    SettingsActionRow(
-                        icon = Icons.Default.Lock,
-                        title = stringResource(id = R.string.settings_privacy_mode_title),
-                        subtitle = stringResource(id = R.string.settings_privacy_mode_subtitle),
-                        trailing = {
-                            Switch(
-                                checked = isPrivacyEnabled,
-                                onCheckedChange = { isChecked ->
-                                    isPrivacyEnabled = isChecked
-                                    userPreferences.isPrivacyModeEnabled = isChecked
-                                },
-                                colors =
-                                    SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = MaterialTheme.financialColors.limeAccent,
-                                        uncheckedThumbColor = MaterialTheme.financialColors.textSecondary,
-                                        uncheckedTrackColor = Color(0xFF2E2E2E),
-                                    ),
-                            )
-                        },
-                        onClick = {
-                            isPrivacyEnabled = !isPrivacyEnabled
-                            userPreferences.isPrivacyModeEnabled = isPrivacyEnabled
-                        },
-                    )
-
-                    HorizontalDivider(
-                        color = MaterialTheme.financialColors.hairlineDivider,
-                    )
-
-                    // Re-scan SMS Inbox Row
-                    SettingsActionRow(
-                        icon = Icons.Default.Refresh,
-                        title = stringResource(id = R.string.settings_rescan_title),
-                        subtitle = stringResource(id = R.string.settings_rescan_subtitle),
-                        onClick = onResetOnboarding,
-                    )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = stringResource(id = R.string.settings_user_name),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
+                    }
                 }
-            }
-        }
 
-        // 4. Organization & Rules Section
-        item {
-            SettingsSectionHeader(title = stringResource(id = R.string.settings_section_rules))
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.financialColors.cardBackground,
-                    ),
-                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-            ) {
-                Column {
-                    SettingsActionRow(
-                        icon = Icons.Default.Info,
-                        title = stringResource(id = R.string.settings_rules_title),
-                        subtitle = stringResource(id = R.string.settings_rules_subtitle, rulesCount),
-                        trailing = {
-                            Icon(
-                                painter = painterResource(id = DesignR.drawable.ic_chevron_right),
-                                contentDescription = null,
-                                tint = MaterialTheme.financialColors.textSecondary,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        },
-                        onClick = { showRulesDialog = true },
-                    )
-
-                    HorizontalDivider(
-                        color = MaterialTheme.financialColors.hairlineDivider,
-                    )
-
-                    SettingsActionRow(
-                        painter = painterResource(id = DesignR.drawable.ic_category_shopping),
-                        title = stringResource(id = R.string.settings_categories_title),
-                        subtitle = stringResource(id = R.string.settings_categories_subtitle, customCategoriesCount),
-                        trailing = {
-                            Icon(
-                                painter = painterResource(id = DesignR.drawable.ic_chevron_right),
-                                contentDescription = null,
-                                tint = MaterialTheme.financialColors.textSecondary,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        },
-                        onClick = { showCategoriesDialog = true },
-                    )
-                }
-            }
-        }
-
-        // 5. Data & Export Section
-        item {
-            SettingsSectionHeader(title = stringResource(id = R.string.settings_section_data))
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.financialColors.cardBackground,
-                    ),
-                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-            ) {
-                Column {
-                    SettingsActionRow(
-                        icon = Icons.Default.Share,
-                        title = stringResource(id = R.string.settings_export_csv_title),
-                        subtitle =
-                            stringResource(
-                                id = R.string.settings_export_csv_subtitle,
-                                transactions.size,
+                // 2. Contact Details Card
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.financialColors.cardBackground,
                             ),
+                        border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            // Phone row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_channel_upi),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.financialColors.textSecondary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Text(
+                                    text = stringResource(id = R.string.settings_user_phone),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White,
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.financialColors.textSecondary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Email row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        painter = painterResource(id = DesignR.drawable.ic_copy),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.financialColors.textSecondary,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Text(
+                                        text = stringResource(id = R.string.settings_user_email),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White,
+                                    )
+                                }
+                                Text(
+                                    text = stringResource(id = R.string.settings_edit),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.financialColors.limeAccent,
+                                    modifier = Modifier.clickable { },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 3. Expense Tracking Section Header
+                item {
+                    Text(
+                        text = stringResource(id = R.string.settings_expense_tracking_section),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+                    )
+                }
+
+                // 4. Expense Tracking Actions Card
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.financialColors.cardBackground,
+                            ),
+                        border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                    ) {
+                        Column {
+                            SettingsNavRow(
+                                iconRes = DesignR.drawable.ic_settings,
+                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                title = stringResource(id = R.string.settings_preferences_title),
+                                onClick = { showPreferencesScreen = true },
+                            )
+                            HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                            SettingsNavRow(
+                                iconRes = DesignR.drawable.ic_bar_chart,
+                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                title = stringResource(id = R.string.settings_weekly_summary_title),
+                                onClick = onWeeklySummaryClick,
+                            )
+                            HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                            SettingsNavRow(
+                                iconRes = DesignR.drawable.ic_copy,
+                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                title = stringResource(id = R.string.settings_export_statement_title),
+                                onClick = { showExportDialog = true },
+                            )
+                            HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                            SettingsNavRow(
+                                iconRes = DesignR.drawable.ic_arrow_outward,
+                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                title = stringResource(id = R.string.settings_report_sms_title),
+                                onClick = onReportSmsClick,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- SHEETS & DIALOGS ---
+
+    // 1. Export Statement Dialog
+    if (showExportDialog) {
+        AlertDialog(
+            onDismissRequest = { showExportDialog = false },
+            title = { Text(text = stringResource(id = R.string.settings_export_statement_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
                         onClick = {
                             val csv = CsvExportHelper.generateTransactionsCsv(transactions)
                             val filename = "kharcha_transactions_${System.currentTimeMillis()}.csv"
                             shareTextFile(context, csv, filename, "text/csv")
+                            showExportDialog = false
                         },
-                    )
-
-                    HorizontalDivider(
-                        color = MaterialTheme.financialColors.hairlineDivider,
-                    )
-
-                    SettingsActionRow(
-                        icon = Icons.Default.Share,
-                        title = stringResource(id = R.string.settings_export_llm_title),
-                        subtitle =
-                            stringResource(
-                                id = R.string.settings_export_llm_subtitle,
-                                unreviewedCount,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.financialColors.cardBackground,
+                                contentColor = Color.White,
                             ),
+                    ) {
+                        Text(text = stringResource(id = R.string.settings_export_csv_title))
+                    }
+                    Button(
                         onClick = {
                             val json = CsvExportHelper.generateLlmBatchExportJson(transactions)
                             val filename = "kharcha_llm_batch_${System.currentTimeMillis()}.json"
                             shareTextFile(context, json, filename, "application/json")
+                            showExportDialog = false
                         },
-                    )
+                        modifier = Modifier.fillMaxWidth(),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.financialColors.cardBackground,
+                                contentColor = Color.White,
+                            ),
+                    ) {
+                        Text(text = stringResource(id = R.string.settings_export_llm_title))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showExportDialog = false }) {
+                    Text(text = stringResource(id = R.string.settings_close))
+                }
+            },
+        )
+    }
+
+    // 2. Link Accounts Bottom Sheet (Screenshot 3)
+    if (showLinkAccountsSheet && primaryAccountForLinking != null) {
+        val primary = primaryAccountForLinking!!
+        val candidateAccounts =
+            remember(accounts, primary) {
+                accounts.filter { it.id != primary.id }
+            }
+        var selectedSubAccountIds by remember(primary, candidateAccounts) {
+            mutableStateOf(
+                candidateAccounts.filter { it.linkedPrimaryAccountId == primary.id }.map { it.id }.toSet(),
+            )
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { showLinkAccountsSheet = false },
+            containerColor = MaterialTheme.financialColors.cardBackground,
+            dragHandle = {
+                Surface(
+                    modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                    color = MaterialTheme.financialColors.hairlineDivider,
+                    shape = RoundedCornerShape(2.dp),
+                ) {
+                    Box(modifier = Modifier.size(width = 36.dp, height = 4.dp))
+                }
+            },
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 10.dp)
+                        .padding(bottom = 24.dp),
+            ) {
+                Text(
+                    text = stringResource(id = R.string.settings_link_accounts_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(id = R.string.settings_link_accounts_dialog_desc, "${primary.name} - ${primary.last4 ?: "••••"}"),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.financialColors.textSecondary,
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Primary account row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFC0392B),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_bank),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = primary.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
+                        Text(
+                            text = primary.last4 ?: "••••",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.financialColors.textSecondary,
+                        )
+                    }
+                }
+
+                // Sub-accounts tree branch
+                if (candidateAccounts.isNotEmpty()) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 20.dp, top = 8.dp),
+                    ) {
+                        candidateAccounts.forEach { candidate ->
+                            val isChecked = selectedSubAccountIds.contains(candidate.id)
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedSubAccountIds =
+                                                if (isChecked) {
+                                                    selectedSubAccountIds - candidate.id
+                                                } else {
+                                                    selectedSubAccountIds + candidate.id
+                                                }
+                                        }
+                                        .padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                // Tree line graphic
+                                Canvas(modifier = Modifier.size(width = 24.dp, height = 36.dp)) {
+                                    drawLine(
+                                        color = Color(0xFF555555),
+                                        start = Offset(0f, 0f),
+                                        end = Offset(0f, size.height / 2),
+                                        strokeWidth = 3f,
+                                    )
+                                    drawLine(
+                                        color = Color(0xFF555555),
+                                        start = Offset(0f, size.height / 2),
+                                        end = Offset(size.width, size.height / 2),
+                                        strokeWidth = 3f,
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    modifier = Modifier.size(34.dp),
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFC0392B),
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            painter = painterResource(id = DesignR.drawable.ic_bank),
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = candidate.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White,
+                                    )
+                                    Text(
+                                        text = candidate.last4 ?: "XXXX",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.financialColors.textSecondary,
+                                    )
+                                }
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = { checked ->
+                                        selectedSubAccountIds =
+                                            if (checked) {
+                                                selectedSubAccountIds + candidate.id
+                                            } else {
+                                                selectedSubAccountIds - candidate.id
+                                            }
+                                    },
+                                    colors =
+                                        CheckboxDefaults.colors(
+                                            checkedColor = MaterialTheme.financialColors.limeAccent,
+                                            checkmarkColor = MaterialTheme.financialColors.onLimeAccent,
+                                        ),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Action buttons: Cancel and Save
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = { showLinkAccountsSheet = false }) {
+                        Text(
+                            text = "✕ " + stringResource(id = R.string.settings_cancel),
+                            color = MaterialTheme.financialColors.limeAccent,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            onMergeAccounts?.invoke(primary.id, selectedSubAccountIds)
+                            showLinkAccountsSheet = false
+                        },
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.financialColors.limeAccent,
+                                contentColor = MaterialTheme.financialColors.onLimeAccent,
+                            ),
+                        shape = RoundedCornerShape(100.dp),
+                    ) {
+                        Text(
+                            text = "✓ " + stringResource(id = R.string.settings_save),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
         }
+    }
 
-        // 6. About Section
-        item {
-            SettingsSectionHeader(title = stringResource(id = R.string.settings_section_about))
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.financialColors.cardBackground,
-                    ),
-                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+    // 3. Account Settings Bottom Sheet (Screenshot 2)
+    if (selectedAccountForSettings != null) {
+        val targetAccount = selectedAccountForSettings!!
+        ModalBottomSheet(
+            onDismissRequest = { selectedAccountForSettings = null },
+            containerColor = MaterialTheme.financialColors.cardBackground,
+            dragHandle = {
+                Surface(
+                    modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                    color = MaterialTheme.financialColors.hairlineDivider,
+                    shape = RoundedCornerShape(2.dp),
+                ) {
+                    Box(modifier = Modifier.size(width = 36.dp, height = 4.dp))
+                }
+            },
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 10.dp)
+                        .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = stringResource(id = R.string.settings_app_version),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
+                Text(
+                    text = stringResource(id = R.string.settings_account_settings_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+
+                // 1. Expense Toggle Row
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                val updated =
+                                    targetAccount.copy(isCountedAsExpense = !targetAccount.isCountedAsExpense)
+                                onSaveAccount(updated)
+                                selectedAccountForSettings = updated
+                            }
+                            .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(id = R.string.settings_account_expense_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(id = R.string.settings_account_expense_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.financialColors.textSecondary,
+                        )
+                    }
+                    Switch(
+                        checked = targetAccount.isCountedAsExpense,
+                        onCheckedChange = { isChecked ->
+                            val updated = targetAccount.copy(isCountedAsExpense = isChecked)
+                            onSaveAccount(updated)
+                            selectedAccountForSettings = updated
+                        },
+                        colors =
+                            SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = MaterialTheme.financialColors.limeAccent,
+                            ),
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Zero tracking • 100% on-device analytics • MIT License",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.financialColors.textSecondary,
+                }
+
+                HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                // 2. Edit Account Row
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                editingAccount = targetAccount
+                                selectedAccountForSettings = null
+                            }
+                            .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(id = R.string.settings_account_edit_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(id = R.string.settings_account_edit_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.financialColors.textSecondary,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.financialColors.textSecondary,
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                // 3. Hide Account Row
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                val updated = targetAccount.copy(isArchived = !targetAccount.isArchived)
+                                onSaveAccount(updated)
+                                selectedAccountForSettings = null
+                            }
+                            .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(id = R.string.settings_account_hide_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(id = R.string.settings_account_hide_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.financialColors.textSecondary,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.financialColors.textSecondary,
                     )
                 }
             }
         }
     }
 
-    // --- DIALOGS ---
+    // 4. Edit Account Dialog
+    if (editingAccount != null) {
+        val target = editingAccount!!
+        var editName by remember { mutableStateOf(target.name) }
+        var editLast4 by remember { mutableStateOf(target.last4 ?: "") }
 
-    // 1. Edit Monthly Budget Dialog
-    if (showBudgetDialog) {
-        var budgetInput by remember {
-            mutableStateOf((currentBudget / 100L).toString())
-        }
         AlertDialog(
-            onDismissRequest = { showBudgetDialog = false },
-            title = {
-                Text(text = stringResource(id = R.string.settings_budget_edit_dialog_title))
-            },
+            onDismissRequest = { editingAccount = null },
+            title = { Text(text = stringResource(id = R.string.settings_account_edit_title)) },
             text = {
-                OutlinedTextField(
-                    value = budgetInput,
-                    onValueChange = { budgetInput = it.filter { ch -> ch.isDigit() } },
-                    label = { Text(text = "Amount (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        label = { Text(text = stringResource(id = R.string.settings_account_name_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = editLast4,
+                        onValueChange = { if (it.length <= 4 && it.all { ch -> ch.isDigit() }) editLast4 = it },
+                        label = { Text(text = stringResource(id = R.string.settings_account_last4_label)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val parsed = budgetInput.toLongOrNull() ?: (currentBudget / 100L)
-                        val newMinor = parsed * 100L
-                        currentBudget = newMinor
-                        userPreferences.monthlyBudgetMinor = newMinor
-                        onUpdateMonthlyBudget(newMinor)
-                        showBudgetDialog = false
+                        val updated = target.copy(name = editName.trim(), last4 = editLast4.trim().ifBlank { null })
+                        onSaveAccount(updated)
+                        editingAccount = null
                     },
                     colors =
                         ButtonDefaults.buttonColors(
@@ -476,14 +834,128 @@ fun MoreScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showBudgetDialog = false }) {
+                TextButton(onClick = { editingAccount = null }) {
                     Text(text = stringResource(id = R.string.settings_cancel))
                 }
             },
         )
     }
 
-    // 2. Manage Accounts Dialog
+    // 5. Spend Categories Sheet
+    if (showSpendCategoriesSheet) {
+        CategoriesManagerSheet(
+            title = stringResource(id = R.string.settings_spend_categories_title),
+            allCategories = allSpendCategories,
+            customCategories = customSpendCategories,
+            onAddCategoryClick = { showAddSpendCategoryDialog = true },
+            onDeleteCustomCategory = { cat ->
+                userPreferences.removeCustomSpendCategory(cat)
+                categoriesRevision++
+            },
+            onDismiss = { showSpendCategoriesSheet = false },
+        )
+    }
+
+    // 6. Add Spend Category Dialog
+    if (showAddSpendCategoryDialog) {
+        var catInput by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showAddSpendCategoryDialog = false },
+            title = { Text(text = stringResource(id = R.string.settings_add_category)) },
+            text = {
+                OutlinedTextField(
+                    value = catInput,
+                    onValueChange = { catInput = it },
+                    label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmed = catInput.trim()
+                        if (trimmed.isNotBlank()) {
+                            userPreferences.addCustomSpendCategory(trimmed)
+                            categoriesRevision++
+                        }
+                        showAddSpendCategoryDialog = false
+                    },
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.financialColors.limeAccent,
+                            contentColor = MaterialTheme.financialColors.onLimeAccent,
+                        ),
+                ) {
+                    Text(text = stringResource(id = R.string.settings_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddSpendCategoryDialog = false }) {
+                    Text(text = stringResource(id = R.string.settings_cancel))
+                }
+            },
+        )
+    }
+
+    // 7. Credit Categories Sheet
+    if (showCreditCategoriesSheet) {
+        CategoriesManagerSheet(
+            title = stringResource(id = R.string.settings_credit_categories_title),
+            allCategories = allCreditCategories,
+            customCategories = customCreditCategories,
+            onAddCategoryClick = { showAddCreditCategoryDialog = true },
+            onDeleteCustomCategory = { cat ->
+                userPreferences.removeCustomCreditCategory(cat)
+                categoriesRevision++
+            },
+            onDismiss = { showCreditCategoriesSheet = false },
+        )
+    }
+
+    // 8. Add Credit Category Dialog
+    if (showAddCreditCategoryDialog) {
+        var catInput by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showAddCreditCategoryDialog = false },
+            title = { Text(text = stringResource(id = R.string.settings_add_category)) },
+            text = {
+                OutlinedTextField(
+                    value = catInput,
+                    onValueChange = { catInput = it },
+                    label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmed = catInput.trim()
+                        if (trimmed.isNotBlank()) {
+                            userPreferences.addCustomCreditCategory(trimmed)
+                            categoriesRevision++
+                        }
+                        showAddCreditCategoryDialog = false
+                    },
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.financialColors.limeAccent,
+                            contentColor = MaterialTheme.financialColors.onLimeAccent,
+                        ),
+                ) {
+                    Text(text = stringResource(id = R.string.settings_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddCreditCategoryDialog = false }) {
+                    Text(text = stringResource(id = R.string.settings_cancel))
+                }
+            },
+        )
+    }
+
+    // 9. Manage Accounts Dialog
     if (showAccountsDialog) {
         AlertDialog(
             onDismissRequest = { showAccountsDialog = false },
@@ -546,7 +1018,12 @@ fun MoreScreen(
                                     shape = RoundedCornerShape(12.dp),
                                     color = MaterialTheme.financialColors.cardBackground,
                                     border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                selectedAccountForSettings = acc
+                                            },
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(12.dp),
@@ -557,7 +1034,6 @@ fun MoreScreen(
                                             when (acc.type) {
                                                 AccountType.CreditCard -> DesignR.drawable.ic_channel_card
                                                 AccountType.Wallet -> DesignR.drawable.ic_channel_wallet
-                                                AccountType.Cash -> DesignR.drawable.ic_bank
                                                 else -> DesignR.drawable.ic_bank
                                             }
                                         Row(
@@ -607,7 +1083,7 @@ fun MoreScreen(
         )
     }
 
-    // 3. Add Account Dialog
+    // 10. Add Account Dialog
     if (showAddAccountDialog) {
         var accName by remember { mutableStateOf("") }
         var accBank by remember { mutableStateOf("") }
@@ -636,7 +1112,6 @@ fun MoreScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-
                     OutlinedTextField(
                         value = accBank,
                         onValueChange = { accBank = it },
@@ -644,7 +1119,6 @@ fun MoreScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -666,13 +1140,6 @@ fun MoreScreen(
                             modifier = Modifier.weight(1f),
                         )
                     }
-
-                    Text(
-                        text = stringResource(id = R.string.settings_account_type_label),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.financialColors.textSecondary,
-                    )
-
                     AccountTypeSelector(
                         selectedType = selectedType,
                         onTypeSelected = { selectedType = it },
@@ -714,370 +1181,20 @@ fun MoreScreen(
         )
     }
 
-    // 4. Merchant Category Rules Dialog
-    if (showRulesDialog) {
-        var searchQuery by remember { mutableStateOf("") }
-        val filteredRules =
-            remember(rules, searchQuery) {
-                if (searchQuery.isBlank()) {
-                    rules.entries.toList()
-                } else {
-                    rules.entries.filter { (m, c) ->
-                        m.contains(searchQuery.trim(), ignoreCase = true) ||
-                            c.contains(searchQuery.trim(), ignoreCase = true)
-                    }
-                }
-            }
-
+    // 11. Mark as Transfer Threshold Dialog
+    if (showTransferThresholdDialog) {
+        var thresholdInput by remember {
+            mutableStateOf((userPreferences.autoTransferThresholdPaise / 100L).toString())
+        }
         AlertDialog(
-            onDismissRequest = { showRulesDialog = false },
-            title = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(id = R.string.settings_rules_dialog_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    IconButton(onClick = { showAddRuleDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = stringResource(id = R.string.settings_add_merchant_rule),
-                            tint = MaterialTheme.financialColors.limeAccent,
-                        )
-                    }
-                }
-            },
-            text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Button(
-                        onClick = { showAddRuleDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.financialColors.paleLimeAddButton,
-                                contentColor = MaterialTheme.financialColors.onPaleLimeAddButton,
-                            ),
-                        shape = RoundedCornerShape(12.dp),
-                    ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(id = R.string.settings_add_merchant_rule),
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text(text = stringResource(id = R.string.settings_rules_search_hint)) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.financialColors.textSecondary,
-                            )
-                        },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    if (filteredRules.isEmpty()) {
-                        Text(
-                            text =
-                                if (searchQuery.isBlank()) {
-                                    stringResource(id = R.string.settings_rules_empty)
-                                } else {
-                                    stringResource(id = R.string.settings_rules_no_match)
-                                },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.financialColors.textSecondary,
-                            modifier = Modifier.padding(vertical = 12.dp),
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(filteredRules, key = { it.key }) { (merchant, category) ->
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.financialColors.cardBackground,
-                                    border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Text(
-                                            text = merchant.replaceFirstChar { it.uppercase() },
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color.White,
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                        CategoryBadge(categoryName = category, size = 28.dp)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        IconButton(
-                                            onClick = {
-                                                userPreferences.removeMerchantCategoryRule(merchant)
-                                                rulesRevision++
-                                            },
-                                            modifier = Modifier.size(28.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Delete,
-                                                contentDescription = stringResource(id = R.string.settings_delete_rule_title),
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(18.dp),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showRulesDialog = false }) {
-                    Text(text = stringResource(id = R.string.settings_close))
-                }
-            },
-        )
-    }
-
-    // 5. Add Merchant Rule Dialog
-    if (showAddRuleDialog) {
-        var merchantInput by remember { mutableStateOf("") }
-        var selectedCat by remember { mutableStateOf(allCategories.firstOrNull() ?: "Shopping") }
-        var applyToPast by remember { mutableStateOf(true) }
-
-        AlertDialog(
-            onDismissRequest = { showAddRuleDialog = false },
-            title = {
-                Text(
-                    text = stringResource(id = R.string.settings_add_merchant_rule),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    OutlinedTextField(
-                        value = merchantInput,
-                        onValueChange = { merchantInput = it },
-                        label = { Text(text = stringResource(id = R.string.settings_merchant_name_label)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    Text(
-                        text = stringResource(id = R.string.settings_select_category_label),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.financialColors.textSecondary,
-                    )
-
-                    CategoryChipSelector(
-                        categories = allCategories,
-                        selectedCategory = selectedCat,
-                        onSelectCategory = { selectedCat = it },
-                    )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { applyToPast = !applyToPast },
-                    ) {
-                        Checkbox(
-                            checked = applyToPast,
-                            onCheckedChange = { applyToPast = it },
-                            colors =
-                                CheckboxDefaults.colors(
-                                    checkedColor = MaterialTheme.financialColors.limeAccent,
-                                    checkmarkColor = MaterialTheme.financialColors.onLimeAccent,
-                                ),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = stringResource(id = R.string.settings_apply_rule_to_past),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val m = merchantInput.trim()
-                        if (m.isNotBlank()) {
-                            userPreferences.setMerchantCategory(m, selectedCat)
-                            rulesRevision++
-                            if (applyToPast) {
-                                onApplyMerchantRuleToTransactions?.invoke(m, selectedCat)
-                            }
-                        }
-                        showAddRuleDialog = false
-                    },
-                    enabled = merchantInput.isNotBlank(),
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.financialColors.limeAccent,
-                            contentColor = MaterialTheme.financialColors.onLimeAccent,
-                        ),
-                ) {
-                    Text(text = stringResource(id = R.string.settings_save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddRuleDialog = false }) {
-                    Text(text = stringResource(id = R.string.settings_cancel))
-                }
-            },
-        )
-    }
-
-    // 6. Manage Categories Dialog
-    if (showCategoriesDialog) {
-        AlertDialog(
-            onDismissRequest = { showCategoriesDialog = false },
-            title = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(id = R.string.settings_categories_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    IconButton(onClick = { showAddCategoryDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = stringResource(id = R.string.settings_add_category),
-                            tint = MaterialTheme.financialColors.limeAccent,
-                        )
-                    }
-                }
-            },
-            text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Button(
-                        onClick = { showAddCategoryDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.financialColors.paleLimeAddButton,
-                                contentColor = MaterialTheme.financialColors.onPaleLimeAddButton,
-                            ),
-                        shape = RoundedCornerShape(12.dp),
-                    ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(id = R.string.settings_add_category),
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    if (customCategories.isEmpty()) {
-                        Text(
-                            text = stringResource(id = R.string.settings_categories_empty),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.financialColors.textSecondary,
-                            modifier = Modifier.padding(vertical = 12.dp),
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(customCategories.toList(), key = { it }) { cat ->
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.financialColors.cardBackground,
-                                    border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.weight(1f),
-                                        ) {
-                                            CategoryBadge(categoryName = cat, size = 28.dp)
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = cat,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.White,
-                                            )
-                                        }
-                                        IconButton(
-                                            onClick = {
-                                                userPreferences.removeCustomCategory(cat)
-                                                categoriesRevision++
-                                            },
-                                            modifier = Modifier.size(28.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Delete,
-                                                contentDescription = stringResource(id = R.string.settings_delete_category_title),
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(18.dp),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showCategoriesDialog = false }) {
-                    Text(text = stringResource(id = R.string.settings_close))
-                }
-            },
-        )
-    }
-
-    // 7. Add Category Dialog
-    if (showAddCategoryDialog) {
-        var newCatInput by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showAddCategoryDialog = false },
-            title = {
-                Text(
-                    text = stringResource(id = R.string.settings_add_category),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
+            onDismissRequest = { showTransferThresholdDialog = false },
+            title = { Text(text = stringResource(id = R.string.settings_mark_transfer_title)) },
             text = {
                 OutlinedTextField(
-                    value = newCatInput,
-                    onValueChange = { newCatInput = it },
-                    label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
+                    value = thresholdInput,
+                    onValueChange = { thresholdInput = it.filter { ch -> ch.isDigit() } },
+                    label = { Text(text = "Amount (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1085,14 +1202,10 @@ fun MoreScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val trimmed = newCatInput.trim()
-                        if (trimmed.isNotBlank()) {
-                            userPreferences.addCustomCategory(trimmed)
-                            categoriesRevision++
-                        }
-                        showAddCategoryDialog = false
+                        val parsed = thresholdInput.toLongOrNull() ?: 10000L
+                        userPreferences.autoTransferThresholdPaise = parsed * 100L
+                        showTransferThresholdDialog = false
                     },
-                    enabled = newCatInput.isNotBlank(),
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.financialColors.limeAccent,
@@ -1103,7 +1216,7 @@ fun MoreScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddCategoryDialog = false }) {
+                TextButton(onClick = { showTransferThresholdDialog = false }) {
                     Text(text = stringResource(id = R.string.settings_cancel))
                 }
             },
@@ -1111,44 +1224,370 @@ fun MoreScreen(
     }
 }
 
+/**
+ * Preferences Screen View (Screenshot 4).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsSectionHeader(
-    title: String,
+private fun PreferencesScreenView(
+    accounts: List<Account>,
+    userPreferences: UserPreferences,
+    isMoneyManagerDefault: Boolean,
+    onToggleMoneyManagerDefault: (Boolean) -> Unit,
+    onManageAccountsClick: () -> Unit,
+    onLinkAccountsClick: () -> Unit,
+    onSpendCategoriesClick: () -> Unit,
+    onCreditCategoriesClick: () -> Unit,
+    onRulesClick: () -> Unit,
+    onMarkTransferClick: () -> Unit,
+    onResetOnboarding: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.financialColors.limeAccent,
-        modifier = modifier.padding(start = 4.dp, bottom = 4.dp),
-    )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(id = R.string.settings_preferences_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(id = R.string.settings_close),
+                            tint = Color.White,
+                        )
+                    }
+                },
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        modifier = modifier.fillMaxSize(),
+    ) { innerPadding ->
+        LazyColumn(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.financialColors.cardBackground,
+                        ),
+                    border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                ) {
+                    Column {
+                        // 1. Launch in Money Manager Row (Screenshot 4)
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onToggleMoneyManagerDefault(!isMoneyManagerDefault) }
+                                    .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_bar_chart),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.financialColors.textSecondary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text(
+                                        text = stringResource(id = R.string.settings_launch_money_manager_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.White,
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = stringResource(id = R.string.settings_launch_money_manager_subtitle),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.financialColors.textSecondary,
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = isMoneyManagerDefault,
+                                onCheckedChange = onToggleMoneyManagerDefault,
+                                colors =
+                                    SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = MaterialTheme.financialColors.limeAccent,
+                                    ),
+                            )
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 2. Manage accounts
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_bank,
+                            title = stringResource(id = R.string.settings_manage_accounts_title),
+                            onClick = onManageAccountsClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 3. Link accounts
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_arrow_outward,
+                            title = stringResource(id = R.string.settings_link_accounts_title),
+                            subtitle = stringResource(id = R.string.settings_link_accounts_subtitle),
+                            onClick = onLinkAccountsClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 4. Manage reminders
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_copy,
+                            title = stringResource(id = R.string.settings_manage_reminders_title),
+                            onClick = { },
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 5. Spend categories
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_arrow_outward,
+                            title = stringResource(id = R.string.settings_spend_categories_title),
+                            subtitle = stringResource(id = R.string.settings_categories_create_delete),
+                            onClick = onSpendCategoriesClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 6. Credit categories
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_trending_down,
+                            title = stringResource(id = R.string.settings_credit_categories_title),
+                            subtitle = stringResource(id = R.string.settings_categories_create_delete),
+                            onClick = onCreditCategoriesClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 7. Tags
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_label,
+                            title = stringResource(id = R.string.settings_tags_title),
+                            subtitle = stringResource(id = R.string.settings_tags_subtitle),
+                            onClick = { },
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 8. Mark as transfer amount
+                        val currentThresholdRupees = userPreferences.autoTransferThresholdPaise / 100L
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_category_transfer,
+                            title = stringResource(id = R.string.settings_mark_transfer_title),
+                            subtitle = currentThresholdRupees.toString(),
+                            onClick = onMarkTransferClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 9. Notifications & Reminders
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_notes,
+                            title = stringResource(id = R.string.settings_notifications_reminders_title),
+                            onClick = { },
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 10. Backup
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_copy,
+                            title = stringResource(id = R.string.settings_backup_title),
+                            onClick = { },
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 11. Security
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_channel_card,
+                            title = stringResource(id = R.string.settings_security_title),
+                            onClick = { },
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 12. Rescan SMS Inbox
+                        SettingsNavRow(
+                            icon = Icons.Default.Refresh,
+                            title = stringResource(id = R.string.settings_rescan_title),
+                            onClick = onResetOnboarding,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Reusable Categories Manager Sheet for Spend and Credit categories.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoriesManagerSheet(
+    title: String,
+    allCategories: List<String>,
+    customCategories: Set<String>,
+    onAddCategoryClick: () -> Unit,
+    onDeleteCustomCategory: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.financialColors.cardBackground,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                color = MaterialTheme.financialColors.hairlineDivider,
+                shape = RoundedCornerShape(2.dp),
+            ) {
+                Box(modifier = Modifier.size(width = 36.dp, height = 4.dp))
+            }
+        },
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                    .padding(bottom = 24.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+                IconButton(onClick = onAddCategoryClick) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(id = R.string.settings_add_category),
+                        tint = MaterialTheme.financialColors.limeAccent,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onAddCategoryClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.financialColors.paleLimeAddButton,
+                        contentColor = MaterialTheme.financialColors.onPaleLimeAddButton,
+                    ),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(id = R.string.settings_add_category),
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(allCategories, key = { it }) { cat ->
+                    val isCustom = customCategories.contains(cat)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.financialColors.cardBackground,
+                        border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CategoryBadge(categoryName = cat, size = 28.dp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = cat,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White,
+                                )
+                            }
+                            if (isCustom) {
+                                IconButton(
+                                    onClick = { onDeleteCustomCategory(cat) },
+                                    modifier = Modifier.size(28.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = stringResource(id = R.string.settings_delete_category_title),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun SettingsActionRow(
+private fun SettingsNavRow(
+    iconRes: Int? = null,
     icon: ImageVector? = null,
-    painter: Painter? = null,
+    iconTint: Color? = null,
     title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier,
-    trailing: @Composable (() -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
+    subtitle: String? = null,
+    onClick: () -> Unit,
 ) {
-    val rowModifier =
-        if (onClick != null) {
-            modifier
+    Row(
+        modifier =
+            Modifier
                 .fillMaxWidth()
                 .clickable { onClick() }
-                .padding(16.dp)
-        } else {
-            modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        }
-
-    Row(
-        modifier = rowModifier,
+                .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -1156,18 +1595,18 @@ private fun SettingsActionRow(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (icon != null) {
+            if (iconRes != null) {
+                Icon(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = null,
+                    tint = iconTint ?: MaterialTheme.financialColors.textSecondary,
+                    modifier = Modifier.size(22.dp),
+                )
+            } else if (icon != null) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.financialColors.textSecondary,
-                    modifier = Modifier.size(22.dp),
-                )
-            } else if (painter != null) {
-                Icon(
-                    painter = painter,
-                    contentDescription = null,
-                    tint = MaterialTheme.financialColors.textSecondary,
+                    tint = iconTint ?: MaterialTheme.financialColors.textSecondary,
                     modifier = Modifier.size(22.dp),
                 )
             }
@@ -1179,18 +1618,22 @@ private fun SettingsActionRow(
                     fontWeight = FontWeight.Medium,
                     color = Color.White,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.financialColors.textSecondary,
-                )
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.financialColors.textSecondary,
+                    )
+                }
             }
         }
-        if (trailing != null) {
-            Spacer(modifier = Modifier.width(8.dp))
-            trailing()
-        }
+        Icon(
+            painter = painterResource(id = DesignR.drawable.ic_chevron_right),
+            contentDescription = null,
+            tint = MaterialTheme.financialColors.textSecondary,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
@@ -1224,51 +1667,6 @@ private fun AccountTypeSelector(
                         selectedLabelColor = MaterialTheme.financialColors.onLimeAccent,
                     ),
             )
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CategoryChipSelector(
-    categories: List<String>,
-    selectedCategory: String,
-    onSelectCategory: (String) -> Unit,
-) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        categories.take(12).forEach { cat ->
-            val isSelected = selectedCategory.equals(cat, ignoreCase = true)
-            Surface(
-                shape = RoundedCornerShape(100.dp),
-                color =
-                    if (isSelected) {
-                        MaterialTheme.financialColors.limeAccent
-                    } else {
-                        MaterialTheme.financialColors.cardBackground
-                    },
-                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(100.dp))
-                        .clickable { onSelectCategory(cat) },
-            ) {
-                Text(
-                    text = cat,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color =
-                        if (isSelected) {
-                            MaterialTheme.financialColors.onLimeAccent
-                        } else {
-                            Color.White
-                        },
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                )
-            }
         }
     }
 }

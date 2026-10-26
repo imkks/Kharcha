@@ -379,6 +379,25 @@ fun MainAppShell(
                             snackbarHostState.showSnackbar("Account saved")
                         }
                     },
+                    onMergeAccounts = { primaryId, linkedIds ->
+                        scope.launch {
+                            val currentAccounts = accountRepository.getAccountsSync()
+                            for (acc in currentAccounts) {
+                                if (acc.id in linkedIds) {
+                                    accountRepository.saveAccount(acc.copy(linkedPrimaryAccountId = primaryId, isArchived = true))
+                                } else if (acc.linkedPrimaryAccountId == primaryId && acc.id !in linkedIds) {
+                                    accountRepository.saveAccount(acc.copy(linkedPrimaryAccountId = null, isArchived = false))
+                                }
+                            }
+                            val transactionsToMove =
+                                transactions.filter { it.accountId in linkedIds }.map { it.copy(accountId = primaryId) }
+                            if (transactionsToMove.isNotEmpty()) {
+                                transactionRepository.updateTransactions(transactionsToMove)
+                            }
+                            snackbarHostState.showSnackbar("Accounts linked and transactions grouped")
+                        }
+                    },
+                    onReportSmsClick = { showReportSmsScreen = true },
                     onApplyMerchantRuleToTransactions = { merchant, category ->
                         scope.launch {
                             val matching =
@@ -552,6 +571,8 @@ fun BoxDestinationContent(
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
     onSaveAccount: (Account) -> Unit = {},
+    onMergeAccounts: ((Long, Set<Long>) -> Unit)? = null,
+    onReportSmsClick: () -> Unit = {},
     onApplyMerchantRuleToTransactions: ((String, String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -635,7 +656,10 @@ fun BoxDestinationContent(
                 onResetOnboarding = onResetOnboarding,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 onSaveAccount = onSaveAccount,
+                onMergeAccounts = onMergeAccounts,
                 onApplyMerchantRuleToTransactions = onApplyMerchantRuleToTransactions,
+                onWeeklySummaryClick = onWeeklySummaryClick,
+                onReportSmsClick = onReportSmsClick,
                 modifier = modifier,
             )
         }

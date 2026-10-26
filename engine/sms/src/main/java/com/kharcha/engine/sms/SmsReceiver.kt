@@ -72,18 +72,23 @@ class SmsReceiver : BroadcastReceiver() {
                             )
                         val type =
                             TransactionClassifierHelper.classifyType(
-                                parsed.direction,
-                                body,
-                                normMerchant,
+                                direction = parsed.direction,
+                                body = body,
+                                merchant = normMerchant,
+                                amountMinor = parsed.amountMinor,
+                                channel = parsed.channel,
                             )
                         val isTransfer = type == TransactionType.Transfer
+                        val isRefund = type == TransactionType.Refund
                         val userRules = DefaultUserPreferences(context).getMerchantCategoryRules()
                         val isUserCategorized = userRules.containsKey(normMerchant.trim().lowercase())
                         val category =
                             TransactionClassifierHelper.guessCategory(
-                                normMerchant,
-                                isCredit,
-                                isTransfer,
+                                merchant = normMerchant,
+                                isCredit = isCredit,
+                                isTransfer = isTransfer,
+                                isRefund = isRefund,
+                                body = body,
                                 userRules = userRules,
                             )
 

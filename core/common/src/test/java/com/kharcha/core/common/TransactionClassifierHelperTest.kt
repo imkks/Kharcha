@@ -1,5 +1,6 @@
 package com.kharcha.core.common
 
+import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.TransactionType
 import org.junit.Assert.assertEquals
@@ -115,5 +116,79 @@ class TransactionClassifierHelperTest {
         assertEquals(false, TransactionClassifierHelper.isAutoDebit(null))
         assertEquals(null, TransactionClassifierHelper.extractTargetCardLast4(null))
         assertEquals(null, TransactionClassifierHelper.extractSourceAccountLast4(null))
+    }
+
+    @Test
+    fun classifiesHighValueTransfersAndInvestments() {
+        val upiTransferType = TransactionClassifierHelper.classifyType(
+            direction = Direction.DEBIT,
+            body = "HDFC Bank:Rs. 53000.00 debited from a/c *1999 on 04/10/26 to a/c **0034",
+            merchant = "04 10 26 To",
+            amountMinor = 53_000_00L,
+            channel = Channel.UPI,
+        )
+        assertEquals(TransactionType.Transfer, upiTransferType)
+
+        val mfType = TransactionClassifierHelper.classifyType(
+            direction = Direction.DEBIT,
+            body = "Sent Rs.80000.00 From HDFC Bank A/C *1999 To MUTUAL FUNDS NCL",
+            merchant = "Mutual Funds Ncl",
+            amountMinor = 80_000_00L,
+            channel = Channel.UPI,
+        )
+        assertEquals(TransactionType.Transfer, mfType)
+
+        val googleStoreSpend = TransactionClassifierHelper.classifyType(
+            direction = Direction.DEBIT,
+            body = "Rs 12,999.00 spent on ICICI Bank Card XX3006 on 04-Oct-26 at GOOGLE STORE.",
+            merchant = "Google Store",
+            amountMinor = 12_999_00L,
+            channel = Channel.CARD,
+        )
+        assertEquals(TransactionType.Expense, googleStoreSpend)
+    }
+
+    @Test
+    fun categorizesInwardAndOutwardTransactionsProperly() {
+        // Inward: Refund
+        val refundCategory = TransactionClassifierHelper.guessCategory(
+            merchant = "Idfc First Bank Credit",
+            isCredit = true,
+            isRefund = true,
+            body = "Transaction of INR 739.00 is refunded to IDFC FIRST Bank Credit Card XX5625",
+        )
+        assertEquals("Refund", refundCategory)
+
+        // Inward: P2P UPI Credit
+        val p2pCategory = TransactionClassifierHelper.guessCategory(
+            merchant = "Skdheraj 1",
+            isCredit = true,
+            body = "Credit Alert! Rs.21167.33 credited to HDFC Bank A/c XX1999 on 02-10-26 from VPA skdheraj-1@okicici",
+        )
+        assertEquals("A/C Transfer", p2pCategory)
+
+        // Inward: Real Salary
+        val salaryCategory = TransactionClassifierHelper.guessCategory(
+            merchant = "Clearing",
+            isCredit = true,
+            body = "Update! INR 1,69,221.00 deposited in HDFC Bank A/c XX1999 on 29-SEP-26 for NEFT Cr-Salary",
+        )
+        assertEquals("Salary", salaryCategory)
+
+        // Inward: Broker Payout / Investment Return
+        val zerodhaCategory = TransactionClassifierHelper.guessCategory(
+            merchant = "Clearing",
+            isCredit = true,
+            body = "Update! INR 16,891.59 deposited in HDFC Bank A/c XX1999 on 05-SEP-26 " +
+                "for NEFT Cr-ZERODHA BROKING LTD",
+        )
+        assertEquals("Investment", zerodhaCategory)
+
+        // Outward: Spends mapped to proper categories
+        assertEquals("Groceries", TransactionClassifierHelper.guessCategory("Vijetha Super Markets", isCredit = false))
+        assertEquals("Food & Dining", TransactionClassifierHelper.guessCategory("HungerBox", isCredit = false))
+        assertEquals("Shopping", TransactionClassifierHelper.guessCategory("Decathlon", isCredit = false))
+        assertEquals("Fuel", TransactionClassifierHelper.guessCategory("Pump 25 Ts Police", isCredit = false))
+        assertEquals("Travel", TransactionClassifierHelper.guessCategory("Telangana State Road Tran", isCredit = false))
     }
 }

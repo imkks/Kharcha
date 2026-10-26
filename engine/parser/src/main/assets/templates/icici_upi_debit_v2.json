@@ -1,0 +1,10 @@
+{
+  "id": "icici_upi_debit_v2",
+  "bank": "ICICI",
+  "senderPatterns": ["^[A-Za-z]{2}-?(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$", "^(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)ICICI Bank Acct\\s+(?:X+|\\*+)?(?<last4>\\d{3,4})\\s+debited\\s+(?:for|with)\\s+(?:Rs\\.?|INR)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}-[a-zA-Z]{3}-\\d{2,4})[;.]\\s*(?<merchant>.*?)\\s+credited\\.(?:\\s*UPI:\\s*(?<ref>\\w+))?",
+  "dateFormats": ["dd-MMM-yy", "dd-MMM-yyyy"],
+  "confidence": 0.95
+}

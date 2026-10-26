@@ -1,0 +1,10 @@
+{
+  "id": "idfc_card_refund_v1",
+  "bank": "IDFC",
+  "senderPatterns": ["^[A-Za-z]{2}-?(IDFCFB|IDFCBK).*$", "^(IDFCFB|IDFCBK).*$"],
+  "direction": "CREDIT",
+  "channel": "CARD",
+  "regex": "(?i)Transaction\\s+of\\s+(?:INR|Rs\\.?|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+is\\s+refunded\\s+to\\s+(?:your\\s+)?(?:IDFC\\s+FIRST\\s+Bank\\s+)?Credit\\s+Card\\s+(?:ending|with)?\\s*(?:XX|X+|\\*+)?(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{1,2}-[A-Za-z]{3}-\\d{2,4})(?:\\s+at\\s+[\\d:]+\\s*(?:AM|PM|am|pm)?)?(?:\\.?\\s+Avl\\.?\\s+Limit:?\\s*(?:INR|Rs\\.?|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["d-MMM-yy", "dd-MMM-yy", "d-MMM-yyyy", "dd-MMM-yyyy"],
+  "confidence": 0.95
+}

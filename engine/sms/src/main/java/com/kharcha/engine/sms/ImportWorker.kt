@@ -73,16 +73,21 @@ class ImportWorker
                                             )
                                         val type =
                                             TransactionClassifierHelper.classifyType(
-                                                parsed.direction,
-                                                sms.body,
-                                                normMerchant,
+                                                direction = parsed.direction,
+                                                body = sms.body,
+                                                merchant = normMerchant,
+                                                amountMinor = parsed.amountMinor,
+                                                channel = parsed.channel,
                                             )
                                         val isTransfer = type == TransactionType.Transfer
+                                        val isRefund = type == TransactionType.Refund
                                         val category =
                                             TransactionClassifierHelper.guessCategory(
-                                                normMerchant,
-                                                isCredit,
-                                                isTransfer,
+                                                merchant = normMerchant,
+                                                isCredit = isCredit,
+                                                isTransfer = isTransfer,
+                                                isRefund = isRefund,
+                                                body = sms.body,
                                             )
                                         val accountId =
                                             try {

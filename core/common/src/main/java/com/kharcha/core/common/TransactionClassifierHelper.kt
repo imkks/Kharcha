@@ -1,5 +1,6 @@
 package com.kharcha.core.common
 
+import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.TransactionType
 
@@ -109,22 +110,64 @@ object TransactionClassifierHelper {
         return pattern.find(body)?.groupValues?.get(1)
     }
 
-    fun isTransferNarrative(body: String? = null, merchant: String? = null): Boolean {
+    fun isTransferNarrative(
+        body: String? = null,
+        merchant: String? = null,
+        amountMinor: Long = 0L,
+        channel: Channel? = null,
+    ): Boolean {
         if (body.isNullOrBlank() && merchant.isNullOrBlank()) return false
         val b = body?.lowercase() ?: ""
         val m = merchant?.lowercase() ?: ""
+
+        // 1. Explicit self transfer keywords
         val isSelf =
             b.contains("self transfer") || b.contains("transfer to self") ||
                 b.contains("own account") || b.contains("own a/c") ||
                 b.contains("transfer between accounts") ||
-                m.contains("self transfer") || m.equals("transfer", ignoreCase = true)
+                b.contains("upi funds transfer") ||
+                m.contains("self transfer") || m.equals("transfer", ignoreCase = true) ||
+                m.contains("krishnasingh") || m.contains("imkks")
 
+        // 2. Inter-account transfer pattern (e.g. "debited from a/c *1999 ... to a/c **0034")
+        val isInterAccount =
+            Regex(
+                "(?i)(?:debited\\s+from\\s+a/c|from\\s+[a-zA-Z]+\\s+bank\\s+a/c).*?\\bto\\s+a/c\\b",
+            ).containsMatchIn(b)
+
+        // 3. Investments (Mutual Funds, Zerodha, Groww, Upstox, etc.)
+        val isInvestment =
+            m.contains("mutual fund") || m.contains("zerodha") || m.contains("groww") ||
+                m.contains("upstox") || m.contains("indmoney") ||
+                b.contains("mutual funds") || b.contains("zerodha") || b.contains("equity a/c")
+
+        // 4. Credit card bill payments & auto debits
         val isCardBill = isCreditCardBillPayment(body, merchant)
-
         val isGeneralAutoDebit =
             isAutoDebit(body) && (b.contains("card") || b.contains("loan") || b.contains("bill") || b.contains("emi"))
 
-        return isSelf || isCardBill || isGeneralAutoDebit
+        // 5. Tax Challan payment
+        val isTaxChallan = b.contains("challan payment")
+
+        // 6. High-value transfer threshold (default >= Rs 20,000 for non-card debits)
+        val isHighValueTransfer = amountMinor >= 20_000_00L &&
+            (channel == Channel.UPI || channel == Channel.NEFT ||
+                channel == Channel.IMPS || channel == Channel.OTHER) &&
+            !isRetailMerchant(m)
+
+        return isSelf || isInterAccount || isInvestment || isCardBill || isGeneralAutoDebit ||
+            isTaxChallan || isHighValueTransfer
+    }
+
+    private fun isRetailMerchant(m: String): Boolean {
+        val retailKeywords =
+            listOf(
+                "amazon", "flipkart", "myntra", "swiggy", "zomato", "blinkit", "zepto",
+                "decathlon", "air india", "indigo", "makemytrip", "cleartrip", "bookmyshow",
+                "netflix", "apple", "google store", "uber", "ola", "apollo", "vijetha",
+                "urban company", "urbanclap",
+            )
+        return retailKeywords.any { m.contains(it) }
     }
 
     fun isRefundNarrative(body: String? = null, merchant: String? = null): Boolean {
@@ -140,8 +183,14 @@ object TransactionClassifierHelper {
         return refundPhrases.any { b.contains(it) || m.contains(it) }
     }
 
-    fun classifyType(direction: Direction, body: String, merchant: String? = null): TransactionType {
-        if (isTransferNarrative(body, merchant)) {
+    fun classifyType(
+        direction: Direction,
+        body: String,
+        merchant: String? = null,
+        amountMinor: Long = 0L,
+        channel: Channel? = null,
+    ): TransactionType {
+        if (isTransferNarrative(body, merchant, amountMinor, channel)) {
             return TransactionType.Transfer
         }
         if (isRefundNarrative(body, merchant)) {
@@ -155,11 +204,13 @@ object TransactionClassifierHelper {
         isCredit: Boolean,
         isTransfer: Boolean = false,
         isRefund: Boolean = false,
+        body: String? = null,
         userRules: Map<String, String> = emptyMap(),
     ): String {
         if (isTransfer) return "Transfer"
         if (isRefund) return "Refund"
         val m = merchant.trim().lowercase()
+        val b = body?.lowercase() ?: ""
 
         val exactMatch = userRules[m]
         if (exactMatch != null) return exactMatch
@@ -170,33 +221,94 @@ object TransactionClassifierHelper {
             }?.value
         if (partialMatch != null) return partialMatch
 
-        if (isCredit) return "Salary"
+        if (isCredit) {
+            return guessInwardCategory(m, b)
+        }
+        return guessExpenseCategory(m)
+    }
+
+    private fun guessInwardCategory(m: String, b: String): String {
+        if (isRefundNarrative(b, m)) {
+            return "Refund"
+        }
+        if (b.contains("salary") || b.contains("payroll") || b.contains("stipend") ||
+            b.contains("wages") || b.contains("epfo") ||
+            (b.contains("clearing") && !b.contains("zerodha"))
+        ) {
+            return "Salary"
+        }
+        if (b.contains("interest") || b.contains("int.pd") || m.contains("interest")) {
+            return "Interest"
+        }
+        if (m.contains("zerodha") || m.contains("groww") || b.contains("zerodha") ||
+            b.contains("settlement payout") || b.contains("dividend")
+        ) {
+            return "Investment"
+        }
+        if (isCreditCardBillPayment(b, m) || b.contains("bill payment") || b.contains("card bil")) {
+            return "Bill Payment"
+        }
+        if (m.contains("reward") || m.contains("cashback") || m.contains("cliq cash") ||
+            b.contains("cashback") || b.contains("cash back") || b.contains("reward")
+        ) {
+            return "Rewards"
+        }
+        if (m.contains("@") || b.contains("upi") || b.contains("credit alert") ||
+            b.contains("transfer") || m.contains("skdheraj") || m.contains("satyajyoti") ||
+            m.contains("suprativ") || m.contains("imkks")
+        ) {
+            return "A/C Transfer"
+        }
+        return "Credit"
+    }
+
+    private fun guessExpenseCategory(m: String): String {
         return when {
             m.contains("swiggy") || m.contains("zomato") || m.contains("mcdonald") ||
                 m.contains("kfc") || m.contains("domino") || m.contains("pizza") ||
                 m.contains("starbucks") || m.contains("coffee") || m.contains("chai") ||
-                m.contains("burger") || m.contains("subway") || m.contains("restaurant") -> "Food & Dining"
+                m.contains("burger") || m.contains("subway") || m.contains("restaurant") ||
+                m.contains("hungerbox") || m.contains("hunger box") || m.contains("eatclub") ||
+                m.contains("district dining") || m.contains("nandini") ||
+                m.contains("annapurna") || m.contains("dakshith") || m.contains("foods") -> "Food & Dining"
+
             m.contains("blinkit") || m.contains("zepto") || m.contains("instamart") ||
                 m.contains("bigbasket") || m.contains("dmart") || m.contains("grocery") ||
-                m.contains("supermarket") || m.contains("reliance fresh") -> "Groceries"
+                m.contains("supermarket") || m.contains("reliance fresh") ||
+                m.contains("vijetha") -> "Groceries"
+
             m.contains("amazon") || m.contains("flipkart") || m.contains("myntra") ||
                 m.contains("ajio") || m.contains("meesho") || m.contains("tata cliq") ||
-                m.contains("retail") || m.contains("store") -> "Shopping"
+                m.contains("retail") || m.contains("store") || m.contains("decathlon") -> "Shopping"
+
+            m.contains("petrol") || m.contains("fuel") || m.contains("hpcl") ||
+                m.contains("bpcl") || m.contains("iocl") || m.contains("pump") -> "Fuel"
+
             m.contains("uber") || m.contains("ola") || m.contains("rapido") ||
-                m.contains("metro") || m.contains("irctc") || m.contains("petrol") ||
-                m.contains("fuel") || m.contains("hpcl") || m.contains("bpcl") ||
-                m.contains("ioc") || m.contains("railway") -> "Transport"
+                m.contains("metro") || m.contains("irctc") || m.contains("railway") ||
+                m.contains("telangana state road") || m.contains("tsrtc") ||
+                m.contains("air india") || m.contains("indigo") || m.contains("travel") -> "Travel"
+
             m.contains("airtel") || m.contains("jio") || m.contains("vi ") ||
                 m.contains("bescom") || m.contains("electricity") || m.contains("water") ||
-                m.contains("gas") || m.contains("broadband") || m.contains("bill") -> "Bills & Utilities"
+                m.contains("gas") || m.contains("broadband") || m.contains("bill") ||
+                m.contains("urban company") || m.contains("urbanclap") ||
+                m.contains("mygate") -> "Bills & Utilities"
+
+            m.contains("seva") || m.contains("donation") || m.contains("foundation") ||
+                m.contains("charity") -> "Donation"
+
             m.contains("netflix") || m.contains("spotify") || m.contains("prime") ||
                 m.contains("hotstar") || m.contains("bookmyshow") || m.contains("cinema") ||
                 m.contains("pvr") || m.contains("inox") -> "Entertainment"
+
             m.contains("apollo") || m.contains("pharmacy") || m.contains("1mg") ||
                 m.contains("pharmeasy") || m.contains("hospital") || m.contains("clinic") ||
                 m.contains("medplus") -> "Health"
+
             m.contains("zerodha") || m.contains("groww") || m.contains("mutual") ||
                 m.contains("sip") || m.contains("indmoney") || m.contains("upstox") -> "Investments"
+
             else -> "Other"
         }
     }

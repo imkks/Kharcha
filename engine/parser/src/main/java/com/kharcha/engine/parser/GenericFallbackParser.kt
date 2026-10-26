@@ -37,10 +37,30 @@ class GenericFallbackParser {
         val amountMinor = AmountParser.parseMinorUnits(amountMatch.groupValues[1]) ?: return null
 
         var direction: Direction? = null
-        if (bodyLower.contains("transferred to") || bodyLower.contains("transfer to")) {
+        val isExplicitAccountDebit =
+            Regex(
+                "(?i)\\b(?:a/c|acct|account|card|acc)\\b.*\\bdebited\\b|" +
+                    "\\bdebited\\s+(?:for|with|from)\\b|\\bsent\\s+(?:rs|inr|₹).*\\bfrom\\b",
+            ).containsMatchIn(bodyLower)
+        val isExplicitAccountCredit =
+            Regex(
+                "(?i)\\b(?:a/c|acct|account|card|acc)\\b.*\\bcredited\\b|" +
+                    "\\bcredited\\s+(?:to|in|into)\\b|\\bdeposited\\s+in\\b|\\bcredit\\s+alert\\b",
+            ).containsMatchIn(bodyLower)
+
+        if (isExplicitAccountDebit && !isExplicitAccountCredit) {
+            direction = Direction.DEBIT
+        } else if (isExplicitAccountCredit && !isExplicitAccountDebit) {
+            direction = Direction.CREDIT
+        } else if (isExplicitAccountDebit && isExplicitAccountCredit) {
+            // E.g. "Acct XX321 debited ... Acct XX034 credited" / "... Zepto credited" -> user's account debited
+            direction = Direction.DEBIT
+        } else if (bodyLower.contains("transferred to") || bodyLower.contains("transfer to")) {
             direction = Direction.DEBIT
         } else if (bodyLower.contains("transferred from") || bodyLower.contains("transfer from")) {
             direction = Direction.CREDIT
+        } else if (debitKeywords.any { bodyLower.contains(it) } && !creditKeywords.any { bodyLower.contains(it) }) {
+            direction = Direction.DEBIT
         } else if (creditKeywords.any { bodyLower.contains(it) }) {
             direction = Direction.CREDIT
         } else if (debitKeywords.any { bodyLower.contains(it) }) {
@@ -114,6 +134,7 @@ class GenericFallbackParser {
                     candidate.matches(Regex("(?i)^\\d{1,2}[-/][A-Za-z0-9]{3}(?:[-/]\\d{2,4})?$")) ||
                         candidate.matches(Regex("^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$"))
                 val isDigitsOnly = candidate.matches(Regex("^[0-9+\\- ]+$"))
+                val isAmount = candidate.matches(Regex("(?i)^(?:rs\\.?|inr|₹)?\\s*[\\d,.]+$"))
                 val isAccountOrCard =
                     candidate.matches(
                         Regex(
@@ -121,11 +142,17 @@ class GenericFallbackParser {
                                 "bank(?:\\s+card)?|icici\\s+bank(?:\\s+card)?)(?:\\s+.*)?$",
                         ),
                     )
-                if (!isDate && !isDigitsOnly && !isAccountOrCard) {
+                if (!isDate && !isDigitsOnly && !isAmount && !isAccountOrCard) {
                     merchantRaw = candidate
                     break
                 }
             }
+        }
+
+        if (merchantRaw == null && direction == Direction.DEBIT) {
+            val creditedPayeePattern =
+                Regex("(?i)[;.]\\s*([A-Za-z0-9.\\-_@/&* ]{2,35}?)\\s+credited").find(contentBody)
+            merchantRaw = creditedPayeePattern?.groupValues?.get(1)?.trim()
         }
 
         if (merchantRaw == null && direction == Direction.CREDIT) {

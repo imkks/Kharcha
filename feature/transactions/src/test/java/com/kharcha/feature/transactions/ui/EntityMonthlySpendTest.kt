@@ -50,6 +50,7 @@ class EntityMonthlySpendTest {
         val txns = listOf(
             Transaction(
                 id = 1L,
+                accountId = 101L,
                 amount = 2740000L,
                 dateTime = augEpoch,
                 merchantRaw = "Myntra",
@@ -61,6 +62,7 @@ class EntityMonthlySpendTest {
             ),
             Transaction(
                 id = 2L,
+                accountId = 101L,
                 amount = 92500L,
                 dateTime = sepEpoch,
                 merchantRaw = "Myntra",
@@ -72,6 +74,7 @@ class EntityMonthlySpendTest {
             ),
             Transaction(
                 id = 3L,
+                accountId = 101L,
                 amount = 680000L,
                 dateTime = octEpoch,
                 merchantRaw = "Myntra",
@@ -83,6 +86,7 @@ class EntityMonthlySpendTest {
             ),
             Transaction(
                 id = 4L,
+                accountId = 101L,
                 amount = 500000L,
                 dateTime = octEpoch,
                 merchantRaw = "Myntra",

@@ -21,5 +21,9 @@ interface TransactionRepository {
         userPreferences: UserPreferences? = null,
     ): Int
 
+    suspend fun linkTransactions(primaryId: Long, secondaryId: Long, isRefund: Boolean = false)
+
+    suspend fun unlinkTransactions(transactionId: Long)
+
     suspend fun clearTransactions()
 }

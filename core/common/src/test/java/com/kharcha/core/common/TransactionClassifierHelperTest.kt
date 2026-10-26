@@ -83,4 +83,30 @@ class TransactionClassifierHelperTest {
         )
         assertEquals("Swiggy", cleaned)
     }
+
+    @Test
+    fun classifiesRefundsCorrectly() {
+        val urbanCompanySms =
+            "Dear customer, your amount Rs2511 /- has been initiated for refund. " +
+                "It will be credited back to you within 7 working days. Thanks Team Urban Company"
+        val refundType1 = TransactionClassifierHelper.classifyType(
+            direction = Direction.CREDIT,
+            body = urbanCompanySms,
+            merchant = "Urban Company",
+        )
+        assertEquals(TransactionType.Refund, refundType1)
+
+        val refundType2 = TransactionClassifierHelper.classifyType(
+            direction = Direction.CREDIT,
+            body = "Refund of Rs. 450.00 from Swiggy has been credited to your account",
+            merchant = "Swiggy",
+        )
+        assertEquals(TransactionType.Refund, refundType2)
+
+        val reversalType = TransactionClassifierHelper.classifyType(
+            direction = Direction.CREDIT,
+            body = "Transaction reversal of Rs 500 credited to a/c **1234",
+        )
+        assertEquals(TransactionType.Refund, reversalType)
+    }
 }

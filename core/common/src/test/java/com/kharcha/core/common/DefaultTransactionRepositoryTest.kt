@@ -224,4 +224,78 @@ class DefaultTransactionRepositoryTest {
             org.junit.Assert.assertTrue(list[1].isReviewed)
             io.mockk.verify { prefs.setMerchantCategory("blue tokai", "Food & Dining") }
         }
+
+    @Test
+    fun linkAndUnlinkTransactionsManually() =
+        runTest(testDispatcher) {
+            val expense =
+                Transaction(
+                    id = 1L,
+                    accountId = 1L,
+                    amount = 251100L,
+                    type = TransactionType.Expense,
+                    merchantNormalised = "Urban Company",
+                    dateTime = 1000L,
+                )
+            val refund =
+                Transaction(
+                    id = 2L,
+                    accountId = 1L,
+                    amount = 251100L,
+                    type = TransactionType.Income,
+                    merchantNormalised = "Urban Company",
+                    dateTime = 2000L,
+                )
+
+            repository.insertTransactions(listOf(expense, refund))
+            testScheduler.advanceUntilIdle()
+
+            repository.linkTransactions(1L, 2L, isRefund = true)
+            testScheduler.advanceUntilIdle()
+
+            val linkedList = repository.getTransactions().first()
+            val linkedExpense = linkedList.first { it.id == 1L }
+            val linkedRefund = linkedList.first { it.id == 2L }
+
+            assertEquals(2L, linkedExpense.linkedTransactionId)
+            assertEquals(1L, linkedRefund.linkedTransactionId)
+            assertEquals(TransactionType.Refund, linkedRefund.type)
+
+            repository.unlinkTransactions(1L)
+            testScheduler.advanceUntilIdle()
+
+            val unlinkedList = repository.getTransactions().first()
+            org.junit.Assert.assertNull(unlinkedList.first { it.id == 1L }.linkedTransactionId)
+            org.junit.Assert.assertNull(unlinkedList.first { it.id == 2L }.linkedTransactionId)
+        }
+
+    @Test
+    fun autoReconcilesRefundWithin90Days() =
+        runTest(testDispatcher) {
+            val expense =
+                Transaction(
+                    id = 10L,
+                    accountId = 1L,
+                    amount = 45000L,
+                    type = TransactionType.Expense,
+                    merchantNormalised = "Swiggy",
+                    dateTime = 1000L,
+                )
+            val refund =
+                Transaction(
+                    id = 20L,
+                    accountId = 1L,
+                    amount = 45000L,
+                    type = TransactionType.Refund,
+                    merchantNormalised = "Swiggy",
+                    dateTime = 1000L + (5L * 24 * 60 * 60 * 1000L), // 5 days later
+                )
+
+            repository.insertTransactions(listOf(expense, refund))
+            testScheduler.advanceUntilIdle()
+
+            val list = repository.getTransactions().first()
+            assertEquals(20L, list.first { it.id == 10L }.linkedTransactionId)
+            assertEquals(10L, list.first { it.id == 20L }.linkedTransactionId)
+        }
 }

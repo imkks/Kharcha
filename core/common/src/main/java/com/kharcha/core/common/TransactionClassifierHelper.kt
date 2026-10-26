@@ -25,9 +25,13 @@ object TransactionClassifierHelper {
         val b = body.lowercase()
         val m = merchant?.lowercase() ?: ""
 
+        if (b.contains("spent") || b.contains("used for a transaction") || b.contains("used at")) {
+            return false
+        }
+
         val cardPhrases =
             listOf(
-                "credit card", "card payment", "towards card", "to card ending",
+                "towards card", "to card ending",
                 "towards credit card", "credit card payment", "cc payment", "cc bill",
                 "card bill", "credit card bill", "payment to card", "payment for card",
                 "payment for your card", "payment towards your card", "payment towards your credit card",
@@ -40,10 +44,10 @@ object TransactionClassifierHelper {
                 "towards kotak card", "sbi card payment", "hdfc card payment",
             )
 
-        val appPhrases = listOf("cred", "cheq", "cred club", "cred.club", "cred@axis", "cred@icici")
+        val appRegex = Regex("""\b(?:cred|cheq|cred club|cred\.club)\b|cred@|cheq@""", RegexOption.IGNORE_CASE)
 
         val hasCardPhrase = cardPhrases.any { b.contains(it) || m.contains(it) }
-        val hasAppPhrase = appPhrases.any { b.contains(it) || m.contains(it) }
+        val hasAppPhrase = appRegex.containsMatchIn(b) || appRegex.containsMatchIn(m)
 
         val isAutoDebitForCard =
             (b.contains("auto debit") || b.contains("autodebit") || b.contains("auto-debit") ||
@@ -104,9 +108,24 @@ object TransactionClassifierHelper {
         return isSelf || isCardBill || isGeneralAutoDebit
     }
 
+    fun isRefundNarrative(body: String, merchant: String? = null): Boolean {
+        val b = body.lowercase()
+        val m = merchant?.lowercase() ?: ""
+        val refundPhrases =
+            listOf(
+                "refund", "refunded", "reversal", "reversed",
+                "credited back", "initiated for refund", "refund of",
+                "cashback", "cash back", "returned", "chargeback",
+            )
+        return refundPhrases.any { b.contains(it) || m.contains(it) }
+    }
+
     fun classifyType(direction: Direction, body: String, merchant: String? = null): TransactionType {
         if (isTransferNarrative(body, merchant)) {
             return TransactionType.Transfer
+        }
+        if (isRefundNarrative(body, merchant)) {
+            return TransactionType.Refund
         }
         return if (direction == Direction.CREDIT) TransactionType.Income else TransactionType.Expense
     }
@@ -115,9 +134,11 @@ object TransactionClassifierHelper {
         merchant: String,
         isCredit: Boolean,
         isTransfer: Boolean = false,
+        isRefund: Boolean = false,
         userRules: Map<String, String> = emptyMap(),
     ): String {
         if (isTransfer) return "Transfer"
+        if (isRefund) return "Refund"
         val m = merchant.trim().lowercase()
 
         val exactMatch = userRules[m]

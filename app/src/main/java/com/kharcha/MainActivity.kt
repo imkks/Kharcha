@@ -167,6 +167,22 @@ fun MainAppShell(
                 onNavigateToTransaction = { txnId ->
                     selectedTransactionForDetail = transactions.find { it.id == txnId }
                 },
+                onLinkTransactions = { primaryId, secondaryId, isRefund ->
+                    scope.launch {
+                        transactionRepository.linkTransactions(primaryId, secondaryId, isRefund)
+                        snackbarHostState.showSnackbar("Transactions linked")
+                        selectedTransactionForDetail =
+                            transactions.find { it.id == primaryId }?.copy(linkedTransactionId = secondaryId)
+                    }
+                },
+                onUnlinkTransaction = { id ->
+                    scope.launch {
+                        transactionRepository.unlinkTransactions(id)
+                        snackbarHostState.showSnackbar("Transactions unlinked")
+                        selectedTransactionForDetail =
+                            transactions.find { it.id == id }?.copy(linkedTransactionId = null)
+                    }
+                },
                 onSave = { updated, propagate ->
                     scope.launch {
                         if (propagate) {

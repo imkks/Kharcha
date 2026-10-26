@@ -121,6 +121,8 @@ fun TransactionDetailScreen(
     accounts: List<Account> = emptyList(),
     onSaveTransactions: ((updatedList: List<Transaction>, updateMerchantRule: Boolean) -> Unit)? = null,
     onNavigateToTransaction: ((Long) -> Unit)? = null,
+    onLinkTransactions: ((primaryId: Long, secondaryId: Long, isRefund: Boolean) -> Unit)? = null,
+    onUnlinkTransaction: ((id: Long) -> Unit)? = null,
 ) {
     var selectedType by remember { mutableStateOf(transaction.type) }
     var selectedCategory by remember { mutableStateOf(transaction.categorySource ?: "Other") }
@@ -134,6 +136,7 @@ fun TransactionDetailScreen(
     var showSplitSheet by remember { mutableStateOf(false) }
     var showAddTagDialog by remember { mutableStateOf(false) }
     var showReceiptViewDialog by remember { mutableStateOf(false) }
+    var showLinkSheet by remember { mutableStateOf(false) }
     var propagateToAllMerchants by remember { mutableStateOf(true) }
 
     val merchantName =
@@ -603,30 +606,58 @@ fun TransactionDetailScreen(
                     linkedTxn?.let { lt -> accounts.find { it.id == lt.accountId } }
                 }
 
-            if (linkedTxn != null || selectedType == TransactionType.Transfer) {
-                item {
-                    val account = accounts.find { it.id == transaction.accountId }
-                    val isCardAccount =
-                        account?.type == AccountType.CreditCard || transaction.channel == Channel.CARD
-                    val targetCard =
-                        TransactionClassifierHelper.extractTargetCardLast4(transaction.note ?: "")
+            val isRefundLink =
+                linkedTxn != null &&
+                    (selectedType == TransactionType.Refund ||
+                        linkedTxn.type == TransactionType.Refund ||
+                        (linkedTxn.note != null &&
+                            TransactionClassifierHelper.isRefundNarrative(linkedTxn.note)) ||
+                        (transaction.note != null &&
+                            TransactionClassifierHelper.isRefundNarrative(transaction.note)))
 
-                    val transferTitle =
+            if (linkedTxn != null) {
+                item {
+                    val linkedMerchant =
+                        linkedTxn.merchantNormalised
+                            ?: linkedTxn.merchantRaw
+                            ?: stringResource(id = R.string.detail_original_sms)
+
+                    val cardTitle =
                         when {
-                            linkedTxn != null && isCardAccount ->
-                                "Card Bill Paid from ${linkedAccount?.name ?: "Bank Account"}"
-                            linkedTxn != null ->
-                                "Paid to ${linkedAccount?.name ?: "Credit Card"}"
-                            targetCard != null ->
-                                "Payment to Card ••$targetCard"
-                            else -> "Transfer"
+                            isRefundLink && selectedType == TransactionType.Expense ->
+                                "Linked Refund (+${MoneyFormatter.formatMinorUnits(linkedTxn.amount)})"
+                            isRefundLink ->
+                                "Linked Expense (-${MoneyFormatter.formatMinorUnits(linkedTxn.amount)})"
+                            selectedType == TransactionType.Transfer -> {
+                                val isCard =
+                                    accounts.find { it.id == transaction.accountId }?.type ==
+                                        AccountType.CreditCard || transaction.channel == Channel.CARD
+                                if (isCard) {
+                                    "Card Bill Paid from ${linkedAccount?.name ?: "Bank Account"}"
+                                } else {
+                                    "Paid to ${linkedAccount?.name ?: "Credit Card"}"
+                                }
+                            }
+                            else -> "Linked Transaction"
                         }
 
-                    val transferSubtitle =
-                        if (linkedTxn != null) {
-                            "Reconciled Transfer • No double counting"
+                    val cardSubtitle =
+                        when {
+                            isRefundLink && selectedType == TransactionType.Expense -> {
+                                val netMinor = maxOf(0L, transaction.amount - linkedTxn.amount)
+                                "Net Spend: ${MoneyFormatter.formatMinorUnits(netMinor)}"
+                            }
+                            isRefundLink ->
+                                "Refund for spend at $linkedMerchant"
+                            else ->
+                                "Reconciled Transfer • No double counting"
+                        }
+
+                    val iconTint =
+                        if (isRefundLink) {
+                            MaterialTheme.financialColors.income
                         } else {
-                            "Card Bill Payment / Transfer • Excluded from Expense"
+                            MaterialTheme.financialColors.transfer
                         }
 
                     Card(
@@ -634,7 +665,7 @@ fun TransactionDetailScreen(
                             Modifier
                                 .fillMaxWidth()
                                 .then(
-                                    if (linkedTxn != null && onNavigateToTransaction != null) {
+                                    if (onNavigateToTransaction != null) {
                                         Modifier.clickable { onNavigateToTransaction(linkedTxn.id) }
                                     } else {
                                         Modifier
@@ -655,44 +686,185 @@ fun TransactionDetailScreen(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.financialColors.transfer.copy(alpha = 0.15f),
+                                color = iconTint.copy(alpha = 0.15f),
                                 modifier = Modifier.size(38.dp),
                             ) {
                                 Icon(
                                     painter = painterResource(id = DesignR.drawable.ic_category_transfer),
                                     contentDescription = null,
-                                    tint = MaterialTheme.financialColors.transfer,
+                                    tint = iconTint,
                                     modifier = Modifier.padding(9.dp),
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = transferTitle,
+                                    text = cardTitle,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = transferSubtitle,
+                                    text = cardSubtitle,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            if (linkedTxn != null) {
-                                Column(horizontalAlignment = Alignment.End) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(
+                                onClick = { onUnlinkTransaction?.invoke(transaction.id) },
+                                contentPadding = PaddingValues(horizontal = 8.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.detail_unlink_button),
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                val isExpense = selectedType == TransactionType.Expense
+                val isRefundOrIncome =
+                    selectedType == TransactionType.Refund ||
+                        selectedType == TransactionType.Income ||
+                        (transaction.note != null &&
+                            TransactionClassifierHelper.isRefundNarrative(transaction.note))
+
+                if (isExpense || isRefundOrIncome) {
+                    item {
+                        Card(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showLinkSheet = true },
+                            shape = RoundedCornerShape(18.dp),
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                ),
+                        ) {
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.financialColors.income.copy(alpha = 0.15f),
+                                        modifier = Modifier.size(38.dp),
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.financialColors.income,
+                                            modifier = Modifier.padding(9.dp),
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        val linkPromptTitle =
+                                            if (isExpense) {
+                                                stringResource(id = R.string.detail_link_refund_button)
+                                            } else {
+                                                stringResource(id = R.string.detail_link_expense_button)
+                                            }
+                                        val linkPromptSubtitle =
+                                            if (isExpense) {
+                                                "Offset this expense with an incoming refund"
+                                            } else {
+                                                "Link this refund to the original spend"
+                                            }
+                                        Text(
+                                            text = linkPromptTitle,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = linkPromptSubtitle,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                                Button(
+                                    onClick = { showLinkSheet = true },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors =
+                                        ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        ),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(32.dp),
+                                ) {
                                     Text(
-                                        text = MoneyFormatter.formatMinorUnits(linkedTxn.amount),
-                                        style = MaterialTheme.typography.titleMedium,
+                                        text = "Link",
+                                        style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.financialColors.transfer,
                                     )
-                                    Text(
-                                        text = "Linked",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.financialColors.income,
-                                    )
+                                }
+                            }
+                        }
+                    }
+                } else if (selectedType == TransactionType.Transfer) {
+                    val targetCard =
+                        TransactionClassifierHelper.extractTargetCardLast4(transaction.note ?: "")
+                    if (targetCard != null) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(18.dp),
+                                colors =
+                                    CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    ),
+                            ) {
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.financialColors.transfer.copy(alpha = 0.15f),
+                                        modifier = Modifier.size(38.dp),
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = DesignR.drawable.ic_category_transfer),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.financialColors.transfer,
+                                            modifier = Modifier.padding(9.dp),
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Payment to Card ••$targetCard",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Card Bill Payment • Excluded from Expense",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1615,6 +1787,26 @@ fun TransactionDetailScreen(
                 noteText = TagParser.removeTag(noteText, tag)
             },
             onDismiss = { showAddTagDialog = false },
+        )
+    }
+
+    // Link Transaction Sheet (Refund / Expense)
+    if (showLinkSheet) {
+        LinkTransactionSheet(
+            targetTransaction = transaction,
+            allTransactions = allTransactions,
+            onLink = { candidate ->
+                val isRefund =
+                    selectedType == TransactionType.Refund ||
+                        candidate.type == TransactionType.Refund ||
+                        (candidate.note != null &&
+                            TransactionClassifierHelper.isRefundNarrative(candidate.note)) ||
+                        (transaction.note != null &&
+                            TransactionClassifierHelper.isRefundNarrative(transaction.note))
+                onLinkTransactions?.invoke(transaction.id, candidate.id, isRefund)
+                showLinkSheet = false
+            },
+            onDismiss = { showLinkSheet = false },
         )
     }
 }

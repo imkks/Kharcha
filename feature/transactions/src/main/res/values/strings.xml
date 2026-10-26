@@ -198,4 +198,17 @@
     <string name="entity_bar_chart_title">Monthly Spending</string>
     <string name="entity_bar_chart_hint">Tap any month to filter transactions</string>
     <string name="entity_total_spent">%1$s total spent</string>
+    <string name="detail_link_refund_button">Link to Refund</string>
+    <string name="detail_link_expense_button">Link to Expense</string>
+    <string name="detail_unlink_button">Unlink</string>
+    <string name="detail_linked_refund_badge">Linked Refund</string>
+    <string name="detail_linked_expense_badge">Linked Expense</string>
+    <string name="detail_net_spend_label">Net Spend: %1$s</string>
+    <string name="link_sheet_refund_title">Link Refund to Expense</string>
+    <string name="link_sheet_expense_title">Link Expense to Refund</string>
+    <string name="link_sheet_search_hint">Search merchant, note, or amount…</string>
+    <string name="link_sheet_suggested_header">Suggested Matches</string>
+    <string name="link_sheet_all_header">Recent Transactions</string>
+    <string name="link_sheet_empty">No candidate transactions found</string>
+    <string name="link_sheet_action">Link</string>
 </resources>

@@ -42,6 +42,7 @@ class DefaultTransactionRepository(
             val combined = _transactions.value + transactions
             val deduplicated = deduplicateList(combined).toMutableList()
             reconcileTransfers(deduplicated)
+            reconcileRefunds(deduplicated)
             val updated = deduplicated.sortedByDescending { it.dateTime }
             _transactions.value = updated
             saveToDisk(updated)
@@ -59,6 +60,7 @@ class DefaultTransactionRepository(
             if (index != -1) {
                 current[index] = transaction.copy(updatedAt = System.currentTimeMillis())
                 reconcileTransfers(current)
+                reconcileRefunds(current)
                 val updated = current.sortedByDescending { it.dateTime }
                 _transactions.value = updated
                 saveToDisk(updated)
@@ -81,6 +83,7 @@ class DefaultTransactionRepository(
             }
             if (changed) {
                 reconcileTransfers(current)
+                reconcileRefunds(current)
                 val sorted = current.sortedByDescending { it.dateTime }
                 _transactions.value = sorted
                 saveToDisk(sorted)
@@ -139,10 +142,65 @@ class DefaultTransactionRepository(
             }
 
             reconcileTransfers(current)
+            reconcileRefunds(current)
             val updated = current.sortedByDescending { it.dateTime }
             _transactions.value = updated
             saveToDisk(updated)
             updateCount
+        }
+    }
+
+    override suspend fun linkTransactions(primaryId: Long, secondaryId: Long, isRefund: Boolean) {
+        withContext(ioDispatcher) {
+            val current = _transactions.value.toMutableList()
+            val i1 = current.indexOfFirst { it.id == primaryId }
+            val i2 = current.indexOfFirst { it.id == secondaryId }
+            if (i1 != -1 && i2 != -1) {
+                val now = System.currentTimeMillis()
+                var t1 = current[i1].copy(linkedTransactionId = secondaryId, updatedAt = now)
+                var t2 = current[i2].copy(linkedTransactionId = primaryId, updatedAt = now)
+
+                if (isRefund) {
+                    if (t1.type == TransactionType.Expense && t2.type != TransactionType.Expense) {
+                        t2 = t2.copy(type = TransactionType.Refund, categorySource = t1.categorySource)
+                    } else if (t2.type == TransactionType.Expense && t1.type != TransactionType.Expense) {
+                        t1 = t1.copy(type = TransactionType.Refund, categorySource = t2.categorySource)
+                    }
+                }
+
+                current[i1] = t1
+                current[i2] = t2
+                val updated = current.sortedByDescending { it.dateTime }
+                _transactions.value = updated
+                saveToDisk(updated)
+            }
+        }
+    }
+
+    override suspend fun unlinkTransactions(transactionId: Long) {
+        withContext(ioDispatcher) {
+            val current = _transactions.value.toMutableList()
+            val i1 = current.indexOfFirst { it.id == transactionId }
+            if (i1 != -1) {
+                val now = System.currentTimeMillis()
+                val t1 = current[i1]
+                val partnerId = t1.linkedTransactionId
+                current[i1] = t1.copy(linkedTransactionId = null, updatedAt = now)
+
+                if (partnerId != null) {
+                    val i2 = current.indexOfFirst { it.id == partnerId }
+                    if (i2 != -1) {
+                        current[i2] = current[i2].copy(
+                            linkedTransactionId = null,
+                            updatedAt = now,
+                        )
+                    }
+                }
+
+                val updated = current.sortedByDescending { it.dateTime }
+                _transactions.value = updated
+                saveToDisk(updated)
+            }
         }
     }
 
@@ -169,6 +227,7 @@ class DefaultTransactionRepository(
             }
             val deduplicated = deduplicateList(list).toMutableList()
             reconcileTransfers(deduplicated)
+            reconcileRefunds(deduplicated)
             val sorted = deduplicated.sortedByDescending { it.dateTime }
             _transactions.value = sorted
             if (sorted.size < list.size) {
@@ -219,11 +278,17 @@ class DefaultTransactionRepository(
         for (i in list.indices) {
             val t1 = list[i]
             if (t1.type != TransactionType.Expense && t1.type != TransactionType.Transfer) continue
+            // Card spend is an expense, not a debit leg for a transfer/card bill payment
+            if (t1.channel == Channel.CARD && t1.type == TransactionType.Expense) continue
+
             for (j in list.indices) {
                 if (i == j) continue
                 val t2 = list[j]
                 if (t2.type != TransactionType.Income && t2.type != TransactionType.Transfer) continue
                 if (t1.id == t2.linkedTransactionId && t2.id == t1.linkedTransactionId) continue
+                // Transfers must be between two different accounts
+                if (t1.accountId != 0L && t2.accountId != 0L && t1.accountId == t2.accountId) continue
+
                 if (t1.amount == t2.amount) {
                     val isCard =
                         t1.channel == Channel.CARD || t2.channel == Channel.CARD ||
@@ -247,6 +312,45 @@ class DefaultTransactionRepository(
                                 linkedTransactionId = t1.id,
                                 isReviewed = true,
                             )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun reconcileRefunds(list: MutableList<Transaction>) {
+        for (i in list.indices) {
+            val tRefund = list[i]
+            val isRefundCandidate =
+                tRefund.type == TransactionType.Refund ||
+                    (tRefund.note != null && TransactionClassifierHelper.isRefundNarrative(tRefund.note))
+            if (!isRefundCandidate || tRefund.linkedTransactionId != null) continue
+
+            for (j in list.indices) {
+                if (i == j) continue
+                val tExpense = list[j]
+                if (tExpense.type != TransactionType.Expense || tExpense.linkedTransactionId != null) continue
+
+                val timeDiff = tRefund.dateTime - tExpense.dateTime
+                if (timeDiff in 0..(90L * 24 * 60 * 60 * 1000L)) {
+                    val sameMerchant =
+                        (!tRefund.merchantNormalised.isNullOrBlank() &&
+                            tRefund.merchantNormalised.equals(tExpense.merchantNormalised, ignoreCase = true)) ||
+                            (!tRefund.merchantRaw.isNullOrBlank() &&
+                                tRefund.merchantRaw.equals(tExpense.merchantRaw, ignoreCase = true))
+                    if (sameMerchant && tRefund.amount <= tExpense.amount) {
+                        list[i] =
+                            tRefund.copy(
+                                type = TransactionType.Refund,
+                                categorySource = tExpense.categorySource ?: "Refund",
+                                linkedTransactionId = tExpense.id,
+                                isReviewed = true,
+                            )
+                        list[j] =
+                            tExpense.copy(
+                                linkedTransactionId = tRefund.id,
+                            )
+                        break
                     }
                 }
             }

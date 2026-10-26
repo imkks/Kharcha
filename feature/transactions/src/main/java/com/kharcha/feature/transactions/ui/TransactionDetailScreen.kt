@@ -146,6 +146,12 @@ fun TransactionDetailScreen(
             ?: transaction.merchantRaw
             ?: stringResource(id = R.string.detail_original_sms)
 
+    val isCreditTxn =
+        selectedType == TransactionType.Income ||
+            selectedType == TransactionType.Refund ||
+            transaction.type == TransactionType.Income ||
+            transaction.type == TransactionType.Refund
+
     val similarTransactions =
         remember(allTransactions, transaction, merchantName) {
             if (merchantName.equals("Unknown", ignoreCase = true) || merchantName.isBlank()) {
@@ -1384,11 +1390,11 @@ fun TransactionDetailScreen(
 
                         // Location Row
                         val txnLocation =
-                            remember(rawSms, noteText, merchantDisplay) {
+                            remember(rawSms, noteText, merchantName) {
                                 LocationHelper.extractLocation(
                                     rawSms = rawSms,
                                     note = noteText,
-                                    merchantName = merchantDisplay,
+                                    merchantName = merchantName,
                                 )
                             }
 
@@ -1504,10 +1510,6 @@ fun TransactionDetailScreen(
     // Category Picker Bottom Sheet
     if (showCategorySheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        val isCreditTxn = selectedType == TransactionType.Income ||
-            selectedType == TransactionType.Refund ||
-            transaction.type == TransactionType.Income ||
-            transaction.type == TransactionType.Refund
         ModalBottomSheet(
             onDismissRequest = { showCategorySheet = false },
             sheetState = sheetState,

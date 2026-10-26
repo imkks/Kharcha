@@ -86,4 +86,108 @@ class HomeScreenCalculationTest {
         val remaining = (budget - totalSpent).coerceAtLeast(0L)
         assertEquals(0L, remaining)
     }
+
+    @Test
+    fun testUnknownSpendAndTopCategoriesAggregation() {
+        val transactions = listOf(
+            Transaction(
+                id = 1L,
+                amount = 962_00L,
+                type = TransactionType.Expense,
+                channel = Channel.UPI,
+                dateTime = Instant.parse("2026-10-15T10:00:00Z").toEpochMilli(),
+                categorySource = "Unknown",
+                isReviewed = false,
+            ),
+            Transaction(
+                id = 2L,
+                amount = 27_878_00L,
+                type = TransactionType.Expense,
+                channel = Channel.CARD,
+                dateTime = Instant.parse("2026-10-16T11:00:00Z").toEpochMilli(),
+                categorySource = "Shopping",
+                isReviewed = true,
+            ),
+            Transaction(
+                id = 3L,
+                amount = 10_290_00L,
+                type = TransactionType.Expense,
+                channel = Channel.UPI,
+                dateTime = Instant.parse("2026-10-17T12:00:00Z").toEpochMilli(),
+                categorySource = "Food & Drinks",
+                isReviewed = true,
+            ),
+            Transaction(
+                id = 4L,
+                amount = 5_000_00L,
+                type = TransactionType.Expense,
+                channel = Channel.UPI,
+                dateTime = Instant.parse("2026-10-18T14:00:00Z").toEpochMilli(),
+                categorySource = "Shopping",
+                isReviewed = true,
+            ),
+        )
+
+        val unknownSpend = transactions
+            .filter { it.type == TransactionType.Expense && (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed) }
+            .sumOf { it.amount }
+        assertEquals(962_00L, unknownSpend)
+
+        val topSpendCategories = transactions
+            .filter { it.type == TransactionType.Expense && it.categorySource != "Unknown" && it.categorySource != "Other" }
+            .groupBy { it.categorySource ?: "Others" }
+            .mapValues { entry -> entry.value.sumOf { it.amount } }
+            .toList()
+            .sortedByDescending { it.second }
+
+        assertEquals(2, topSpendCategories.size)
+        assertEquals("Shopping", topSpendCategories[0].first)
+        assertEquals(32_878_00L, topSpendCategories[0].second)
+        assertEquals("Food & Drinks", topSpendCategories[1].first)
+        assertEquals(10_290_00L, topSpendCategories[1].second)
+    }
+
+    @Test
+    fun testTagCloudExtraction() {
+        val transactions = listOf(
+            Transaction(
+                id = 1L,
+                amount = 100_00L,
+                type = TransactionType.Expense,
+                channel = Channel.UPI,
+                dateTime = 1L,
+                note = "Order from Swiggy #Online #Food",
+            ),
+            Transaction(
+                id = 2L,
+                amount = 200_00L,
+                type = TransactionType.Expense,
+                channel = Channel.UPI,
+                dateTime = 2L,
+                note = "Blinkit grocery #Online",
+            ),
+            Transaction(
+                id = 3L,
+                amount = 300_00L,
+                type = TransactionType.Expense,
+                channel = Channel.UPI,
+                dateTime = 3L,
+                note = "Rent for apartment #Rent",
+            ),
+        )
+
+        val counts = mutableMapOf<String, Int>()
+        for (t in transactions) {
+            val note = t.note ?: continue
+            val matches = Regex("""#([A-Za-z0-9_]+)""").findAll(note)
+            for (m in matches) {
+                val tag = m.groupValues[1]
+                counts[tag] = (counts[tag] ?: 0) + 1
+            }
+        }
+
+        assertEquals(2, counts["Online"])
+        assertEquals(1, counts["Food"])
+        assertEquals(1, counts["Rent"])
+    }
 }

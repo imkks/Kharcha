@@ -32,8 +32,10 @@ fun OnboardingRoute(
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
         ) { permissions ->
-            val isGranted = permissions.values.all { it }
-            viewModel.onPermissionResult(isGranted)
+            val hasSms =
+                permissions[Manifest.permission.READ_SMS] == true ||
+                    permissions[Manifest.permission.RECEIVE_SMS] == true
+            viewModel.onPermissionResult(hasSms)
         }
 
     when (uiState.currentState) {
@@ -50,6 +52,8 @@ fun OnboardingRoute(
                         arrayOf(
                             Manifest.permission.READ_SMS,
                             Manifest.permission.RECEIVE_SMS,
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
                         ),
                     )
                 },

@@ -9,6 +9,7 @@ import androidx.work.WorkManager
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
+import com.kharcha.core.common.LocationCaptureHelper
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.ParseResult
@@ -109,6 +110,8 @@ class SmsReceiver : BroadcastReceiver() {
                                 1L
                             }
 
+                        val capturedLocation = LocationCaptureHelper.getLastKnownLocation(context)
+
                         val txn =
                             Transaction(
                                 id = rawSms.id,
@@ -128,6 +131,9 @@ class SmsReceiver : BroadcastReceiver() {
                                 note = body.trim(),
                                 parseConfidence = parsed.confidence,
                                 isReviewed = isUserCategorized,
+                                latitude = capturedLocation?.latitude,
+                                longitude = capturedLocation?.longitude,
+                                locationLabel = capturedLocation?.label,
                             )
                         repo.insertTransaction(txn)
                     }

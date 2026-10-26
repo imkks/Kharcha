@@ -230,4 +230,24 @@
     <string name="link_sheet_empty">No candidate transactions found</string>
     <string name="link_sheet_action">Link</string>
     <string name="detail_location_open_maps">Tap to view in Google Maps</string>
+    <string name="add_txn_fullscreen_title">Add a transaction</string>
+    <string name="add_txn_amount_spent">Amount spent</string>
+    <string name="add_txn_amount_credited">Amount credited</string>
+    <string name="add_txn_enter_amount">Enter amount</string>
+    <string name="add_txn_date_time">Date &amp; time</string>
+    <string name="add_txn_paid_to">Paid to</string>
+    <string name="add_txn_received_from">Received from</string>
+    <string name="add_txn_payee_placeholder">Enter the name or place</string>
+    <string name="add_txn_account_label">Account</string>
+    <string name="add_txn_select_account">Select source account</string>
+    <string name="add_txn_category_label">Category</string>
+    <string name="add_txn_edit_category">Edit</string>
+    <string name="add_txn_collapsed_extras">••• Add notes, tags or receipt</string>
+    <string name="add_txn_notes_label">Notes</string>
+    <string name="add_txn_notes_hint">Add a note</string>
+    <string name="add_txn_tags_label">Tags</string>
+    <string name="add_txn_receipt_label">Receipt</string>
+    <string name="add_txn_attach_receipt">Attach receipt</string>
+    <string name="add_txn_save_and_add_another">Save &amp; add another</string>
+    <string name="add_txn_save">✓ Save</string>
 </resources>

@@ -362,6 +362,11 @@ fun MainAppShell(
                         transactionsSubTab = TransactionsSubTab.TRANSACTIONS
                         currentDestination = AppDestination.TRANSACTIONS
                     },
+                    onTagClick = { tag ->
+                        transactionsFilter = TransactionFilter(query = tag)
+                        transactionsSubTab = TransactionsSubTab.TRANSACTIONS
+                        currentDestination = AppDestination.TRANSACTIONS
+                    },
                     modifier = Modifier.padding(innerPadding),
                 )
             }
@@ -473,12 +478,18 @@ fun BoxDestinationContent(
     onTrendsClick: () -> Unit = {},
     onCategoriesClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
+    onTagClick: (String) -> Unit = {},
+    onAccountClick: (Account) -> Unit = {},
+    onSplitClick: () -> Unit = {},
+    onDepositClick: () -> Unit = {},
+    onDuesClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
         AppDestination.HOME -> {
             HomeScreen(
                 transactions = transactions,
+                accounts = accounts,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onSeeAllClick = onNavigateToTransactions,
                 onReviewClick = onReviewClick,
@@ -490,6 +501,11 @@ fun BoxDestinationContent(
                 onTrendsClick = onTrendsClick,
                 onCategoriesClick = onCategoriesClick,
                 onSearchClick = onSearchClick,
+                onAccountClick = onAccountClick,
+                onTagClick = onTagClick,
+                onSplitClick = onSplitClick,
+                onDepositClick = onDepositClick,
+                onDuesClick = onDuesClick,
             )
         }
         AppDestination.TRANSACTIONS -> {

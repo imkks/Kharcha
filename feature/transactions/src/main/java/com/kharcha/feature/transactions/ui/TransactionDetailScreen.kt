@@ -1529,82 +1529,73 @@ fun TransactionDetailScreen(
                             )
                         }
 
-                        // Location Row
+                        // Location Row (only displayed when location is present)
                         val txnLocation =
-                            remember(rawSms, noteText, merchantName) {
+                            remember(transaction.latitude, transaction.longitude, transaction.locationLabel, rawSms, noteText, merchantName) {
                                 LocationHelper.extractLocation(
+                                    latitude = transaction.latitude,
+                                    longitude = transaction.longitude,
+                                    locationLabel = transaction.locationLabel,
                                     rawSms = rawSms,
                                     note = noteText,
                                     merchantName = merchantName,
                                 )
                             }
 
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable(enabled = txnLocation != null) {
-                                        txnLocation?.let {
-                                            LocationHelper.openInGoogleMaps(context, it)
+                        if (txnLocation != null) {
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            LocationHelper.openInGoogleMaps(context, txnLocation)
                                         }
-                                    }
-                                    .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(id = R.string.detail_location_label),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    text = txnLocation?.displayLabel
-                                        ?: stringResource(id = R.string.detail_location_action),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                if (txnLocation != null) {
+                                        .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(id = R.string.detail_location_label),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = txnLocation.displayLabel,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
                                     Text(
                                         text = stringResource(id = R.string.detail_location_open_maps),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.financialColors.income,
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(38.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(
+                                                MaterialTheme.financialColors.income.copy(alpha = 0.15f),
+                                            ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = DesignR.drawable.ic_location),
+                                        contentDescription = stringResource(id = R.string.detail_location_open_maps),
+                                        tint = MaterialTheme.financialColors.income,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(38.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(
-                                            if (txnLocation != null) {
-                                                MaterialTheme.financialColors.income.copy(alpha = 0.15f)
-                                            } else {
-                                                MaterialTheme.colorScheme.surfaceVariant
-                                            },
-                                        ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = DesignR.drawable.ic_location),
-                                    contentDescription = stringResource(id = R.string.detail_location_open_maps),
-                                    tint =
-                                        if (txnLocation != null) {
-                                            MaterialTheme.financialColors.income
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                        }
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                        }
 
                         // Ref No Row
                         val refNo = transaction.refNumber ?: "N/A"

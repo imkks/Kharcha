@@ -298,4 +298,33 @@ class DefaultTransactionRepositoryTest {
             assertEquals(20L, list.first { it.id == 10L }.linkedTransactionId)
             assertEquals(10L, list.first { it.id == 20L }.linkedTransactionId)
         }
+
+    @Test
+    fun persistsLocationCoordinatesAndLabel() =
+        runTest(testDispatcher) {
+            val txn =
+                Transaction(
+                    id = 101L,
+                    accountId = 1L,
+                    amount = 32000L,
+                    type = TransactionType.Expense,
+                    merchantNormalised = "Blue Tokai",
+                    dateTime = 5000L,
+                    latitude = 12.9716,
+                    longitude = 77.5946,
+                    locationLabel = "Indiranagar 100ft Rd",
+                )
+
+            repository.insertTransactions(listOf(txn))
+            testScheduler.advanceUntilIdle()
+
+            // Create a new instance pointing to the same folder to verify disk reload
+            val newRepo = DefaultTransactionRepository(context, testDispatcher)
+            val list = newRepo.getTransactions().first()
+            val loaded = list.first { it.id == 101L }
+
+            assertEquals(12.9716, loaded.latitude!!, 0.0001)
+            assertEquals(77.5946, loaded.longitude!!, 0.0001)
+            assertEquals("Indiranagar 100ft Rd", loaded.locationLabel)
+        }
 }

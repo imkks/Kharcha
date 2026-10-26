@@ -32,4 +32,18 @@
     <string name="home_shortcut_categories">Categories</string>
     <string name="home_recent_add_button">+ Add</string>
     <string name="home_action_search">Search</string>
+    <string name="home_dues_title">Dues &amp; Reminders</string>
+    <string name="home_dues_total">Total %1$s</string>
+    <string name="home_dues_set_reminder">Set reminder?</string>
+    <string name="home_dues_yes">Yes</string>
+    <string name="home_dues_no">No</string>
+    <string name="home_categories_title">Categories</string>
+    <string name="home_categories_categorise">Categorise</string>
+    <string name="home_categories_set_budget">Set budget ›</string>
+    <string name="home_accounts_title">Accounts</string>
+    <string name="home_deposits_title">Deposits</string>
+    <string name="home_credit_cards_title">Credit cards</string>
+    <string name="home_splits_title">Splits</string>
+    <string name="home_tags_title">Tags</string>
+    <string name="home_footer_made_in_india">Made with ❤ in India.</string>
 </resources>

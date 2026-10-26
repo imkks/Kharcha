@@ -42,17 +42,69 @@ class LocationHelperTest {
     }
 
     @Test
-    fun extractLocation_fallsBackToMerchantName() {
-        val loc = LocationHelper.extractLocation(rawSms = "Debit Rs 100", note = null, merchantName = "Starbucks")
+    fun extractLocation_withStoredCoordinates_returnsTransactionLocation() {
+        val loc =
+            LocationHelper.extractLocation(
+                latitude = 12.9716,
+                longitude = 77.5946,
+                locationLabel = "Indiranagar, Bengaluru",
+                rawSms = "Paid Rs 500 at Swiggy",
+                note = null,
+                merchantName = "Swiggy",
+            )
+
+        assertNotNull(loc)
+        assertEquals(12.9716, loc!!.latitude!!, 0.0001)
+        assertEquals(77.5946, loc.longitude!!, 0.0001)
+        assertTrue(loc.hasCoordinates)
+        assertEquals("Indiranagar, Bengaluru", loc.displayLabel)
+    }
+
+    @Test
+    fun extractLocation_withStoredLocationLabelOnly_returnsLocationWithoutCoordinates() {
+        val loc =
+            LocationHelper.extractLocation(
+                latitude = null,
+                longitude = null,
+                locationLabel = "Hyderabad Airport",
+                rawSms = "Paid Rs 250 at Cafe",
+                note = null,
+                merchantName = "Cafe Coffee Day",
+            )
 
         assertNotNull(loc)
         assertNull(loc!!.latitude)
-        assertEquals("Starbucks", loc.displayLabel)
+        assertNull(loc.longitude)
+        assertEquals("Hyderabad Airport", loc.displayLabel)
+    }
+
+    @Test
+    fun extractLocation_whenNoLocationPresent_returnsNullForHistoricalScan() {
+        val loc =
+            LocationHelper.extractLocation(
+                latitude = null,
+                longitude = null,
+                locationLabel = null,
+                rawSms = "Rs 100.00 debited from a/c XX1234 to Starbucks.",
+                note = null,
+                merchantName = "Starbucks",
+            )
+
+        // For historical scan transactions without geo info, location should be null so row is omitted
+        assertNull(loc)
     }
 
     @Test
     fun extractLocation_returnsNullWhenNoData() {
-        val loc = LocationHelper.extractLocation(rawSms = null, note = null, merchantName = null)
+        val loc =
+            LocationHelper.extractLocation(
+                latitude = null,
+                longitude = null,
+                locationLabel = null,
+                rawSms = null,
+                note = null,
+                merchantName = null,
+            )
         assertNull(loc)
     }
 }

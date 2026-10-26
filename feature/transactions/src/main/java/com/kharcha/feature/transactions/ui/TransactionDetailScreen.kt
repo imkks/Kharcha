@@ -95,6 +95,7 @@ import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
+import com.kharcha.core.designsystem.component.CategoryIconHelper
 import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
 import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
@@ -1420,9 +1421,10 @@ fun TransactionDetailScreen(
     // Category Picker Bottom Sheet
     if (showCategorySheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        val isCreditTxn = transaction.direction == Direction.CREDIT ||
-            selectedType == TransactionType.Income ||
-            selectedType == TransactionType.Refund
+        val isCreditTxn = selectedType == TransactionType.Income ||
+            selectedType == TransactionType.Refund ||
+            transaction.type == TransactionType.Income ||
+            transaction.type == TransactionType.Refund
         ModalBottomSheet(
             onDismissRequest = { showCategorySheet = false },
             sheetState = sheetState,
@@ -2112,7 +2114,7 @@ private fun CategoryGridItem(
                 .clip(RoundedCornerShape(12.dp))
                 .clickable(onClick = onClick)
                 .padding(vertical = 6.dp, horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier =

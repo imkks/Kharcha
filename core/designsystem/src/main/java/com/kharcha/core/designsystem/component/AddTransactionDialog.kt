@@ -85,7 +85,6 @@ import java.util.Locale
 
 private val EXPENSE_CATEGORIES =
     listOf(
-        "Not Categorised",
         "Food & Drinks",
         "Groceries",
         "Shopping",

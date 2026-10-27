@@ -1177,4 +1177,29 @@ class SmsParserTest {
         assertEquals("GOOGLE STORE", txn.merchantRaw)
         assertEquals(Channel.CARD, txn.channel)
     }
+
+    @Test
+    fun testHdfcNeftCreditSalaryWithIfscAndPayee() {
+        val sms =
+            RawSms(
+                id = 56,
+                sender = "VM-HDFCBK",
+                body = "Update! INR 1,69,221.00 deposited in HDFC Bank A/c XX1999 on 29-SEP-26 for " +
+                    "NEFT Cr-BOFA0CN6215-QUALCOMM INDIA PVT LTD-KUMAR SINGH KRISHNA-BOFAH26272092252." +
+                    "Avl bal INR 3,51,355.22. Cheque deposits in A/C are subject to clearing",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(16922100L, txn.amountMinor)
+        assertEquals("1999", txn.accountLast4)
+        assertEquals("HDFC", txn.bankName)
+        assertEquals("QUALCOMM INDIA PVT LTD", txn.merchantRaw)
+        assertEquals(Channel.NEFT, txn.channel)
+        assertEquals(Direction.CREDIT, txn.direction)
+        assertEquals("BOFAH26272092252", txn.refNumber)
+        assertEquals(35135522L, txn.balanceAfterMinor)
+    }
 }

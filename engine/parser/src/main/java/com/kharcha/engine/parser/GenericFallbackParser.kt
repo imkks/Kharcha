@@ -91,7 +91,7 @@ class GenericFallbackParser {
 
         val refMatch =
             Regex("(?i)(?:ref(?:erence)?(?:\\s*(?:no|num|#))?|txn|rrn)[\\s:.]*([a-zA-Z0-9]{6,20})").find(body)
-        val refNumber = refMatch?.groupValues?.get(1)
+        var refNumber = refMatch?.groupValues?.get(1)
 
         val balMatch =
             Regex("(?i)(?:avl\\.?\\s*(?:bal|limit)|bal(?:ance)?)\\s*(?:is|:)?\\s*(?:rs\\.?|inr)?\\s*([\\d,]+\\.?\\d*)")
@@ -105,13 +105,23 @@ class GenericFallbackParser {
                 Regex(
                     "(?i)\\b(?:if\\s+(?:not\\s+you|this\\s+was\\s+not\\s+you|not\\s+done\\s+by\\s+you)|" +
                         "to\\s+block|call\\s+\\d+|sms\\s+block|report\\s+(?:fraud|to)|" +
-                        "forward\\s+(?:this)?\\s*sms).*$",
+                        "forward\\s+(?:this)?\\s*sms|" +
+                        "cheque\\s+deposits?\\s+in\\s+a/c\\s+are\\s+subject\\s+to\\s+clearing).*$",
                 ),
                 "",
             )
 
+        // 1. NEFT / RTGS / IMPS Credit narrative payee extraction
+        val (neftSender, neftRef) = CardAccountExtractionHelper.extractNeftSenderAndRef(contentBody)
+        if (neftSender != null) {
+            merchantRaw = neftSender
+            if (refNumber == null && neftRef != null) {
+                refNumber = neftRef
+            }
+        }
+
         val vpaPattern = Regex("(?i)\\bvpa\\s+([a-zA-Z0-9.\\-_@]+)").find(contentBody)
-        if (vpaPattern != null) {
+        if (merchantRaw == null && vpaPattern != null) {
             merchantRaw = vpaPattern.groupValues[1].trim()
         }
 

@@ -495,7 +495,9 @@ fun TransactionDetailScreen(
                             when {
                                 selectedCategory.isBlank() ||
                                     selectedCategory.equals("Unknown", ignoreCase = true) ||
-                                    selectedCategory.equals("Other", ignoreCase = true) ->
+                                    selectedCategory.equals("Unknown Category", ignoreCase = true) ||
+                                    selectedCategory.equals("Uncategorised", ignoreCase = true) ||
+                                    selectedCategory.equals("Not Categorised", ignoreCase = true) ->
                                     stringResource(id = R.string.detail_category_not_categorised)
                                 else -> selectedCategory
                             }
@@ -2052,7 +2054,6 @@ fun TransactionDetailScreen(
 
 internal val EXPENSE_CATEGORIES =
     listOf(
-        "Not Categorised",
         "Bills",
         "Donation",
         "EMI",

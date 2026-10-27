@@ -639,7 +639,16 @@ private fun ReviewCategoryPickerSheet(
 }
 
 private fun extractSuggestedCategories(transaction: Transaction): List<String> {
-    val existing = transaction.categorySource?.takeIf { it.isNotBlank() && !it.equals("Other", ignoreCase = true) }
+    val existing =
+        transaction.categorySource?.takeIf {
+            it.isNotBlank() &&
+                !it.equals("Other", ignoreCase = true) &&
+                !it.equals("Others", ignoreCase = true) &&
+                !it.equals("Unknown", ignoreCase = true) &&
+                !it.equals("Unknown Category", ignoreCase = true) &&
+                !it.equals("Uncategorised", ignoreCase = true) &&
+                !it.equals("Not Categorised", ignoreCase = true)
+        }
     val common = listOf("Food & Dining", "Groceries", "Shopping", "Transport", "Bills & Utilities")
     val list = mutableListOf<String>()
     if (existing != null) {

@@ -56,6 +56,45 @@ object CardAccountExtractionHelper {
         }
     }
 
+    private val NEFT_CR_REGEX =
+        Regex(
+            """(?i)\b(?:for\s+)?(?:NEFT|RTGS|IMPS)\s+(?:Cr|Credit)[-/: ]+([A-Za-z0-9.\-_/&* ]+?)(?:(?:\.|\s+)Avl|\s+bal|\s+balance|\s+ref|[.,;]|$)""",
+        )
+
+    /**
+     * Extracts sender/company name and UTR reference number from Indian banking NEFT/RTGS/IMPS credit narratives.
+     * e.g. "NEFT Cr-BOFA0CN6215-QUALCOMM INDIA PVT LTD-KUMAR SINGH KRISHNA-BOFAH26272092252"
+     * -> sender = "QUALCOMM INDIA PVT LTD", ref = "BOFAH26272092252"
+     */
+    fun extractNeftSenderAndRef(text: String): Pair<String?, String?> {
+        val match = NEFT_CR_REGEX.find(text) ?: return Pair(null, null)
+        val fullCr = match.groupValues[1].trim()
+        val segments = fullCr.split(Regex("[-/]")).map { it.trim() }.filter { it.isNotBlank() }
+        if (segments.isEmpty()) return Pair(null, null)
+
+        val isCodeOrIfsc = { s: String ->
+            s.matches(Regex("""^[A-Za-z]{4}0[A-Za-z0-9]{6}$""")) ||
+                (s.matches(Regex("""^[A-Za-z0-9]{8,18}$""")) && s.any { it.isDigit() } && s.any { it.isLetter() } && !s.contains(" "))
+        }
+
+        val sender =
+            when {
+                segments.size >= 2 && isCodeOrIfsc(segments[0]) -> segments[1]
+                segments.isNotEmpty() && !isCodeOrIfsc(segments[0]) -> segments[0]
+                segments.size >= 2 -> segments[1]
+                else -> segments[0]
+            }
+
+        val ref =
+            if (segments.size >= 3 && isCodeOrIfsc(segments.last())) {
+                segments.last()
+            } else {
+                null
+            }
+
+        return Pair(sender, ref)
+    }
+
     /**
      * Cleans a candidate merchant string by stripping leading date phrases and card prefixes,
      * and rejecting strings that are purely account numbers, cards, or system noise.

@@ -19,6 +19,10 @@ class CategoryIconHelperTest {
         assertEquals(R.drawable.ic_category_salary, CategoryIconHelper.getCategoryIcon("Salary"))
         assertEquals(R.drawable.ic_category_transfer, CategoryIconHelper.getCategoryIcon("Transfer"))
         assertEquals(R.drawable.ic_category_other, CategoryIconHelper.getCategoryIcon("Miscellaneous"))
+        assertEquals(R.drawable.ic_category_other, CategoryIconHelper.getCategoryIcon("Other"))
+        assertEquals(R.drawable.ic_category_unknown, CategoryIconHelper.getCategoryIcon("Unknown Category"))
+        assertEquals(R.drawable.ic_category_unknown, CategoryIconHelper.getCategoryIcon("Uncategorised"))
+        assertEquals(R.drawable.ic_category_unknown, CategoryIconHelper.getCategoryIcon("Not Categorised"))
         assertEquals(R.drawable.ic_category_other, CategoryIconHelper.getCategoryIcon(null))
 
         // Dedicated Axio mappings

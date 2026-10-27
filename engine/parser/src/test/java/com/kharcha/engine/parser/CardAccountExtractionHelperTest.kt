@@ -54,4 +54,17 @@ class CardAccountExtractionHelperTest {
         assertEquals("ICICI", CardAccountExtractionHelper.extractBankName("XX-ICICIB", "ICICI Bank"))
         assertEquals("AMEX", CardAccountExtractionHelper.extractBankName("XX-AMEXIN", "American Express"))
     }
+
+    @Test
+    fun testExtractNeftSenderAndRef() {
+        val raw = "for NEFT Cr-BOFA0CN6215-QUALCOMM INDIA PVT LTD-KUMAR SINGH KRISHNA-BOFAH26272092252.Avl bal INR 3,51,355.22"
+        val (sender, ref) = CardAccountExtractionHelper.extractNeftSenderAndRef(raw)
+        assertEquals("QUALCOMM INDIA PVT LTD", sender)
+        assertEquals("BOFAH26272092252", ref)
+
+        val rawSingle = "for NEFT Cr-ZERODHA BROKING LTD.Avl bal"
+        val (sender2, ref2) = CardAccountExtractionHelper.extractNeftSenderAndRef(rawSingle)
+        assertEquals("ZERODHA BROKING LTD", sender2)
+        assertNull(ref2)
+    }
 }

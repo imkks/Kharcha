@@ -339,7 +339,9 @@ object TransactionClassifierHelper {
             m.contains("zerodha") || m.contains("groww") || m.contains("mutual") ||
                 m.contains("sip") || m.contains("indmoney") || m.contains("upstox") -> "Investments"
 
-            else -> "Other"
+            m.contains("other") || m.contains("misc") -> "Other"
+
+            else -> "Unknown Category"
         }
     }
 }

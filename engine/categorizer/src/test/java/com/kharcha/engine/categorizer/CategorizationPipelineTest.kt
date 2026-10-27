@@ -44,12 +44,12 @@ class CategorizationPipelineTest {
 
             // 2. Low confidence falls through to fallback
             val res2 = pipeline.categorize(CategorizationInput(100L, "LOW", null, null, TransactionType.Expense))
-            assertEquals("Uncategorised", res2.categoryId)
+            assertEquals("Unknown Category", res2.categoryId)
             assertEquals(CategorySource.Fallback, res2.source)
 
             // 3. No match falls through to fallback
             val res3 = pipeline.categorize(CategorizationInput(100L, "UNKNOWN", null, null, TransactionType.Expense))
-            assertEquals("Uncategorised", res3.categoryId)
+            assertEquals("Unknown Category", res3.categoryId)
             assertEquals(CategorySource.Fallback, res3.source)
         }
 }

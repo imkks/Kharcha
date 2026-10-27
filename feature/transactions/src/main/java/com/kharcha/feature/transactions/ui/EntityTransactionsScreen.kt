@@ -41,6 +41,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -296,7 +298,11 @@ fun EntityMonthlyBarChart(
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            if (isSelected) MaterialTheme.financialColors.cardBackground.copy(alpha = 0.8f) else Color.Transparent,
+                            if (isSelected) {
+                                MaterialTheme.financialColors.cardBackground.copy(alpha = 0.8f)
+                            } else {
+                                Color.Transparent
+                            },
                         )
                         .clickable { onSelectMonth(item.yearMonth) }
                         .padding(vertical = 8.dp, horizontal = 2.dp),
@@ -406,12 +412,27 @@ fun EntityTransactionRow(
     val amountFormatted =
         if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(transaction.amount)
 
-    Row(
-        modifier =
+    val isCounted =
+        transaction.type == TransactionType.Expense ||
+            transaction.type == TransactionType.Income
+
+    val rowModifier =
+        if (!isCounted) {
             modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .alpha(0.45f)
+                .blur(1.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        } else {
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        }
+
+    Row(
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Icon Badge
@@ -430,20 +451,40 @@ fun EntityTransactionRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.financialColors.onlineTagBackground)
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-            ) {
-                Text(
-                    text = tagText,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.financialColors.onlineTagText,
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.financialColors.onlineTagBackground)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = tagText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.financialColors.onlineTagText,
+                    )
+                }
+                if (!isCounted) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.row_not_counted),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
 

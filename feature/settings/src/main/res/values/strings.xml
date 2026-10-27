@@ -101,4 +101,15 @@
     <string name="settings_unlink_action">Unlink</string>
     <string name="settings_linked_to_format">Linked to %1$s</string>
     <string name="settings_select_primary_bank">Select Bank Account</string>
+    <string name="settings_manage_accounts_page_title">Manage accounts</string>
+    <string name="settings_manage_accounts_hint">Use the eye icon to include or hide an account\'s expenses. Tap an account to view its transactions and settings.</string>
+    <string name="settings_account_transactions_title">Transactions</string>
+    <string name="settings_account_no_transactions">No transactions found for this account</string>
+    <string name="settings_no_linked_accounts_title">No Linked Accounts Yet</string>
+    <string name="settings_no_linked_accounts_subtitle">Link credit cards and sub-accounts to your primary bank accounts to track them together.</string>
+    <string name="settings_link_new_account">+ Link an Account</string>
+    <string name="settings_include_spends_toast">Included in total spends</string>
+    <string name="settings_exclude_spends_toast">Excluded from total spends</string>
+    <string name="settings_sub_accounts_linked_format">%1$d sub-accounts linked</string>
+    <string name="settings_link_more_cards">+ Link more cards</string>
 </resources>

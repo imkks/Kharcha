@@ -26,6 +26,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +39,7 @@ import com.kharcha.core.common.DateTimeFormatterHelper
 import com.kharcha.core.designsystem.R
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
+import com.kharcha.core.model.TransactionType
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -48,6 +51,10 @@ fun TransactionRow(
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
 ) {
+    val isCounted =
+        transaction.type == TransactionType.Expense ||
+            transaction.type == TransactionType.Income
+
     val merchantDisplay =
         transaction.merchantNormalised
             ?: transaction.merchantRaw
@@ -82,15 +89,29 @@ fun TransactionRow(
             onlineKeywords.any { lower.contains(it) }
         }
 
-    Row(
-        modifier =
+    val rowModifier =
+        if (!isCounted) {
             modifier
                 .fillMaxWidth()
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
                 )
-                .padding(vertical = 10.dp, horizontal = 4.dp),
+                .alpha(0.45f)
+                .blur(1.dp)
+                .padding(vertical = 10.dp, horizontal = 4.dp)
+        } else {
+            modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                )
+                .padding(vertical = 10.dp, horizontal = 4.dp)
+        }
+
+    Row(
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -130,6 +151,24 @@ fun TransactionRow(
                                         fontWeight = FontWeight.Bold,
                                     ),
                                 color = MaterialTheme.financialColors.onlineTagText,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                            )
+                        }
+                    }
+                    if (!isCounted) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.row_not_counted),
+                                style =
+                                    MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                    ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                             )
                         }

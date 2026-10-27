@@ -55,6 +55,7 @@ import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.review.ui.ReviewQueueScreen
 import com.kharcha.feature.settings.ui.MoreScreen
 import com.kharcha.feature.transactions.R as TransactionsR
+import com.kharcha.feature.transactions.ui.AccountDetailScreen
 import com.kharcha.feature.transactions.ui.EntityTransactionsScreen
 import com.kharcha.feature.transactions.ui.ReportUndetectedSmsScreen
 import com.kharcha.feature.transactions.ui.SearchScreen
@@ -142,6 +143,7 @@ fun MainAppShell(
     var showReviewQueue by rememberSaveable { mutableStateOf(false) }
     var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
     var selectedEntityForDetail by remember { mutableStateOf<SelectedEntity?>(null) }
+    var selectedAccountForDetail by remember { mutableStateOf<Account?>(null) }
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
     var showSearchScreen by rememberSaveable { mutableStateOf(false) }
     var showReportSmsScreen by rememberSaveable { mutableStateOf(false) }
@@ -171,6 +173,7 @@ fun MainAppShell(
             enabled = currentDestination != AppDestination.HOME &&
                 selectedTransactionForDetail == null &&
                 selectedEntityForDetail == null &&
+                selectedAccountForDetail == null &&
                 !showSearchScreen &&
                 !showWeeklySummaryScreen &&
                 !showReportSmsScreen &&
@@ -276,6 +279,36 @@ fun MainAppShell(
                 allTransactions = transactions,
                 onBack = { selectedEntityForDetail = null },
                 onTransactionClick = { selectedTransactionForDetail = it },
+            )
+        } else if (selectedAccountForDetail != null) {
+            val acc = selectedAccountForDetail!!
+            BackHandler { selectedAccountForDetail = null }
+            AccountDetailScreen(
+                account = acc,
+                allAccounts = accounts,
+                allTransactions = transactions,
+                onBack = { selectedAccountForDetail = null },
+                onTransactionClick = { selectedTransactionForDetail = it },
+                onSaveAccount = { updatedAccount ->
+                    scope.launch {
+                        accountRepository.saveAccount(updatedAccount)
+                        selectedAccountForDetail = updatedAccount
+                    }
+                },
+                onMergeAccounts = { primaryId, linkedIds ->
+                    scope.launch {
+                        val currentAccounts = accountRepository.getAccountsSync()
+                        for (a in currentAccounts) {
+                            if (a.id in linkedIds) {
+                                accountRepository.saveAccount(a.copy(linkedPrimaryAccountId = primaryId))
+                            } else if (a.linkedPrimaryAccountId == primaryId && a.id !in linkedIds) {
+                                accountRepository.saveAccount(a.copy(linkedPrimaryAccountId = null))
+                            }
+                        }
+                    }
+                },
+                onAddTransactionClick = { showAddTransactionDialog = true },
+                onSetBudgetClick = { showSetBudgetSheet = true },
             )
         } else {
             Scaffold(
@@ -412,6 +445,7 @@ fun MainAppShell(
                             }
                         }
                     },
+                    onAccountClick = { selectedAccountForDetail = it },
                 )
             }
         }
@@ -661,6 +695,8 @@ fun BoxDestinationContent(
                 onApplyMerchantRuleToTransactions = onApplyMerchantRuleToTransactions,
                 onWeeklySummaryClick = onWeeklySummaryClick,
                 onReportSmsClick = onReportSmsClick,
+                onAccountClick = onAccountClick,
+                onTransactionClick = onTransactionClick,
                 modifier = modifier,
             )
         }

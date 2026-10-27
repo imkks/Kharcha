@@ -3,6 +3,7 @@
     <string name="transactions_title">Transactions</string>
     <string name="transactions_search_hint">Search transactions…</string>
     <string name="transactions_filter_all">All</string>
+    <string name="row_not_counted">Not counted</string>
     <string name="transactions_filter_expense">Expense</string>
     <string name="transactions_filter_income">Income</string>
     <string name="transactions_filter_transfer">Transfer</string>
@@ -275,4 +276,24 @@
     <string name="weekly_summary_rate_week">Rate your week</string>
     <string name="weekly_summary_share_button">Share summary</string>
     <string name="weekly_summary_share_text">My weekly spends on Kharcha: %1$s. Daily pace: %2$s/day.</string>
+
+    <!-- Account Detail Strings -->
+    <string name="account_detail_menu_title">Menu options</string>
+    <string name="account_detail_menu_export">Export statement</string>
+    <string name="account_detail_menu_link">Link account</string>
+    <string name="account_detail_menu_settings">Settings</string>
+    <string name="account_detail_menu_add_spend">Add spend</string>
+    <string name="account_detail_balance">Balance</string>
+    <string name="account_settings_sheet_title">Account settings</string>
+    <string name="account_settings_expense_title">Expense</string>
+    <string name="account_settings_expense_subtitle">This account will be considered for calculating total spends</string>
+    <string name="account_settings_edit_title">Edit account</string>
+    <string name="account_settings_edit_subtitle">Edit account name, number</string>
+    <string name="account_settings_hide_title">Hide account</string>
+    <string name="account_settings_hide_subtitle">Hide this account from all views</string>
+    <string name="account_settings_edit_dialog_title">Edit account</string>
+    <string name="account_settings_name_label">Account name</string>
+    <string name="account_settings_last4_label">Last 4 digits</string>
+    <string name="account_settings_save">Save</string>
+    <string name="account_settings_cancel">Cancel</string>
 </resources>

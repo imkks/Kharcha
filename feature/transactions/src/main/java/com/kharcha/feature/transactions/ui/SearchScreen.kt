@@ -39,6 +39,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -116,7 +118,9 @@ fun SearchScreen(
                         id = tx.id,
                         sender = tx.channel?.name ?: "BANK-ALERT",
                         dateEpoch = tx.dateTime,
-                        body = tx.note ?: "Txn of ₹${tx.amount / 100} at ${tx.merchantRaw ?: "Store"} ref ${tx.refNumber ?: "N/A"}",
+                        val store = tx.merchantRaw ?: "Store"
+                        val ref = tx.refNumber ?: "N/A"
+                        body = tx.note ?: "Txn of ₹${tx.amount / 100} at $store ref $ref",
                         isParsed = tx.isReviewed,
                         transaction = tx,
                     )
@@ -181,11 +185,16 @@ fun SearchScreen(
                             selected = selectedTab == SearchTab.TRANSACTIONS,
                             onClick = { selectedTab = SearchTab.TRANSACTIONS },
                             text = {
+                                val isSelected = selectedTab == SearchTab.TRANSACTIONS
                                 Text(
-                                    text = stringResource(id = R.string.search_tab_transactions, filteredTransactions.size),
-                                    fontWeight = if (selectedTab == SearchTab.TRANSACTIONS) FontWeight.Bold else FontWeight.Normal,
+                                    text =
+                                        stringResource(
+                                            id = R.string.search_tab_transactions,
+                                            filteredTransactions.size,
+                                        ),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     color =
-                                        if (selectedTab == SearchTab.TRANSACTIONS) {
+                                        if (isSelected) {
                                             MaterialTheme.financialColors.limeAccent
                                         } else {
                                             MaterialTheme.financialColors.textSecondary
@@ -197,11 +206,16 @@ fun SearchScreen(
                             selected = selectedTab == SearchTab.SMS,
                             onClick = { selectedTab = SearchTab.SMS },
                             text = {
+                                val isSelected = selectedTab == SearchTab.SMS
                                 Text(
-                                    text = stringResource(id = R.string.search_tab_sms, smsSnippets.size),
-                                    fontWeight = if (selectedTab == SearchTab.SMS) FontWeight.Bold else FontWeight.Normal,
+                                    text =
+                                        stringResource(
+                                            id = R.string.search_tab_sms,
+                                            smsSnippets.size,
+                                        ),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     color =
-                                        if (selectedTab == SearchTab.SMS) {
+                                        if (isSelected) {
                                             MaterialTheme.financialColors.limeAccent
                                         } else {
                                             MaterialTheme.financialColors.textSecondary
@@ -320,13 +334,27 @@ fun SearchTransactionRow(
     val merchant = transaction.merchantNormalised ?: transaction.merchantRaw ?: "Unknown Merchant"
     val category = transaction.categorySource ?: "Others"
     val relativeDate = DateTimeFormatterHelper.formatRelativeTime(transaction.dateTime)
+    val isCounted =
+        transaction.type == TransactionType.Expense ||
+            transaction.type == TransactionType.Income
 
-    Row(
-        modifier =
+    val rowModifier =
+        if (!isCounted) {
             modifier
                 .fillMaxWidth()
                 .clickable { onClick() }
-                .padding(vertical = 12.dp),
+                .alpha(0.45f)
+                .blur(1.dp)
+                .padding(vertical = 12.dp)
+        } else {
+            modifier
+                .fillMaxWidth()
+                .clickable { onClick() }
+                .padding(vertical = 12.dp)
+        }
+
+    Row(
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CategoryBadge(categoryName = category, size = 36.dp)
@@ -351,7 +379,12 @@ fun SearchTransactionRow(
                 text = "$arrowGlyph ${MoneyFormatter.formatMinorUnits(transaction.amount)}",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = if (isDebit) MaterialTheme.financialColors.textPrimary else MaterialTheme.financialColors.limeAccent,
+                color =
+                    if (isDebit) {
+                        MaterialTheme.financialColors.textPrimary
+                    } else {
+                        MaterialTheme.financialColors.limeAccent
+                    },
             )
             Text(
                 text = relativeDate,

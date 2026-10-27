@@ -4,6 +4,7 @@
     <string name="navigate_up">Back</string>
     <string name="low_confidence_hint">Low confidence parse</string>
     <string name="row_needs_review">Needs review</string>
+    <string name="row_not_counted">Not counted</string>
     <string name="row_default_subtitle">Transaction</string>
     <string name="review_title">Review Transactions</string>
     <string name="review_progress">%1$d of %2$d</string>

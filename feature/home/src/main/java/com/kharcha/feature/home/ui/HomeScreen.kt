@@ -43,6 +43,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -186,14 +188,21 @@ fun HomeScreen(
     val unknownSpend =
         remember(currentMonthTransactions) {
             currentMonthTransactions
-                .filter { it.type == TransactionType.Expense && (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed) }
+                .filter {
+                    it.type == TransactionType.Expense &&
+                        (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed)
+                }
                 .sumOf { it.amount }
         }
 
     val topSpendCategories =
         remember(currentMonthTransactions) {
             currentMonthTransactions
-                .filter { it.type == TransactionType.Expense && it.categorySource != "Unknown" && it.categorySource != "Other" }
+                .filter {
+                    it.type == TransactionType.Expense &&
+                        it.categorySource != "Unknown" &&
+                        it.categorySource != "Other"
+                }
                 .groupBy { it.categorySource ?: "Others" }
                 .mapValues { entry -> entry.value.sumOf { it.amount } }
                 .toList()
@@ -754,7 +763,10 @@ fun HomeScreen(
                                                         },
                                                     border =
                                                         if (!isReminderSet) {
-                                                            BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider)
+                                                            BorderStroke(
+                                                                1.dp,
+                                                                MaterialTheme.financialColors.hairlineDivider,
+                                                            )
                                                         } else {
                                                             null
                                                         },
@@ -785,7 +797,10 @@ fun HomeScreen(
                                                         },
                                                     border =
                                                         if (!isReminderSet) {
-                                                            BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider)
+                                                            BorderStroke(
+                                                                1.dp,
+                                                                MaterialTheme.financialColors.hairlineDivider,
+                                                            )
                                                         } else {
                                                             null
                                                         },
@@ -797,7 +812,12 @@ fun HomeScreen(
                                                     Text(
                                                         text = stringResource(id = R.string.home_dues_yes),
                                                         style = MaterialTheme.typography.labelSmall,
-                                                        fontWeight = if (isReminderSet) FontWeight.Bold else FontWeight.Normal,
+                                                        fontWeight =
+                                                            if (isReminderSet) {
+                                                                FontWeight.Bold
+                                                            } else {
+                                                                FontWeight.Normal
+                                                            },
                                                         color =
                                                             if (isReminderSet) {
                                                                 Color.Black
@@ -1165,13 +1185,27 @@ fun HomeTransactionRow(
             ?: stringResource(id = DesignR.string.unknown_merchant)
 
     val category = transaction.categorySource ?: "Others"
+    val isCounted =
+        transaction.type == TransactionType.Expense ||
+            transaction.type == TransactionType.Income
 
-    Row(
-        modifier =
+    val rowModifier =
+        if (!isCounted) {
             modifier
                 .fillMaxWidth()
                 .clickable { onClick() }
-                .padding(vertical = 12.dp),
+                .alpha(0.45f)
+                .blur(1.dp)
+                .padding(vertical = 12.dp)
+        } else {
+            modifier
+                .fillMaxWidth()
+                .clickable { onClick() }
+                .padding(vertical = 12.dp)
+        }
+
+    Row(
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CategoryBadge(

@@ -153,4 +153,76 @@ class MoreScreenTest {
         assertTrue(expenseAccountIds.contains(1L))
         assertFalse(expenseAccountIds.contains(2L))
     }
+
+    @Test
+    fun testEyeIconToggleIsCountedAsExpense() {
+        val account = com.kharcha.core.model.Account(
+            id = 10L,
+            name = "ICICI Bank",
+            bankName = "ICICI",
+            last4 = "4321",
+            type = com.kharcha.core.model.AccountType.Savings,
+            isCountedAsExpense = true,
+        )
+
+        val toggledOff = account.copy(isCountedAsExpense = !account.isCountedAsExpense)
+        assertFalse(toggledOff.isCountedAsExpense)
+
+        val toggledBackOn = toggledOff.copy(isCountedAsExpense = !toggledOff.isCountedAsExpense)
+        assertTrue(toggledBackOn.isCountedAsExpense)
+    }
+
+    @Test
+    fun testLinkedAccountsPageFiltersOnlyPrimaryWithSubAccounts() {
+        val primaryWithSub = com.kharcha.core.model.Account(
+            id = 1L,
+            name = "HDFC Savings",
+            bankName = "HDFC",
+            last4 = "1999",
+            type = com.kharcha.core.model.AccountType.Savings,
+        )
+        val linkedCard1 = com.kharcha.core.model.Account(
+            id = 2L,
+            name = "HDFC Regalia",
+            bankName = "HDFC",
+            last4 = "8888",
+            type = com.kharcha.core.model.AccountType.CreditCard,
+            linkedPrimaryAccountId = 1L,
+        )
+        val linkedCard2 = com.kharcha.core.model.Account(
+            id = 3L,
+            name = "HDFC Millennia",
+            bankName = "HDFC",
+            last4 = "7777",
+            type = com.kharcha.core.model.AccountType.CreditCard,
+            linkedPrimaryAccountId = 1L,
+        )
+        val standalonePrimary = com.kharcha.core.model.Account(
+            id = 4L,
+            name = "SBI Savings",
+            bankName = "SBI",
+            last4 = "3333",
+            type = com.kharcha.core.model.AccountType.Savings,
+        )
+
+        val allAccounts = listOf(primaryWithSub, linkedCard1, linkedCard2, standalonePrimary)
+
+        // Filter only primary accounts that have linked sub accounts
+        val linkedPrimaries = allAccounts.filter { primary ->
+            allAccounts.any { it.linkedPrimaryAccountId == primary.id }
+        }
+
+        assertEquals(1, linkedPrimaries.size)
+        assertEquals(1L, linkedPrimaries.first().id)
+
+        // Sub accounts in tree structure
+        val subAccounts = allAccounts.filter { it.linkedPrimaryAccountId == linkedPrimaries.first().id }
+        assertEquals(2, subAccounts.size)
+        assertTrue(subAccounts.any { it.id == 2L })
+        assertTrue(subAccounts.any { it.id == 3L })
+
+        // When unlinking linkedCard2:
+        val remainingSubIds = subAccounts.filter { it.id != 3L }.map { it.id }.toSet()
+        assertEquals(setOf(2L), remainingSubIds)
+    }
 }

@@ -253,7 +253,27 @@ fun TransactionsScreen(
 
     val filteredTransactions =
         remember(transactions, activeFilter) {
-            transactions.filter { TransactionFilterMatcher.matches(it, activeFilter) }
+            transactions.filter { txn ->
+                val baseMatches =
+                    TransactionFilterMatcher.matches(txn, activeFilter.copy(types = emptySet()))
+                if (!baseMatches) return@filter false
+
+                if (activeFilter.types.isEmpty()) {
+                    true
+                } else if (activeFilter.types == setOf(TransactionType.Expense)) {
+                    txn.type == TransactionType.Expense ||
+                        txn.type == TransactionType.Ignored ||
+                        txn.type == TransactionType.Transfer ||
+                        txn.type == TransactionType.Investment
+                } else if (activeFilter.types == setOf(TransactionType.Income)) {
+                    txn.type == TransactionType.Income ||
+                        txn.type == TransactionType.Refund ||
+                        txn.type == TransactionType.Transfer ||
+                        txn.type == TransactionType.Ignored
+                } else {
+                    activeFilter.types.contains(txn.type)
+                }
+            }
         }
 
     // Filter by selected month
@@ -768,7 +788,7 @@ fun TransactionsScreen(
                                 }
 
                                 item {
-                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Spacer(modifier = Modifier.height(80.dp))
                                 }
                             }
                         }

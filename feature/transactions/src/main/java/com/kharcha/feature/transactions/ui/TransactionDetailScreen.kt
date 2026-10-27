@@ -107,6 +107,8 @@ import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
+import com.kharcha.core.model.isCredit
 import com.kharcha.feature.transactions.R
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -150,11 +152,7 @@ fun TransactionDetailScreen(
             ?: transaction.merchantRaw
             ?: stringResource(id = R.string.detail_original_sms)
 
-    val isCreditTxn =
-        selectedType == TransactionType.Income ||
-            selectedType == TransactionType.Refund ||
-            transaction.type == TransactionType.Income ||
-            transaction.type == TransactionType.Refund
+    val isCreditTxn = selectedType.isCredit || transaction.type.isCredit
 
     val similarTransactions =
         remember(allTransactions, transaction, merchantName) {
@@ -450,8 +448,7 @@ fun TransactionDetailScreen(
                                 MoneyFormatter.formatMinorUnits(transaction.amount)
                             }
 
-                        val isCredit =
-                            selectedType == TransactionType.Income || selectedType == TransactionType.Refund
+                        val isCredit = selectedType.isCredit
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -607,68 +604,49 @@ fun TransactionDetailScreen(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 )
                             }
-                        } else if (isCreditTxn) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    text = stringResource(id = R.string.detail_account_income),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White,
-                                )
-                                Switch(
-                                    checked = selectedType == TransactionType.Income,
-                                    onCheckedChange = { isIncome ->
-                                        selectedType =
-                                            if (isIncome) {
-                                                TransactionType.Income
-                                            } else {
-                                                TransactionType.Refund
-                                            }
-                                        val msg =
-                                            if (isIncome) {
-                                                context.getString(R.string.detail_toast_counted_income)
-                                            } else {
-                                                context.getString(R.string.detail_toast_not_counted_income)
-                                            }
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
-                                    },
-                                    colors =
-                                        SwitchDefaults.colors(
-                                            checkedThumbColor = Color.White,
-                                            checkedTrackColor = MaterialTheme.financialColors.income,
-                                            uncheckedThumbColor = Color(0xFF9E9E9E),
-                                            uncheckedTrackColor = Color(0xFF2E2E2E),
-                                        ),
-                                )
-                            }
                         } else {
+                            val isCountedInTotals = selectedType.isCounted
+                            val countLabel =
+                                if (isCreditTxn) {
+                                    stringResource(id = R.string.detail_account_income)
+                                } else {
+                                    stringResource(id = R.string.detail_account_expense)
+                                }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Text(
-                                    text = stringResource(id = R.string.detail_account_expense),
+                                    text = countLabel,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.White,
                                 )
                                 Switch(
-                                    checked = selectedType == TransactionType.Expense,
-                                    onCheckedChange = { isExpense ->
+                                    checked = isCountedInTotals,
+                                    onCheckedChange = { countIt ->
                                         selectedType =
-                                            if (isExpense) {
-                                                TransactionType.Expense
-                                            } else {
-                                                TransactionType.Ignored
+                                            when {
+                                                isCreditTxn ->
+                                                    if (countIt) TransactionType.Income else TransactionType.Refund
+                                                else ->
+                                                    if (countIt) TransactionType.Expense else TransactionType.Ignored
                                             }
-                                        val msg =
-                                            if (isExpense) {
-                                                context.getString(R.string.detail_toast_counted_spends)
-                                            } else {
-                                                context.getString(R.string.detail_toast_not_counted_spends)
+                                        val msgRes =
+                                            when {
+                                                isCreditTxn ->
+                                                    if (countIt) {
+                                                        R.string.detail_toast_counted_income
+                                                    } else {
+                                                        R.string.detail_toast_not_counted_income
+                                                    }
+                                                else ->
+                                                    if (countIt) {
+                                                        R.string.detail_toast_counted_spends
+                                                    } else {
+                                                        R.string.detail_toast_not_counted_spends
+                                                    }
                                             }
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                        scope.launch { snackbarHostState.showSnackbar(context.getString(msgRes)) }
                                     },
                                     colors =
                                         SwitchDefaults.colors(
@@ -1398,7 +1376,14 @@ fun TransactionDetailScreen(
 
                         // Location Row (only displayed when location is present)
                         val txnLocation =
-                            remember(transaction.latitude, transaction.longitude, transaction.locationLabel, rawSms, noteText, merchantName) {
+                            remember(
+                                transaction.latitude,
+                                transaction.longitude,
+                                transaction.locationLabel,
+                                rawSms,
+                                noteText,
+                                merchantName,
+                            ) {
                                 LocationHelper.extractLocation(
                                     latitude = transaction.latitude,
                                     longitude = transaction.longitude,

@@ -412,24 +412,22 @@ fun EntityTransactionRow(
     val amountFormatted =
         if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(transaction.amount)
 
-    val isCounted =
-        transaction.type == TransactionType.Expense ||
-            transaction.type == TransactionType.Income
+    val isCounted = transaction.isCounted
 
     val rowModifier =
-        if (!isCounted) {
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .alpha(0.45f)
-                .blur(1.dp)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        } else {
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        }
+        modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .then(
+                if (!isCounted) {
+                    Modifier
+                        .alpha(0.45f)
+                        .blur(1.dp)
+                } else {
+                    Modifier
+                },
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp)
 
     Row(
         modifier = rowModifier,

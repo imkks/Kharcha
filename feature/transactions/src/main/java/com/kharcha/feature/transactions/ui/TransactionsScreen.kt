@@ -258,20 +258,13 @@ fun TransactionsScreen(
                     TransactionFilterMatcher.matches(txn, activeFilter.copy(types = emptySet()))
                 if (!baseMatches) return@filter false
 
-                if (activeFilter.types.isEmpty()) {
-                    true
-                } else if (activeFilter.types == setOf(TransactionType.Expense)) {
-                    txn.type == TransactionType.Expense ||
-                        txn.type == TransactionType.Ignored ||
-                        txn.type == TransactionType.Transfer ||
-                        txn.type == TransactionType.Investment
-                } else if (activeFilter.types == setOf(TransactionType.Income)) {
-                    txn.type == TransactionType.Income ||
-                        txn.type == TransactionType.Refund ||
-                        txn.type == TransactionType.Transfer ||
-                        txn.type == TransactionType.Ignored
-                } else {
-                    activeFilter.types.contains(txn.type)
+                when {
+                    activeFilter.types.isEmpty() -> true
+                    activeFilter.types == setOf(TransactionType.Expense) ->
+                        txn.type == TransactionType.Expense || !txn.isCounted
+                    activeFilter.types == setOf(TransactionType.Income) ->
+                        txn.type == TransactionType.Income || !txn.isCounted
+                    else -> activeFilter.types.contains(txn.type)
                 }
             }
         }

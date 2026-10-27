@@ -524,8 +524,9 @@ fun MoreScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
+                val primaryLabel = "${currentPrimary.name} - ${currentPrimary.last4 ?: "••••"}"
                 Text(
-                    text = stringResource(id = R.string.settings_link_accounts_dialog_desc, "${currentPrimary.name} - ${currentPrimary.last4 ?: "••••"}"),
+                    text = stringResource(id = R.string.settings_link_accounts_dialog_desc, primaryLabel),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.financialColors.textSecondary,
                 )
@@ -544,16 +545,34 @@ fun MoreScreen(
                     ) {
                         availablePrimaries.forEach { bankAcc ->
                             val isSelected = bankAcc.id == currentPrimary.id
+                            val bg =
+                                if (isSelected) {
+                                    MaterialTheme.financialColors.limeAccent
+                                } else {
+                                    MaterialTheme.financialColors.raisedRowBackground
+                                }
+                            val borderCol =
+                                if (isSelected) {
+                                    MaterialTheme.financialColors.limeAccent
+                                } else {
+                                    MaterialTheme.financialColors.hairlineDivider
+                                }
                             Surface(
                                 shape = CircleShape,
-                                color = if (isSelected) MaterialTheme.financialColors.limeAccent else MaterialTheme.financialColors.raisedRowBackground,
-                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.financialColors.limeAccent else MaterialTheme.financialColors.hairlineDivider),
+                                color = bg,
+                                border = BorderStroke(1.dp, borderCol),
                                 modifier = Modifier.clickable { currentPrimary = bankAcc },
                             ) {
+                                val textCol =
+                                    if (isSelected) {
+                                        MaterialTheme.financialColors.onLimeAccent
+                                    } else {
+                                        MaterialTheme.financialColors.textPrimary
+                                    }
                                 Text(
                                     text = "${bankAcc.name} (${bankAcc.last4 ?: "••••"})",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = if (isSelected) MaterialTheme.financialColors.onLimeAccent else MaterialTheme.financialColors.textPrimary,
+                                    color = textCol,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 )
                             }
@@ -653,14 +672,21 @@ fun MoreScreen(
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
+                                val isCc = candidate.type == AccountType.CreditCard
+                                val iconRes =
+                                    if (isCc) {
+                                        DesignR.drawable.ic_category_credit
+                                    } else {
+                                        DesignR.drawable.ic_bank
+                                    }
                                 Surface(
                                     modifier = Modifier.size(34.dp),
                                     shape = RoundedCornerShape(6.dp),
-                                    color = if (candidate.type == AccountType.CreditCard) Color(0xFF1E3A8A) else Color(0xFFC0392B),
+                                    color = if (isCc) Color(0xFF1E3A8A) else Color(0xFFC0392B),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
-                                            painter = painterResource(id = if (candidate.type == AccountType.CreditCard) DesignR.drawable.ic_category_credit else DesignR.drawable.ic_bank),
+                                            painter = painterResource(id = iconRes),
                                             contentDescription = null,
                                             tint = Color.White,
                                             modifier = Modifier.size(18.dp),
@@ -947,8 +973,9 @@ fun MoreScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
+                            val bankTitle = parentBank?.name ?: "Bank"
                             Text(
-                                text = stringResource(id = R.string.settings_linked_to_format, parentBank?.name ?: "Bank"),
+                                text = stringResource(id = R.string.settings_linked_to_format, bankTitle),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.White,
@@ -1222,7 +1249,11 @@ fun MoreScreen(
                             ),
                         shape = RoundedCornerShape(12.dp),
                     ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = stringResource(id = R.string.settings_add_account),
@@ -1285,7 +1316,12 @@ fun MoreScreen(
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = Color.White,
                                                 )
-                                                val parent = if (acc.linkedPrimaryAccountId != null) accounts.find { it.id == acc.linkedPrimaryAccountId } else null
+                                                val parent =
+                                                    if (acc.linkedPrimaryAccountId != null) {
+                                                        accounts.find { it.id == acc.linkedPrimaryAccountId }
+                                                    } else {
+                                                        null
+                                                    }
                                                 val linkedCount = accounts.count { it.linkedPrimaryAccountId == acc.id }
                                                 val linkTag = when {
                                                     parent != null -> " • Linked to ${parent.name}"
@@ -1797,7 +1833,8 @@ private fun CategoriesManagerSheet(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
-                                        contentDescription = stringResource(id = R.string.settings_delete_category_title),
+                                        contentDescription =
+                                            stringResource(id = R.string.settings_delete_category_title),
                                         tint = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.size(18.dp),
                                     )
@@ -2221,7 +2258,11 @@ private fun LinkAccountsScreenView(
                             ),
                             shape = RoundedCornerShape(12.dp),
                         ) {
-                            Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = stringResource(id = R.string.settings_link_new_account),
@@ -2278,7 +2319,11 @@ private fun LinkAccountsScreenView(
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
                                     color = MaterialTheme.financialColors.limeAccent.copy(alpha = 0.15f),
-                                    border = BorderStroke(1.dp, MaterialTheme.financialColors.limeAccent.copy(alpha = 0.3f)),
+                                    border =
+                                        BorderStroke(
+                                            1.dp,
+                                            MaterialTheme.financialColors.limeAccent.copy(alpha = 0.3f),
+                                        ),
                                 ) {
                                     Text(
                                         text = stringResource(

@@ -61,7 +61,8 @@ class AccountDetailTest {
         )
 
         val allAccounts = listOf(primary, creditCard, otherAccount)
-        val allAccountIds = (setOf(primary.id) + allAccounts.filter { it.linkedPrimaryAccountId == primary.id }.map { it.id }).toSet()
+        val linkedIds = allAccounts.filter { it.linkedPrimaryAccountId == primary.id }.map { it.id }
+        val allAccountIds = (setOf(primary.id) + linkedIds).toSet()
 
         val txns = listOf(
             createTxn(id = 1L, accountId = 10L, type = TransactionType.Expense, amount = 1500_00L),
@@ -94,10 +95,23 @@ class AccountDetailTest {
         val octYm = YearMonth.from(Instant.ofEpochMilli(oct2026Epoch).atZone(zoneId).toLocalDate())
         val sepYm = YearMonth.from(Instant.ofEpochMilli(sep2026Epoch).atZone(zoneId).toLocalDate())
 
-        val txns = listOf(
-            createTxn(id = 1L, accountId = 10L, type = TransactionType.Expense, amount = 1000_00L, dateTime = oct2026Epoch),
-            createTxn(id = 2L, accountId = 10L, type = TransactionType.Expense, amount = 2000_00L, dateTime = sep2026Epoch),
-        )
+        val txns =
+            listOf(
+                createTxn(
+                    id = 1L,
+                    accountId = 10L,
+                    type = TransactionType.Expense,
+                    amount = 1000_00L,
+                    dateTime = oct2026Epoch,
+                ),
+                createTxn(
+                    id = 2L,
+                    accountId = 10L,
+                    type = TransactionType.Expense,
+                    amount = 2000_00L,
+                    dateTime = sep2026Epoch,
+                ),
+            )
 
         val octTxns = txns.filter {
             YearMonth.from(Instant.ofEpochMilli(it.dateTime).atZone(zoneId).toLocalDate()) == octYm

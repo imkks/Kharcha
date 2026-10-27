@@ -269,7 +269,12 @@ fun AccountDetailScreen(
                         Icon(
                             painter = painterResource(id = DesignR.drawable.ic_calendar),
                             contentDescription = stringResource(id = R.string.transactions_action_filter),
-                            tint = if (currentFilter.isActive) MaterialTheme.financialColors.limeAccent else Color.White,
+                            tint =
+                                if (currentFilter.isActive) {
+                                    MaterialTheme.financialColors.limeAccent
+                                } else {
+                                    Color.White
+                                },
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -621,7 +626,10 @@ fun AccountDetailScreen(
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
                                                 Icon(
-                                                    painter = painterResource(id = DesignR.drawable.ic_category_shopping),
+                                                    painter =
+                                                        painterResource(
+                                                            id = DesignR.drawable.ic_category_shopping,
+                                                        ),
                                                     contentDescription = null,
                                                     tint = MaterialTheme.financialColors.limeAccent,
                                                     modifier = Modifier.size(18.dp),
@@ -906,7 +914,12 @@ fun AccountDetailScreen(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = if (account.isArchived) MaterialTheme.financialColors.limeAccent else MaterialTheme.financialColors.textSecondary,
+                        tint =
+                            if (account.isArchived) {
+                                MaterialTheme.financialColors.limeAccent
+                            } else {
+                                MaterialTheme.financialColors.textSecondary
+                            },
                         modifier = Modifier.size(20.dp),
                     )
                 }

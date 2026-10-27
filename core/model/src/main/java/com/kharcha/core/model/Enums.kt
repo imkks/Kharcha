@@ -37,3 +37,13 @@ enum class TimePeriod {
     LAST_MONTH,
     ALL_TIME,
 }
+
+val TransactionType.isCounted: Boolean
+    get() = this == TransactionType.Expense || this == TransactionType.Income
+
+val TransactionType.isCredit: Boolean
+    get() = this == TransactionType.Income || this == TransactionType.Refund
+
+val Transaction.isCounted: Boolean
+    get() = type.isCounted
+

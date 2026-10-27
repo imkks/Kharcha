@@ -38,18 +38,13 @@ fun AmountText(
     val color =
         when (type) {
             TransactionType.Income -> financialColors.income
-            TransactionType.Transfer -> financialColors.transfer
-            TransactionType.Refund -> financialColors.transfer
+            TransactionType.Transfer, TransactionType.Refund -> financialColors.transfer
             TransactionType.Ignored -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             else -> financialColors.expense
         }
 
     val textDecoration =
-        if (type == TransactionType.Ignored) {
-            TextDecoration.LineThrough
-        } else {
-            TextDecoration.None
-        }
+        if (type == TransactionType.Ignored) TextDecoration.LineThrough else TextDecoration.None
 
     Text(
         text = formatted,

@@ -1185,24 +1185,22 @@ fun HomeTransactionRow(
             ?: stringResource(id = DesignR.string.unknown_merchant)
 
     val category = transaction.categorySource ?: "Others"
-    val isCounted =
-        transaction.type == TransactionType.Expense ||
-            transaction.type == TransactionType.Income
+    val isCounted = transaction.isCounted
 
     val rowModifier =
-        if (!isCounted) {
-            modifier
-                .fillMaxWidth()
-                .clickable { onClick() }
-                .alpha(0.45f)
-                .blur(1.dp)
-                .padding(vertical = 12.dp)
-        } else {
-            modifier
-                .fillMaxWidth()
-                .clickable { onClick() }
-                .padding(vertical = 12.dp)
-        }
+        modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .then(
+                if (!isCounted) {
+                    Modifier
+                        .alpha(0.45f)
+                        .blur(1.dp)
+                } else {
+                    Modifier
+                },
+            )
+            .padding(vertical = 12.dp)
 
     Row(
         modifier = rowModifier,

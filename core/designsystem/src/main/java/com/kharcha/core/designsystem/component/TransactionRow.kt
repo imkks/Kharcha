@@ -51,9 +51,7 @@ fun TransactionRow(
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
 ) {
-    val isCounted =
-        transaction.type == TransactionType.Expense ||
-            transaction.type == TransactionType.Income
+    val isCounted = transaction.isCounted
 
     val merchantDisplay =
         transaction.merchantNormalised
@@ -90,25 +88,22 @@ fun TransactionRow(
         }
 
     val rowModifier =
-        if (!isCounted) {
-            modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongClick,
-                )
-                .alpha(0.45f)
-                .blur(1.dp)
-                .padding(vertical = 10.dp, horizontal = 4.dp)
-        } else {
-            modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongClick,
-                )
-                .padding(vertical = 10.dp, horizontal = 4.dp)
-        }
+        modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
+            .then(
+                if (!isCounted) {
+                    Modifier
+                        .alpha(0.45f)
+                        .blur(1.dp)
+                } else {
+                    Modifier
+                },
+            )
+            .padding(vertical = 10.dp, horizontal = 4.dp)
 
     Row(
         modifier = rowModifier,

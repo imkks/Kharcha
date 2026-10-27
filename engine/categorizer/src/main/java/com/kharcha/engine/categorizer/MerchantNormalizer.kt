@@ -28,6 +28,7 @@ object MerchantNormalizer {
     private val NOISE_WORDS =
         setOf(
             "PVT", "LTD", "PRIVATE", "LIMITED", "INC", "LLP", "CORP", "CORPORATION", "CO",
+            "LIM", "LIMI",
             "ORDER", "TXN", "TRANSACTION", "PAYMENT", "REF", "UPI", "VPA", "POS", "ECOM",
             "PAYU", "RAZORPAY", "BILLDESK", "CCAVENUE", "CASHFREE", "PINELABS", "JUSPAY",
             "ID",

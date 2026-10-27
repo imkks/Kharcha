@@ -43,6 +43,57 @@ class LayersTest {
         }
 
     @Test
+    fun testBundledMerchantDictionaryResolvesParentCorporateEntities() =
+        runBlocking {
+            val streamProvider = {
+                java.io.File("src/main/assets/merchant_dictionary.json").inputStream()
+            }
+            val layer = DictionaryLayer(streamProvider)
+
+            // 1. Zomato legal parent entity
+            val resEternal =
+                layer.categorize(
+                    CategorizationInput(46736L, "ETERNAL LIMITED", "CARD", null, TransactionType.Expense),
+                )
+            assertEquals("Food Delivery", resEternal?.categoryId)
+
+            // 2. Swiggy legal parent entity
+            val resBundl =
+                layer.categorize(
+                    CategorizationInput(71600L, "BUNDL TECHNOLOGIES PVT LT", "CARD", null, TransactionType.Expense),
+                )
+            assertEquals("Food Delivery", resBundl?.categoryId)
+
+            // 3. BigBasket legal parent entity
+            val resInnovative =
+                layer.categorize(
+                    CategorizationInput(15230L, "INNOVATIVE RETAIL CONCEPT", "UPI", null, TransactionType.Expense),
+                )
+            assertEquals("Groceries", resInnovative?.categoryId)
+
+            // 4. Third Wave Coffee legal parent entity
+            val resHeisetasse =
+                layer.categorize(
+                    CategorizationInput(37500L, "HEISETASSE BEVERAGES PVT", "UPI", null, TransactionType.Expense),
+                )
+            assertEquals("Coffee", resHeisetasse?.categoryId)
+
+            // 5. Office cafeteria
+            val resSmartQ =
+                layer.categorize(
+                    CategorizationInput(5400L, "SmartQ", "UPI", null, TransactionType.Expense),
+                )
+            assertEquals("Food & Dining", resSmartQ?.categoryId)
+
+            // 6. Investments
+            val resIccl =
+                layer.categorize(
+                    CategorizationInput(2500000L, "IndianClearingCorporation", "UPI", null, TransactionType.Expense),
+                )
+            assertEquals("Investments", resIccl?.categoryId)
+        }
+
+    @Test
     fun testHeuristicLayerMatchesChannel() =
         runBlocking {
             val layer = HeuristicLayer()

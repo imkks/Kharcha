@@ -256,10 +256,7 @@ object TransactionClassifierHelper {
         ) {
             return "Rewards"
         }
-        if (m.contains("@") || b.contains("upi") || b.contains("credit alert") ||
-            b.contains("transfer") || m.contains("skdheraj") || m.contains("satyajyoti") ||
-            m.contains("suprativ") || m.contains("imkks")
-        ) {
+        if (m.contains("@") || b.contains("upi") || b.contains("credit alert") || b.contains("transfer")) {
             return "A/C Transfer"
         }
         return "Credit"

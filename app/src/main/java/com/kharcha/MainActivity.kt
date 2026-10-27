@@ -410,6 +410,14 @@ fun MainAppShell(
                         currentDestination = AppDestination.TRANSACTIONS
                     },
                     onWeeklySummaryClick = { showWeeklySummaryScreen = true },
+                    onIncomeClick = {
+                        filterCategoryForTransactions = null
+                        transactionsFilter = TransactionFilter(types = setOf(TransactionType.Income))
+                        transactionsYearMonth = YearMonth.now()
+                        transactionsIsAllMonthsSelected = false
+                        transactionsSubTab = TransactionsSubTab.TRANSACTIONS
+                        currentDestination = AppDestination.TRANSACTIONS
+                    },
                     onSearchClick = { showSearchScreen = true },
                     onTagClick = { tag ->
                         transactionsFilter = TransactionFilter(query = tag)
@@ -602,6 +610,7 @@ fun BoxDestinationContent(
     onAddTransactionClick: () -> Unit = {},
     onTrendsClick: () -> Unit = {},
     onCategoriesClick: () -> Unit = {},
+    onIncomeClick: () -> Unit = {},
     onWeeklySummaryClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onTagClick: (String) -> Unit = {},
@@ -622,6 +631,7 @@ fun BoxDestinationContent(
                 accounts = accounts,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onSeeAllClick = onNavigateToTransactions,
+                onIncomeClick = onIncomeClick,
                 onReviewClick = onReviewClick,
                 onTransactionClick = onTransactionClick,
                 onCategoryClick = onCategoryClick,

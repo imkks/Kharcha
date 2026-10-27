@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -112,6 +113,7 @@ fun HomeScreen(
     monthlyBudgetMinor: Long = 0L,
     userName: String? = null,
     onSeeAllClick: () -> Unit = {},
+    onIncomeClick: () -> Unit = {},
     onReviewClick: () -> Unit = {},
     onTransactionClick: (Transaction) -> Unit = {},
     onCategoryClick: (String) -> Unit = {},
@@ -392,7 +394,12 @@ fun HomeScreen(
                     // Left Column: Income
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.weight(1f),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onIncomeClick() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                     ) {
                         Text(
                             text = stringResource(id = R.string.home_income_label),
@@ -400,17 +407,29 @@ fun HomeScreen(
                             color = MaterialTheme.financialColors.textSecondary,
                         )
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text =
-                                if (isPrivacy) {
-                                    "₹ ••••••"
-                                } else {
-                                    MoneyFormatter.formatMinorUnits(incomeThisMonth)
-                                },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.financialColors.textPrimary,
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            Text(
+                                text =
+                                    if (isPrivacy) {
+                                        "₹ ••••••"
+                                    } else {
+                                        MoneyFormatter.formatMinorUnits(incomeThisMonth)
+                                    },
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.financialColors.textPrimary,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.financialColors.textSecondary,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
                     }
 
                     VerticalDivider(
@@ -599,18 +618,34 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier.padding(16.dp),
                     ) {
-                        // Header: Title on left, pale-lime "+ Add" pill button on right
+                        // Header: Title on left with arrow button, pale-lime "+ Add" pill button on right
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                text = stringResource(id = R.string.home_recent_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.financialColors.textPrimary,
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier =
+                                    Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onSeeAllClick() }
+                                        .padding(vertical = 4.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.home_recent_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.financialColors.textPrimary,
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = stringResource(id = R.string.home_see_all),
+                                    tint = MaterialTheme.financialColors.textSecondary,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
                             Surface(
                                 shape = RoundedCornerShape(100.dp),
                                 color = MaterialTheme.financialColors.paleLimeAddButton,
@@ -643,6 +678,48 @@ fun HomeScreen(
                                     HorizontalDivider(
                                         thickness = 1.dp,
                                         color = MaterialTheme.financialColors.hairlineDivider,
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(
+                                thickness = 1.dp,
+                                color = MaterialTheme.financialColors.hairlineDivider,
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // "See all transactions" button with forward arrow
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.financialColors.cardBackground,
+                                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { onSeeAllClick() },
+                            ) {
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp, horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.home_see_all),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.financialColors.textPrimary,
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.financialColors.textPrimary,
+                                        modifier = Modifier.size(16.dp),
                                     )
                                 }
                             }

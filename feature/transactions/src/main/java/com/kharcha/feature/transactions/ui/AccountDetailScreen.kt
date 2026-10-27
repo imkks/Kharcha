@@ -145,6 +145,19 @@ fun AccountDetailScreen(
         accountTransactions.filter { TransactionFilterMatcher.matches(it, currentFilter) }
     }
 
+    val allMonthTransactions = remember(accountTransactions, selectedYearMonth, isAllMonthsSelected) {
+        if (isAllMonthsSelected) {
+            accountTransactions
+        } else {
+            accountTransactions.filter { txn ->
+                val date = Instant.ofEpochMilli(txn.dateTime)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                YearMonth.from(date) == selectedYearMonth
+            }
+        }
+    }
+
     val monthTransactions = remember(filteredTransactions, selectedYearMonth, isAllMonthsSelected) {
         if (isAllMonthsSelected) {
             filteredTransactions
@@ -158,14 +171,14 @@ fun AccountDetailScreen(
         }
     }
 
-    val monthExpensePaise = remember(monthTransactions) {
-        monthTransactions
+    val monthExpensePaise = remember(allMonthTransactions) {
+        allMonthTransactions
             .filter { it.type == TransactionType.Expense }
             .sumOf { it.amount }
     }
 
-    val monthIncomePaise = remember(monthTransactions) {
-        monthTransactions
+    val monthIncomePaise = remember(allMonthTransactions) {
+        allMonthTransactions
             .filter { it.type == TransactionType.Income }
             .sumOf { it.amount }
     }
@@ -379,21 +392,43 @@ fun AccountDetailScreen(
                                     horizontalArrangement = Arrangement.SpaceEvenly,
                                 ) {
                                     // Column 1: Income
+                                    val isIncomeSelected = currentFilter.types == setOf(TransactionType.Income)
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                currentFilter =
+                                                    if (isIncomeSelected) {
+                                                        currentFilter.copy(types = emptySet())
+                                                    } else {
+                                                        currentFilter.copy(types = setOf(TransactionType.Income))
+                                                    }
+                                            }
+                                            .padding(4.dp),
                                     ) {
                                         Text(
                                             text = stringResource(id = R.string.transactions_hero_income),
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.financialColors.textSecondary,
+                                            color =
+                                                if (isIncomeSelected) {
+                                                    MaterialTheme.financialColors.income
+                                                } else {
+                                                    MaterialTheme.financialColors.textSecondary
+                                                },
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = MoneyFormatter.formatMinorUnits(monthIncomePaise),
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color.White,
+                                            color =
+                                                if (isIncomeSelected) {
+                                                    MaterialTheme.financialColors.income
+                                                } else {
+                                                    Color.White
+                                                },
                                         )
                                     }
 

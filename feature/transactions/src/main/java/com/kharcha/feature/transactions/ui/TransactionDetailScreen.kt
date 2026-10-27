@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -210,13 +211,19 @@ fun TransactionDetailScreen(
     }
 
     val visitsCount =
-        remember(transaction, allTransactions) {
+        remember(transaction, allTransactions, merchantName) {
             if (allTransactions.isEmpty()) {
                 1
             } else {
-                allTransactions.count {
-                    it.merchantNormalised == transaction.merchantNormalised ||
-                        (it.merchantRaw != null && it.merchantRaw == transaction.merchantRaw)
+                val txnNorm = transaction.merchantNormalised
+                val txnRaw = transaction.merchantRaw
+                allTransactions.count { other ->
+                    val otherNorm = other.merchantNormalised
+                    val otherRaw = other.merchantRaw
+                    (txnNorm != null && otherNorm.equals(txnNorm, ignoreCase = true)) ||
+                        (txnRaw != null && otherRaw.equals(txnRaw, ignoreCase = true)) ||
+                        otherNorm.equals(merchantName, ignoreCase = true) ||
+                        (otherRaw != null && otherRaw.equals(merchantName, ignoreCase = true))
                 }.coerceAtLeast(1)
             }
         }
@@ -416,6 +423,12 @@ fun TransactionDetailScreen(
                                 shape = RoundedCornerShape(16.dp),
                                 color = MaterialTheme.financialColors.cardBackground.copy(alpha = 0.8f),
                                 border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                                modifier =
+                                    Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .clickable(enabled = onNavigateToMerchant != null) {
+                                            onNavigateToMerchant?.invoke(merchantName)
+                                        },
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -433,6 +446,12 @@ fun TransactionDetailScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(13.dp),
                                         tint = MaterialTheme.financialColors.income,
+                                    )
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(11.dp),
+                                        tint = MaterialTheme.financialColors.textSecondary,
                                     )
                                 }
                             }

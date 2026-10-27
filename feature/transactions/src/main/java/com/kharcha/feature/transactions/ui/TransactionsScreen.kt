@@ -264,7 +264,7 @@ fun TransactionsScreen(
                     activeFilter.types == setOf(TransactionType.Expense) ->
                         txn.type == TransactionType.Expense || !txn.isCounted
                     activeFilter.types == setOf(TransactionType.Income) ->
-                        txn.type == TransactionType.Income || !txn.isCounted
+                        txn.type == TransactionType.Income
                     else -> activeFilter.types.contains(txn.type)
                 }
             }
@@ -286,16 +286,35 @@ fun TransactionsScreen(
             }
         }
 
+    val monthAllTransactions =
+        remember(transactions, selectedYearMonth, isAllMonthsSelected, activeFilter) {
+            val baseFilter = activeFilter.copy(types = emptySet())
+            val matching = transactions.filter { txn ->
+                TransactionFilterMatcher.matches(txn, baseFilter)
+            }
+            if (isAllMonthsSelected) {
+                matching
+            } else {
+                matching.filter { txn ->
+                    val date =
+                        Instant.ofEpochMilli(txn.dateTime)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate()
+                    YearMonth.from(date) == selectedYearMonth
+                }
+            }
+        }
+
     val monthIncome =
-        remember(monthTransactions) {
-            monthTransactions
+        remember(monthAllTransactions) {
+            monthAllTransactions
                 .filter { it.type == TransactionType.Income }
                 .sumOf { it.amount }
         }
 
     val monthExpense =
-        remember(monthTransactions) {
-            monthTransactions
+        remember(monthAllTransactions) {
+            monthAllTransactions
                 .filter { it.type == TransactionType.Expense }
                 .sumOf { it.amount }
         }

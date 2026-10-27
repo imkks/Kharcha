@@ -92,8 +92,12 @@ fun EntityTransactionsScreen(
         remember(allTransactions, title, isMerchant) {
             if (isMerchant) {
                 allTransactions.filter { txn ->
-                    txn.merchantNormalised.equals(title, ignoreCase = true) ||
-                        txn.merchantRaw?.contains(title, ignoreCase = true) == true
+                    val norm = txn.merchantNormalised
+                    val raw = txn.merchantRaw
+                    norm.equals(title, ignoreCase = true) ||
+                        (norm != null && title.contains(norm, ignoreCase = true)) ||
+                        raw?.contains(title, ignoreCase = true) == true ||
+                        (raw != null && title.contains(raw, ignoreCase = true))
                 }
             } else {
                 allTransactions.filter { txn ->

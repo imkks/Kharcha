@@ -5,11 +5,33 @@ import com.kharcha.core.model.Direction
 import com.kharcha.core.model.TransactionType
 
 object TransactionClassifierHelper {
+    private val ACCOUNT_OR_CARD_NOISE_REGEX =
+        Regex(
+            "(?i)^(?:(?:(?:your|[A-Za-z]+)\\s+)?(?:[A-Za-z]+\\s+)*(?:credit\\s*card|debit\\s*card|card|cc)(?:\\s+ending|\\s+no\\.?|\\s+num|\\s*[*xX0-9]+|\\s*bil+)?.*|" +
+                "(?:card|cc)\\s*[*xX0-9]+.*|" +
+                ".*(?:autopay|mandate|billpay|credit card payment|credit card bil).*|" +
+                ".*(?:mobile number|secure digital banking).*|" +
+                "(?:HDFC|ICICI|SBI|AXIS|KOTAK|IDFC|PNB|BOB|UCO|YES|AMEX|CITI|RBL)\\s+CARD)$",
+        )
+
+    private val DATE_AT_REGEX = Regex("""(?i)^\d{1,2}-[A-Za-z0-9]{3}(?:-\d{2,4})?\s+at\s+(.+)$""")
+
     fun cleanMerchantDisplay(raw: String?, bank: String?, channel: String?): String {
         if (raw.isNullOrBlank()) {
             return if (!bank.isNullOrBlank()) "$bank ${channel ?: "Txn"}" else "Transaction"
         }
-        val withoutHandle = raw.substringBefore("@")
+        val trimmed = raw.trim()
+        if (trimmed.matches(ACCOUNT_OR_CARD_NOISE_REGEX)) {
+            return if (!bank.isNullOrBlank()) "$bank ${channel ?: "Card"}" else "Transaction"
+        }
+
+        var candidate = trimmed
+        val dateMatch = DATE_AT_REGEX.find(candidate)
+        if (dateMatch != null && dateMatch.groupValues[1].isNotBlank()) {
+            candidate = dateMatch.groupValues[1].trim()
+        }
+
+        val withoutHandle = candidate.substringBefore("@")
         val cleaned = withoutHandle.replace(Regex("[^a-zA-Z0-9 ]"), " ").trim()
         val words = cleaned.split(Regex("\\s+")).filter { it.isNotBlank() }
         val filtered =
@@ -57,8 +79,11 @@ object TransactionClassifierHelper {
                 "credited to card ending", "in your credit card account",
                 "towards sbi card", "towards hdfc card", "towards icici card",
                 "towards axis card", "towards onecard", "towards rbl card",
-                "towards kotak card", "sbi card payment", "hdfc card payment",
+                "towards kotak card", "sbi card payment", "hdfc card payment", "icici card payment",
                 "received towards", "payment received towards",
+                "paid towards card", "paid to card", "paid to credit card",
+                "bill paid for card", "card bill paid", "cc bill paid",
+                "auto debit towards card", "autodebit towards card",
             )
 
         val hasCardPhrase =
@@ -84,18 +109,21 @@ object TransactionClassifierHelper {
         if (body.isNullOrBlank()) return null
         val pattern =
             Regex(
-                """(?:towards|for|to)\s+(?:your\s+)?(?:[a-zA-Z]+\s+)?""" +
-                    """(?:credit\s+card|card|cc)\s*(?:ending|no\.?|number|ending with|ending in)?""" +
-                    """\s*(?:xx|x|\*)*(\d{4})""",
-                RegexOption.IGNORE_CASE,
+                """(?i)(?:towards|for|to|of)\s+(?:your\s+)?(?:[a-zA-Z]+\s+){0,3}(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
             )
         val match = pattern.find(body)
         if (match != null) return match.groupValues[1]
 
+        val autopayPattern =
+            Regex(
+                """(?i)\b(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b.*?(?:payment|bill|autodebit|auto-debit|autopay|paid)""",
+            )
+        val autopayMatch = autopayPattern.find(body)
+        if (autopayMatch != null) return autopayMatch.groupValues[1]
+
         val fallbackPattern =
             Regex(
-                """(?:credit\s+card|card)\s*(?:ending|no\.?|number|ending with|ending in)?\s*(?:xx|x|\*)*(\d{4})""",
-                RegexOption.IGNORE_CASE,
+                """(?i)(?:credit\s*card|card)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
             )
         return fallbackPattern.find(body)?.groupValues?.get(1)
     }
@@ -104,10 +132,16 @@ object TransactionClassifierHelper {
         if (body.isNullOrBlank()) return null
         val pattern =
             Regex(
-                """(?:from\s+)?(?:a/c|acct|account)\s*(?:no\.?|number)?\s*(?:xx|x|\*)*(\d{4})""",
-                RegexOption.IGNORE_CASE,
+                """(?i)(?:from|through|via|in)\s+(?:[a-zA-Z]+\s+){0,3}(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
             )
-        return pattern.find(body)?.groupValues?.get(1)
+        val match = pattern.find(body)
+        if (match != null) return match.groupValues[1]
+
+        val debitedPattern =
+            Regex(
+                """(?i)(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b\s*(?:has\s+been|is|was)?\s*debited""",
+            )
+        return debitedPattern.find(body)?.groupValues?.get(1)
     }
 
     fun isTransferNarrative(
@@ -126,8 +160,7 @@ object TransactionClassifierHelper {
                 b.contains("own account") || b.contains("own a/c") ||
                 b.contains("transfer between accounts") ||
                 b.contains("upi funds transfer") ||
-                m.contains("self transfer") || m.equals("transfer", ignoreCase = true) ||
-                m.contains("krishnasingh") || m.contains("imkks")
+                m.contains("self transfer") || m.equals("transfer", ignoreCase = true)
 
         // 2. Inter-account transfer pattern (e.g. "debited from a/c *1999 ... to a/c **0034")
         val isInterAccount =
@@ -253,10 +286,7 @@ object TransactionClassifierHelper {
         ) {
             return "Rewards"
         }
-        if (m.contains("@") || b.contains("upi") || b.contains("credit alert") ||
-            b.contains("transfer") || m.contains("skdheraj") || m.contains("satyajyoti") ||
-            m.contains("suprativ") || m.contains("imkks")
-        ) {
+        if (m.contains("@") || b.contains("upi") || b.contains("credit alert") || b.contains("transfer")) {
             return "A/C Transfer"
         }
         return "Credit"
@@ -270,7 +300,7 @@ object TransactionClassifierHelper {
                 m.contains("burger") || m.contains("subway") || m.contains("restaurant") ||
                 m.contains("hungerbox") || m.contains("hunger box") || m.contains("eatclub") ||
                 m.contains("district dining") || m.contains("nandini") ||
-                m.contains("annapurna") || m.contains("dakshith") || m.contains("foods") -> "Food & Dining"
+                m.contains("annapurna") || m.contains("foods") -> "Food & Dining"
 
             m.contains("blinkit") || m.contains("zepto") || m.contains("instamart") ||
                 m.contains("bigbasket") || m.contains("dmart") || m.contains("grocery") ||

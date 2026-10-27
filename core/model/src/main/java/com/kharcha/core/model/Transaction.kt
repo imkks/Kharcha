@@ -22,6 +22,9 @@ data class Transaction(
     val note: String? = null,
     val isReviewed: Boolean = false,
     val linkedTransactionId: Long? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val locationLabel: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
 )

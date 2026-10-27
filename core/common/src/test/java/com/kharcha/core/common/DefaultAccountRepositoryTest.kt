@@ -124,4 +124,37 @@ class DefaultAccountRepositoryTest {
             assertEquals("HDFC", account.bankName)
             assertEquals("9876", account.last4)
         }
+
+    @Test
+    fun normalizesMaskedPanWhenResolvingAccount() =
+        runTest(testDispatcher) {
+            val account =
+                repository.resolveOrCreateAccount(
+                    bankName = "ICICI",
+                    last4 = "4620XXXXXXXX6567",
+                    channel = Channel.CARD,
+                )
+
+            assertEquals(AccountType.CreditCard, account.type)
+            assertEquals("6567", account.last4)
+            assertEquals("ICICI Card ••6567", account.name)
+        }
+
+    @Test
+    fun extractsCardFromHdfcBankCardSpendBody() =
+        runTest(testDispatcher) {
+            val body = "Rs 1,499.00 spent on HDFC Bank Card 8302 At ASSPL on 24-10-24"
+            val account =
+                repository.resolveOrCreateAccount(
+                    bankName = null,
+                    last4 = null,
+                    channel = null,
+                    smsBody = body,
+                )
+
+            assertEquals(AccountType.CreditCard, account.type)
+            assertEquals("HDFC", account.bankName)
+            assertEquals("8302", account.last4)
+            assertEquals("HDFC Card ••8302", account.name)
+        }
 }

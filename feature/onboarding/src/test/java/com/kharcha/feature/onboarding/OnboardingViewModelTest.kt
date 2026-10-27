@@ -65,11 +65,25 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun onPermissionGrantedMovesToSetup() {
-        viewModel.onPermissionResult(true)
-        assertEquals(OnboardingState.SETUP, viewModel.uiState.value.currentState)
-        assertEquals(false, viewModel.uiState.value.isPermissionDenied)
-    }
+    fun onPermissionGrantedStartsImport() =
+        runTest(testDispatcher) {
+            coEvery { inboxReader.getSmsCount(any()) } returns 0
+            viewModel.onPermissionResult(true)
+            advanceUntilIdle()
+            assertEquals(OnboardingState.IMPORT_PROGRESS, viewModel.uiState.value.currentState)
+            assertEquals(false, viewModel.uiState.value.isPermissionDenied)
+            assertTrue(viewModel.uiState.value.isImportComplete)
+        }
+
+    @Test
+    fun onPermissionGrantedWithCustomWindowStartsImport() =
+        runTest(testDispatcher) {
+            coEvery { inboxReader.getSmsCount(any()) } returns 0
+            viewModel.onPermissionResult(true, "6 months")
+            advanceUntilIdle()
+            assertEquals(OnboardingState.IMPORT_PROGRESS, viewModel.uiState.value.currentState)
+            assertTrue(viewModel.uiState.value.isImportComplete)
+        }
 
     @Test
     fun onPermissionDeniedSetsFlag() {

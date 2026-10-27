@@ -157,6 +157,11 @@ class ImportWorker
                         )
                     }
                     setProgress(workDataOf("progress" to 1.0f, "processedCount" to processedCount))
+                    try {
+                        val allTxns = DefaultTransactionRepository.getInstance(applicationContext).getTransactionsSync()
+                        DefaultAccountRepository.getInstance(applicationContext).autoLinkAccounts(allTxns)
+                    } catch (_: Throwable) {
+                    }
                     Result.success()
                 } catch (e: Exception) {
                     Result.retry()

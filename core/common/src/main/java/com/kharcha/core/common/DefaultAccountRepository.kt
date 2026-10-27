@@ -26,7 +26,7 @@ class DefaultAccountRepository(
                     context.filesDir
                 } catch (_: Exception) {
                     null
-                } ?: File(System.getProperty("java.io.tmpdir", "."))
+                } ?: File(System.getProperty("java.io.tmpdir") ?: ".")
             return File(dir, "accounts.json")
         }
 
@@ -54,17 +54,23 @@ class DefaultAccountRepository(
             val currentList = _accounts.value.toMutableList()
 
             val isCardChannel = channel == Channel.CARD
+            val isBankChannel = channel == Channel.UPI || channel == Channel.NEFT ||
+                channel == Channel.IMPS || channel == Channel.ATM
             val hasCardText =
                 smsBody?.let { body ->
                     val b = body.lowercase()
-                    b.contains("credit card") || b.contains("card ending") ||
-                        b.contains("spent on card") || b.contains("towards your card") ||
-                        b.contains("towards credit card") || b.contains("in your credit card")
+                    (b.contains("credit card") || b.contains("card ending") ||
+                        b.contains("spent on card") || b.contains("in your credit card") ||
+                        b.contains("spent on hdfc bank card") || b.contains("spent on icici bank card") ||
+                        b.contains("spent using") || b.contains("card xx") || b.contains("card x")) &&
+                        !b.contains("towards credit card") && !b.contains("towards your credit card") &&
+                        !b.contains("towards card") && !b.contains("for credit card")
                 } == true
 
             val type =
                 when {
-                    isCardChannel || hasCardText -> AccountType.CreditCard
+                    isCardChannel -> AccountType.CreditCard
+                    !isBankChannel && hasCardText -> AccountType.CreditCard
                     channel == Channel.WALLET -> AccountType.Wallet
                     else -> AccountType.Savings
                 }
@@ -78,7 +84,16 @@ class DefaultAccountRepository(
 
             val resolvedLast4 =
                 when {
-                    !last4.isNullOrBlank() -> last4.trim()
+                    !last4.isNullOrBlank() -> {
+                        val digits = last4.filter { it.isDigit() }
+                        if (digits.length in 3..4) {
+                            digits
+                        } else if (digits.length > 4) {
+                            digits.takeLast(4)
+                        } else {
+                            last4.trim()
+                        }
+                    }
                     smsBody != null -> extractLast4FromText(smsBody, type)
                     else -> null
                 }
@@ -142,6 +157,20 @@ class DefaultAccountRepository(
                 updated
             } else {
                 val nextId = (currentList.maxOfOrNull { it.id } ?: 0L) + 1L
+
+                val autoLinkedPrimaryId =
+                    if (type == AccountType.CreditCard || type == AccountType.Wallet) {
+                        currentList.find { primary ->
+                            (primary.type == AccountType.Savings || primary.type == AccountType.Current) &&
+                                AccountAutoLinker.normalizeBank(primary.bankName)?.equals(
+                                    AccountAutoLinker.normalizeBank(resolvedBank),
+                                    ignoreCase = true,
+                                ) == true
+                        }?.id
+                    } else {
+                        null
+                    }
+
                 val newAccount =
                     Account(
                         id = nextId,
@@ -151,8 +180,25 @@ class DefaultAccountRepository(
                         type = type,
                         currentBalance = balanceMinor,
                         balanceUpdatedAt = if (balanceMinor != null) now else null,
+                        linkedPrimaryAccountId = autoLinkedPrimaryId,
                     )
                 currentList.add(newAccount)
+
+                if (type == AccountType.Savings || type == AccountType.Current) {
+                    for (i in currentList.indices) {
+                        val acc = currentList[i]
+                        if ((acc.type == AccountType.CreditCard || acc.type == AccountType.Wallet) &&
+                            acc.linkedPrimaryAccountId == null &&
+                            AccountAutoLinker.normalizeBank(acc.bankName)?.equals(
+                                AccountAutoLinker.normalizeBank(resolvedBank),
+                                ignoreCase = true,
+                            ) == true
+                        ) {
+                            currentList[i] = acc.copy(linkedPrimaryAccountId = newAccount.id)
+                        }
+                    }
+                }
+
                 _accounts.value = currentList
                 saveToDisk(currentList)
                 newAccount
@@ -163,11 +209,13 @@ class DefaultAccountRepository(
     override suspend fun saveAccount(account: Account) {
         withContext(ioDispatcher) {
             val currentList = _accounts.value.toMutableList()
-            val index = currentList.indexOfFirst { it.id == account.id }
+            val targetId = if (account.id == 0L) (currentList.maxOfOrNull { it.id } ?: 0L) + 1L else account.id
+            val finalAccount = if (account.id == 0L) account.copy(id = targetId) else account
+            val index = currentList.indexOfFirst { it.id == finalAccount.id }
             if (index != -1) {
-                currentList[index] = account
+                currentList[index] = finalAccount
             } else {
-                currentList.add(account)
+                currentList.add(finalAccount)
             }
             _accounts.value = currentList
             saveToDisk(currentList)
@@ -183,12 +231,44 @@ class DefaultAccountRepository(
         }
     }
 
+    override suspend fun autoLinkAccounts(
+        transactions: List<com.kharcha.core.model.Transaction>,
+        explicitlyUnlinkedIds: Set<Long>,
+    ) {
+        withContext(ioDispatcher) {
+            val current = _accounts.value
+            val updated = AccountAutoLinker.autoLinkAccounts(current, transactions, explicitlyUnlinkedIds)
+            if (updated != current) {
+                _accounts.value = updated
+                saveToDisk(updated)
+            }
+        }
+    }
+
+    override suspend fun linkSubAccounts(primaryAccountId: Long, linkedSubAccountIds: Set<Long>) {
+        withContext(ioDispatcher) {
+            val currentList = _accounts.value.toMutableList()
+            for (i in currentList.indices) {
+                val acc = currentList[i]
+                if (acc.id in linkedSubAccountIds) {
+                    currentList[i] = acc.copy(linkedPrimaryAccountId = primaryAccountId)
+                } else if (acc.linkedPrimaryAccountId == primaryAccountId && acc.id !in linkedSubAccountIds) {
+                    currentList[i] = acc.copy(linkedPrimaryAccountId = null)
+                }
+            }
+            _accounts.value = currentList
+            saveToDisk(currentList)
+        }
+    }
+
     private fun extractBankFromText(body: String): String? {
         val banks =
             listOf(
                 "HDFC", "SBI", "ICICI", "AXIS", "KOTAK", "IDFC",
                 "PNB", "BOB", "CANARA", "INDUSIND", "YES", "AMEX",
-                "CITI", "RBL", "SCB", "FEDERAL",
+                "CITI", "RBL", "SCB", "FEDERAL", "STANDARD CHARTERED",
+                "HSBC", "BARODA", "UNION", "UCO", "BANDHAN", "AU",
+                "SLICE", "ONECARD", "JUPITER", "FI", "PAYTM", "AIRTEL",
             )
         val upper = body.uppercase()
         return banks.firstOrNull { upper.contains(it) }
@@ -198,21 +278,22 @@ class DefaultAccountRepository(
         if (type == AccountType.CreditCard) {
             val cardRegex =
                 Regex(
-                    """(?:card|cc)\s*(?:ending|no\.?|number|ending with|ending in)?\s*(?:xx|x|\*)*(\d{4})""",
-                    RegexOption.IGNORE_CASE,
+                    """(?i)(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
                 )
             val match = cardRegex.find(body)
             if (match != null) return match.groupValues[1]
         }
         val acctRegex =
             Regex(
-                """(?:a/c|acct|account)\s*(?:no\.?|number)?\s*(?:xx|x|\*)*(\d{4})""",
-                RegexOption.IGNORE_CASE,
+                """(?i)(?:a/c|acct|account|acc)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
             )
         val acctMatch = acctRegex.find(body)
         if (acctMatch != null) return acctMatch.groupValues[1]
 
-        val fallback = Regex("""(?:\*{2,}|x{2,}|xx)(\d{4})""", RegexOption.IGNORE_CASE)
+        val maskedMatch = Regex("""\b(?:\d{2,9})?[xX*]{1,12}(\d{3,4})\b""").find(body)
+        if (maskedMatch != null) return maskedMatch.groupValues[1]
+
+        val fallback = Regex("""(?:\*{2,}|x{2,}|xx)(\d{3,4})""", RegexOption.IGNORE_CASE)
         return fallback.find(body)?.groupValues?.get(1)
     }
 
@@ -228,7 +309,11 @@ class DefaultAccountRepository(
                 val obj = jsonArray.getJSONObject(i)
                 list.add(jsonToAccount(obj))
             }
-            _accounts.value = list
+            val autoLinked = AccountAutoLinker.autoLinkAccounts(list)
+            _accounts.value = autoLinked
+            if (autoLinked != list) {
+                saveToDisk(autoLinked)
+            }
         } catch (_: Exception) {
             // Keep empty list if corrupted
         }
@@ -257,6 +342,8 @@ class DefaultAccountRepository(
         account.currentBalance?.let { obj.put("currentBalance", it) }
         account.balanceUpdatedAt?.let { obj.put("balanceUpdatedAt", it) }
         obj.put("isArchived", account.isArchived)
+        obj.put("isCountedAsExpense", account.isCountedAsExpense)
+        account.linkedPrimaryAccountId?.let { obj.put("linkedPrimaryAccountId", it) }
         return obj
     }
 
@@ -284,6 +371,13 @@ class DefaultAccountRepository(
                 null
             }
 
+        val linkedPrimary =
+            if (json.has("linkedPrimaryAccountId") && !json.isNull("linkedPrimaryAccountId")) {
+                json.getLong("linkedPrimaryAccountId")
+            } else {
+                null
+            }
+
         return Account(
             id = json.optLong("id"),
             name = json.optString("name", "Account"),
@@ -293,6 +387,8 @@ class DefaultAccountRepository(
             currentBalance = bal,
             balanceUpdatedAt = updated,
             isArchived = json.optBoolean("isArchived", false),
+            isCountedAsExpense = json.optBoolean("isCountedAsExpense", true),
+            linkedPrimaryAccountId = linkedPrimary,
         )
     }
 

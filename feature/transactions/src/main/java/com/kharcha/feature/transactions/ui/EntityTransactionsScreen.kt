@@ -1,5 +1,6 @@
 package com.kharcha.feature.transactions.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -54,9 +56,11 @@ import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 import java.time.Instant
 import java.time.LocalDate
@@ -88,8 +92,12 @@ fun EntityTransactionsScreen(
         remember(allTransactions, title, isMerchant) {
             if (isMerchant) {
                 allTransactions.filter { txn ->
-                    txn.merchantNormalised.equals(title, ignoreCase = true) ||
-                        txn.merchantRaw?.contains(title, ignoreCase = true) == true
+                    val norm = txn.merchantNormalised
+                    val raw = txn.merchantRaw
+                    norm.equals(title, ignoreCase = true) ||
+                        (norm != null && title.contains(norm, ignoreCase = true)) ||
+                        raw?.contains(title, ignoreCase = true) == true ||
+                        (raw != null && title.contains(raw, ignoreCase = true))
                 }
             } else {
                 allTransactions.filter { txn ->
@@ -137,6 +145,7 @@ fun EntityTransactionsScreen(
         }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -145,13 +154,14 @@ fun EntityTransactionsScreen(
                             text = title,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
+                            color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = Color(0xFF9E9E9E),
                         )
                     }
                 },
@@ -160,12 +170,13 @@ fun EntityTransactionsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(id = DesignR.string.txn_detail_close),
+                            tint = Color.White,
                         )
                     }
                 },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = MaterialTheme.colorScheme.background,
                     ),
             )
         },
@@ -205,6 +216,7 @@ fun EntityTransactionsScreen(
                                 text = stringResource(id = R.string.entity_screen_empty_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -215,7 +227,7 @@ fun EntityTransactionsScreen(
                                         subtitle,
                                     ),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = Color(0xFF9E9E9E),
                                 textAlign = TextAlign.Center,
                             )
                         }
@@ -229,12 +241,12 @@ fun EntityTransactionsScreen(
                         shape = RoundedCornerShape(20.dp),
                         colors =
                             CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                containerColor = MaterialTheme.financialColors.cardBackground,
                             ),
                         border =
-                            androidx.compose.foundation.BorderStroke(
+                            BorderStroke(
                                 1.dp,
-                                Color.White.copy(alpha = 0.06f),
+                                MaterialTheme.financialColors.hairlineDivider,
                             ),
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -247,7 +259,7 @@ fun EntityTransactionsScreen(
                                 )
                                 if (index < filteredTransactions.size - 1) {
                                     HorizontalDivider(
-                                        color = Color.White.copy(alpha = 0.08f),
+                                        color = MaterialTheme.financialColors.hairlineDivider,
                                         modifier = Modifier.padding(horizontal = 16.dp),
                                     )
                                 }
@@ -290,7 +302,11 @@ fun EntityMonthlyBarChart(
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            if (isSelected) Color.White.copy(alpha = 0.08f) else Color.Transparent,
+                            if (isSelected) {
+                                MaterialTheme.financialColors.cardBackground.copy(alpha = 0.8f)
+                            } else {
+                                Color.Transparent
+                            },
                         )
                         .clickable { onSelectMonth(item.yearMonth) }
                         .padding(vertical = 8.dp, horizontal = 2.dp),
@@ -305,9 +321,9 @@ fun EntityMonthlyBarChart(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     color =
                         if (isSelected) {
-                            MaterialTheme.colorScheme.onSurface
+                            Color.White
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            Color(0xFF9E9E9E)
                         },
                     maxLines = 1,
                     textAlign = TextAlign.Center,
@@ -315,11 +331,11 @@ fun EntityMonthlyBarChart(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Vertical Blue Bar Pill
+                // Vertical Blue Bar Pill (#4B4FE6 / #7B7EF6)
                 Box(
                     modifier =
                         Modifier
-                            .width(18.dp)
+                            .width(20.dp)
                             .height(140.dp),
                     contentAlignment = Alignment.BottomCenter,
                 ) {
@@ -327,14 +343,16 @@ fun EntityMonthlyBarChart(
                     Box(
                         modifier =
                             Modifier
-                                .width(18.dp)
+                                .width(20.dp)
                                 .height(barHeight)
-                                .clip(RoundedCornerShape(9.dp))
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(
-                                    if (item.spendMinor > 0L) {
-                                        Color(0xFF4C6EF5)
+                                    if (isSelected) {
+                                        MaterialTheme.financialColors.chartBlueHighlight
+                                    } else if (item.spendMinor > 0L) {
+                                        MaterialTheme.financialColors.chartBlue
                                     } else {
-                                        Color(0xFF4C6EF5).copy(alpha = 0.15f)
+                                        MaterialTheme.financialColors.chartBlue.copy(alpha = 0.2f)
                                     },
                                 ),
                     )
@@ -350,9 +368,9 @@ fun EntityMonthlyBarChart(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                     color =
                         if (isSelected) {
-                            MaterialTheme.colorScheme.onSurface
+                            Color.White
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            Color(0xFF9E9E9E)
                         },
                     textAlign = TextAlign.Center,
                 )
@@ -398,12 +416,23 @@ fun EntityTransactionRow(
     val amountFormatted =
         if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(transaction.amount)
 
+    val isCounted = transaction.isCounted
+
+    val rowModifier =
+        modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .then(
+                if (!isCounted) {
+                    Modifier.alpha(0.72f)
+                } else {
+                    Modifier
+                },
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+
     Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Icon Badge
@@ -417,25 +446,45 @@ fun EntityTransactionRow(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF2C3248))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-            ) {
-                Text(
-                    text = tagText,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF8CA3D8),
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.financialColors.onlineTagBackground)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = tagText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.financialColors.onlineTagText,
+                    )
+                }
+                if (!isCounted) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.row_not_counted),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
 
@@ -448,13 +497,13 @@ fun EntityTransactionRow(
                     text = amountFormatted,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = Color.White,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = Color.White,
                     modifier = Modifier.size(14.dp),
                 )
             }
@@ -462,7 +511,7 @@ fun EntityTransactionRow(
             Text(
                 text = dateFormatted,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color(0xFF9E9E9E),
             )
         }
     }

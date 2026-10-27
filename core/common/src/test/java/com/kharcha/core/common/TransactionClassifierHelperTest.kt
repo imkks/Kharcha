@@ -58,6 +58,14 @@ class TransactionClassifierHelperTest {
         val sourceAcct = TransactionClassifierHelper.extractSourceAccountLast4(sms)
         assertEquals("9876", targetCard)
         assertEquals("1234", sourceAcct)
+
+        val maskedSms = "Rs 20,000 debited from a/c **2321 towards your Card 4620XXXXXXXX6567 payment"
+        assertEquals("6567", TransactionClassifierHelper.extractTargetCardLast4(maskedSms))
+        assertEquals("2321", TransactionClassifierHelper.extractSourceAccountLast4(maskedSms))
+
+        val autopaySms = "CC 000434155XXXXXX8302 Autopay executed for Rs 5,420 from Acct XXX098"
+        assertEquals("8302", TransactionClassifierHelper.extractTargetCardLast4(autopaySms))
+        assertEquals("098", TransactionClassifierHelper.extractSourceAccountLast4(autopaySms))
     }
 
     @Test
@@ -83,6 +91,20 @@ class TransactionClassifierHelperTest {
             channel = "UPI",
         )
         assertEquals("Swiggy", cleaned)
+
+        val cardNoiseCleaned = TransactionClassifierHelper.cleanMerchantDisplay(
+            raw = "IDFC FIRST Bank Credit Card XX5625",
+            bank = "IDFC",
+            channel = "CARD",
+        )
+        assertEquals("IDFC CARD", cardNoiseCleaned)
+
+        val datePrefixCleaned = TransactionClassifierHelper.cleanMerchantDisplay(
+            raw = "04-Oct-26 at GOOGLE STORE",
+            bank = "ICICI",
+            channel = "CARD",
+        )
+        assertEquals("Google Store", datePrefixCleaned)
     }
 
     @Test

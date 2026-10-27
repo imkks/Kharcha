@@ -9,4 +9,6 @@ data class Account(
     val currentBalance: Long? = null,
     val balanceUpdatedAt: Long? = null,
     val isArchived: Boolean = false,
+    val isCountedAsExpense: Boolean = true,
+    val linkedPrimaryAccountId: Long? = null,
 )

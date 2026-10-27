@@ -36,6 +36,8 @@ class DefaultTransactionRepository(
 
     override fun getTransactions(): Flow<List<Transaction>> = _transactions.asStateFlow()
 
+    override fun getTransactionsSync(): List<Transaction> = _transactions.value
+
     override suspend fun insertTransactions(transactions: List<Transaction>) {
         if (transactions.isEmpty()) return
         withContext(ioDispatcher) {
@@ -390,6 +392,9 @@ class DefaultTransactionRepository(
         obj.put("isReviewed", txn.isReviewed)
         txn.linkedTransactionId?.let { obj.put("linkedTransactionId", it) }
         txn.parseConfidence?.let { obj.put("parseConfidence", it.toDouble()) }
+        txn.latitude?.let { obj.put("latitude", it) }
+        txn.longitude?.let { obj.put("longitude", it) }
+        txn.locationLabel?.let { obj.put("locationLabel", it) }
         return obj
     }
 
@@ -455,6 +460,14 @@ class DefaultTransactionRepository(
             linkedTransactionId =
                 if (json.has("linkedTransactionId") && !json.isNull("linkedTransactionId")) {
                     json.getLong("linkedTransactionId")
+                } else {
+                    null
+                },
+            latitude = if (json.has("latitude") && !json.isNull("latitude")) json.getDouble("latitude") else null,
+            longitude = if (json.has("longitude") && !json.isNull("longitude")) json.getDouble("longitude") else null,
+            locationLabel =
+                if (json.has("locationLabel") && !json.isNull("locationLabel")) {
+                    json.getString("locationLabel")
                 } else {
                     null
                 },

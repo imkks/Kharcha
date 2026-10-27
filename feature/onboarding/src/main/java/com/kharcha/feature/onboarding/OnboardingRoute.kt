@@ -9,14 +9,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 
 enum class OnboardingState {
     WELCOME,
-    PRIVACY,
     PERMISSION,
-    SETUP,
     IMPORT_PROGRESS,
 }
 
@@ -27,35 +28,38 @@ fun OnboardingRoute(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var pendingImportWindow by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("90 days") }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
         ) { permissions ->
-            val isGranted = permissions.values.all { it }
-            viewModel.onPermissionResult(isGranted)
+            val hasSms =
+                permissions[Manifest.permission.READ_SMS] == true ||
+                    permissions[Manifest.permission.RECEIVE_SMS] == true
+            viewModel.onPermissionResult(hasSms, pendingImportWindow)
         }
 
     when (uiState.currentState) {
         OnboardingState.WELCOME -> {
-            WelcomeScreen(onGetStartedClick = { viewModel.moveToState(OnboardingState.PRIVACY) })
-        }
-        OnboardingState.PRIVACY -> {
-            PrivacyScreen(onContinueClick = { viewModel.moveToState(OnboardingState.PERMISSION) })
+            WelcomeScreen(
+                onGetStartedClick = { viewModel.moveToState(OnboardingState.PERMISSION) },
+            )
         }
         OnboardingState.PERMISSION -> {
             PermissionScreen(
-                onRequestPermission = {
+                onRequestPermission = { chosenWindow ->
+                    pendingImportWindow = chosenWindow
                     permissionLauncher.launch(
                         arrayOf(
                             Manifest.permission.READ_SMS,
                             Manifest.permission.RECEIVE_SMS,
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
                         ),
                     )
                 },
-                onUseManualMode = {
-                    viewModel.moveToState(OnboardingState.SETUP)
-                },
+                onUseManualMode = onOnboardingComplete,
                 onOpenSettings = {
                     val intent =
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -65,11 +69,6 @@ fun OnboardingRoute(
                 },
                 isDenied = uiState.isPermissionDenied,
             )
-        }
-        OnboardingState.SETUP -> {
-            SetupScreen(onStartImport = { window, storeRaw ->
-                viewModel.startImport(window, storeRaw)
-            })
         }
         OnboardingState.IMPORT_PROGRESS -> {
             ImportProgressScreen(

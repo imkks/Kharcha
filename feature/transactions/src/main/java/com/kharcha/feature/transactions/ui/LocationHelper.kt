@@ -35,14 +35,36 @@ object LocationHelper {
         )
 
     /**
-     * Extracts coordinates or location text from SMS body, user note, or merchant.
+     * Extracts coordinates or location text from stored coordinates/label, SMS body, or user note.
+     * Returns null if no location is present (so location row is omitted for older full scan SMS).
      */
     fun extractLocation(
-        rawSms: String?,
-        note: String?,
-        merchantName: String?,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        locationLabel: String? = null,
+        rawSms: String? = null,
+        note: String? = null,
+        merchantName: String? = null,
     ): TransactionLocation? {
-        // 1. Try finding explicit coordinates in note or SMS
+        // 1. Explicit coordinates stored on transaction (from real-time SMS capture)
+        if (latitude != null && longitude != null) {
+            val label =
+                locationLabel
+                    ?: merchantName
+                    ?: String.format(Locale.US, "%.4f, %.4f", latitude, longitude)
+            return TransactionLocation(
+                latitude = latitude,
+                longitude = longitude,
+                displayLabel = label,
+            )
+        }
+
+        // 2. Explicit location label stored on transaction
+        if (!locationLabel.isNullOrBlank()) {
+            return TransactionLocation(displayLabel = locationLabel)
+        }
+
+        // 3. Try finding explicit coordinates in note or SMS
         val noteCoords = extractCoordsFromText(note)
         if (noteCoords != null) {
             val label = merchantName ?: String.format(Locale.US, "%.4f, %.4f", noteCoords.first, noteCoords.second)
@@ -63,7 +85,7 @@ object LocationHelper {
             )
         }
 
-        // 2. Try extracting place from note (e.g. "at Indiranagar")
+        // 4. Try extracting place from note (e.g. "at Indiranagar")
         if (!note.isNullOrBlank()) {
             val placeMatcher = AT_PLACE_PATTERN.matcher(note)
             if (placeMatcher.find()) {
@@ -75,11 +97,7 @@ object LocationHelper {
             }
         }
 
-        // 3. Fallback to merchant name if present
-        if (!merchantName.isNullOrBlank() && merchantName.length > 2) {
-            return TransactionLocation(displayLabel = merchantName)
-        }
-
+        // 5. If no location data exists, return null so Location row is NOT shown
         return null
     }
 

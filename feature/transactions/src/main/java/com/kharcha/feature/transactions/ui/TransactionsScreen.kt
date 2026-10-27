@@ -89,6 +89,7 @@ import com.kharcha.core.common.TransactionSearchHelper
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.component.DonutChart
+import com.kharcha.core.designsystem.component.SpendRing
 import com.kharcha.core.designsystem.component.SwipeableTransactionRow
 import com.kharcha.core.designsystem.component.TwoColumnDonutChart
 import com.kharcha.core.designsystem.component.buildCategorySlices
@@ -101,6 +102,7 @@ import com.kharcha.core.model.ReviewStatusFilter
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 import java.time.Instant
 import java.time.LocalDate
@@ -252,7 +254,20 @@ fun TransactionsScreen(
 
     val filteredTransactions =
         remember(transactions, activeFilter) {
-            transactions.filter { TransactionFilterMatcher.matches(it, activeFilter) }
+            transactions.filter { txn ->
+                val baseMatches =
+                    TransactionFilterMatcher.matches(txn, activeFilter.copy(types = emptySet()))
+                if (!baseMatches) return@filter false
+
+                when {
+                    activeFilter.types.isEmpty() -> true
+                    activeFilter.types == setOf(TransactionType.Expense) ->
+                        txn.type == TransactionType.Expense || !txn.isCounted
+                    activeFilter.types == setOf(TransactionType.Income) ->
+                        txn.type == TransactionType.Income
+                    else -> activeFilter.types.contains(txn.type)
+                }
+            }
         }
 
     // Filter by selected month
@@ -271,16 +286,35 @@ fun TransactionsScreen(
             }
         }
 
+    val monthAllTransactions =
+        remember(transactions, selectedYearMonth, isAllMonthsSelected, activeFilter) {
+            val baseFilter = activeFilter.copy(types = emptySet())
+            val matching = transactions.filter { txn ->
+                TransactionFilterMatcher.matches(txn, baseFilter)
+            }
+            if (isAllMonthsSelected) {
+                matching
+            } else {
+                matching.filter { txn ->
+                    val date =
+                        Instant.ofEpochMilli(txn.dateTime)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate()
+                    YearMonth.from(date) == selectedYearMonth
+                }
+            }
+        }
+
     val monthIncome =
-        remember(monthTransactions) {
-            monthTransactions
+        remember(monthAllTransactions) {
+            monthAllTransactions
                 .filter { it.type == TransactionType.Income }
                 .sumOf { it.amount }
         }
 
     val monthExpense =
-        remember(monthTransactions) {
-            monthTransactions
+        remember(monthAllTransactions) {
+            monthAllTransactions
                 .filter { it.type == TransactionType.Expense }
                 .sumOf { it.amount }
         }
@@ -527,9 +561,9 @@ fun TransactionsScreen(
                                             brush =
                                                 Brush.horizontalGradient(
                                                     listOf(
-                                                        MaterialTheme.financialColors.income.copy(alpha = 0.5f),
-                                                        MaterialTheme.financialColors.income,
-                                                        MaterialTheme.financialColors.income.copy(alpha = 0.5f),
+                                                        MaterialTheme.financialColors.limeAccent.copy(alpha = 0.5f),
+                                                        MaterialTheme.financialColors.limeAccent,
+                                                        MaterialTheme.financialColors.limeAccent.copy(alpha = 0.5f),
                                                     ),
                                                 ),
                                         ),
@@ -551,9 +585,9 @@ fun TransactionsScreen(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color =
                                     if (isSelected) {
-                                        MaterialTheme.financialColors.income
+                                        MaterialTheme.financialColors.limeAccent
                                     } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                        MaterialTheme.financialColors.textSecondary
                                     },
                             )
                         },
@@ -572,7 +606,7 @@ fun TransactionsScreen(
                     TransactionsSubTab.TRANSACTIONS -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 24.dp),
+                            contentPadding = PaddingValues(bottom = 32.dp),
                         ) {
                             // Hero Month Circular Ring & Stats Overview (Scrolls with transaction list)
                             item {
@@ -764,6 +798,10 @@ fun TransactionsScreen(
                                             }
                                         }
                                     }
+                                }
+
+                                item {
+                                    Spacer(modifier = Modifier.height(80.dp))
                                 }
                             }
                         }
@@ -1006,55 +1044,12 @@ fun HeroMonthSummary(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Hero Circular Ring Gauge
-        Box(
-            modifier =
-                Modifier
-                    .size(176.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f))
-                    .border(
-                        width = if (isExpenseSelected) 3.dp else 8.dp,
-                        color =
-                            if (isExpenseSelected) {
-                                MaterialTheme.financialColors.expense
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerHigh
-                            },
-                        shape = CircleShape,
-                    )
-                    .clickable(enabled = onExpenseClick != null) { onExpenseClick?.invoke() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Icon(
-                    painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
-                    contentDescription = null,
-                    tint =
-                        if (isExpenseSelected) {
-                            MaterialTheme.financialColors.expense
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = expenseFormatted,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color =
-                        if (isExpenseSelected) {
-                            MaterialTheme.financialColors.expense
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
+        SpendRing(
+            spentMinor = totalExpenseMinor,
+            monthlyBudgetMinor = monthlyBudgetMinor,
+            size = 180.dp,
+            onClick = onExpenseClick,
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -1420,11 +1415,12 @@ fun CategoriesTabContent(
                     }
 
                 Card(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors =
                         CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            containerColor = MaterialTheme.financialColors.cardBackground,
                         ),
+                    border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
                     modifier =
                         Modifier
                             .fillMaxWidth()
@@ -1451,13 +1447,13 @@ fun CategoriesTabContent(
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = MaterialTheme.financialColors.textPrimary,
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = countText,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MaterialTheme.financialColors.textSecondary,
                                 )
                             }
                         }
@@ -1473,14 +1469,14 @@ fun CategoriesTabContent(
                                 text = amountFormatted,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = MaterialTheme.financialColors.textPrimary,
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = budgetActionText,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.financialColors.income,
+                                color = MaterialTheme.financialColors.limeAccent,
                                 modifier =
                                     Modifier.clickable {
                                         onSetCategoryBudgetClick(slice.categoryName)
@@ -1526,77 +1522,91 @@ fun MerchantsTabContent(
     } else {
         LazyColumn(
             modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-            items(topMerchants) { (merchant, amountMinor, count) ->
+            item {
                 Card(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors =
                         CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            containerColor = MaterialTheme.financialColors.cardBackground,
                         ),
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { onMerchantClick(merchant) },
+                    border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Box(
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        topMerchants.forEachIndexed { index, (merchant, amountMinor, count) ->
+                            Row(
                                 modifier =
                                     Modifier
-                                        .size(44.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                                contentAlignment = Alignment.Center,
+                                        .fillMaxWidth()
+                                        .clickable { onMerchantClick(merchant) }
+                                        .padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(
-                                    painter = painterResource(id = DesignR.drawable.ic_storefront),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(22.dp),
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    // Green rounded square icon
+                                    val iconBg = MaterialTheme.financialColors.limeAccent.copy(alpha = 0.15f)
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .size(42.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(iconBg),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = DesignR.drawable.ic_storefront),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.financialColors.limeAccent,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = merchant,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            color = MaterialTheme.financialColors.textPrimary,
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        val spendCountText =
+                                            if (count == 1) {
+                                                stringResource(id = R.string.transactions_spend_count_single)
+                                            } else {
+                                                stringResource(id = R.string.transactions_spends_count, count)
+                                            }
+                                        Text(
+                                            text = spendCountText,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.financialColors.textSecondary,
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                val formattedAmount =
+                                    if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(amountMinor)
+                                Text(
+                                    text = formattedAmount,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.financialColors.textPrimary,
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = merchant,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                val spendCountText =
-                                    if (count == 1) {
-                                        stringResource(id = R.string.transactions_spend_count_single)
-                                    } else {
-                                        stringResource(id = R.string.transactions_spends_count, count)
-                                    }
-                                Text(
-                                    text = spendCountText,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            if (index < topMerchants.lastIndex) {
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = MaterialTheme.financialColors.hairlineDivider,
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        val formattedAmount =
-                            if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(amountMinor)
-                        Text(
-                            text = formattedAmount,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.financialColors.expense,
-                        )
                     }
                 }
             }

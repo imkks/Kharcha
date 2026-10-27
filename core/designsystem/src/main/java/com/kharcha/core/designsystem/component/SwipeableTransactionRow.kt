@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,8 +43,8 @@ import com.kharcha.core.model.Transaction
 fun SwipeableTransactionRow(
     transaction: Transaction,
     onClick: () -> Unit,
-    onDelete: (Transaction) -> Unit,
-    onReview: (Transaction) -> Unit,
+    onDelete: (Transaction) -> Unit = {},
+    onReview: (Transaction) -> Unit = {},
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     isSelected: Boolean = false,
@@ -58,11 +57,7 @@ fun SwipeableTransactionRow(
         rememberSwipeToDismissBoxState(
             confirmValueChange = { dismissValue ->
                 when (dismissValue) {
-                    SwipeToDismissBoxValue.EndToStart -> {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onDelete(transaction)
-                        true
-                    }
+                    SwipeToDismissBoxValue.EndToStart -> false
                     SwipeToDismissBoxValue.StartToEnd -> {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onReview(transaction)
@@ -82,7 +77,7 @@ fun SwipeableTransactionRow(
     SwipeToDismissBox(
         state = dismissState,
         enableDismissFromStartToEnd = enableSwipe && !isSelectionMode && !transaction.isReviewed,
-        enableDismissFromEndToStart = enableSwipe && !isSelectionMode,
+        enableDismissFromEndToStart = false,
         modifier = modifier.fillMaxWidth(),
         backgroundContent = {
             val direction = dismissState.dismissDirection
@@ -91,8 +86,7 @@ fun SwipeableTransactionRow(
                 targetValue =
                     when (dismissState.targetValue) {
                         SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.financialColors.incomeContainer
-                        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.financialColors.expenseContainer
-                        SwipeToDismissBoxValue.Settled -> Color.Transparent
+                        else -> Color.Transparent
                     },
                 label = "SwipeBackgroundColor",
             )
@@ -123,26 +117,6 @@ fun SwipeableTransactionRow(
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.financialColors.income,
-                        )
-                    }
-                } else if (direction == SwipeToDismissBoxValue.EndToStart) {
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.swipe_action_delete),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.financialColors.expense,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(id = R.string.swipe_action_delete),
-                            tint = MaterialTheme.financialColors.expense,
-                            modifier = Modifier.size(24.dp),
                         )
                     }
                 }

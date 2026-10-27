@@ -17,10 +17,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -46,12 +50,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.MoneyFormatter
+import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.model.Account
 import com.kharcha.core.model.TimePeriod
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import java.time.YearMonth
 
 enum class InsightsTab(val labelRes: Int) {
     OVERVIEW(R.string.insights_tab_overview),
@@ -65,13 +72,47 @@ fun InsightsScreen(
     transactions: List<Transaction>,
     @Suppress("UNUSED_PARAMETER") onTransactionClick: (Transaction) -> Unit,
     modifier: Modifier = Modifier,
+    accounts: List<Account> = emptyList(),
     monthlyBudgetMinor: Long = 30_000_00L,
+    categoryBudgets: Map<String, Long> = emptyMap(),
     onUpdateMonthlyBudget: (Long) -> Unit = {},
+    onUpdateCategoryBudget: (String, Long) -> Unit = { _, _ -> },
     onCategoryClick: ((String) -> Unit)? = null,
     onMerchantClick: ((String) -> Unit)? = null,
+    onBack: () -> Unit = {},
+    onReviewMonthClick: (YearMonth) -> Unit = {},
 ) {
+    var showBudgetPlanner by rememberSaveable { mutableStateOf(false) }
+
+    if (showBudgetPlanner) {
+        BudgetPlannerScreen(
+            currentMonthlyBudgetMinor = monthlyBudgetMinor,
+            categoryBudgets = categoryBudgets,
+            onSaveBudgets = { overallMinor, map ->
+                onUpdateMonthlyBudget(overallMinor)
+                map.forEach { (cat, minor) -> onUpdateCategoryBudget(cat, minor) }
+            },
+            onBack = { showBudgetPlanner = false },
+        )
+        return
+    }
+
     var selectedTab by rememberSaveable { mutableStateOf(InsightsTab.OVERVIEW) }
     var selectedPeriod by rememberSaveable { mutableStateOf(TimePeriod.THIS_MONTH) }
+
+    if (selectedTab == InsightsTab.OVERVIEW) {
+        TrendsScreen(
+            transactions = transactions,
+            accounts = accounts,
+            monthlyBudgetMinor = monthlyBudgetMinor,
+            onBack = onBack,
+            onSetMonthlyBudgetClick = { showBudgetPlanner = true },
+            onReviewMonthClick = onReviewMonthClick,
+            onFilterClick = { selectedTab = InsightsTab.BUDGETS },
+            modifier = modifier,
+        )
+        return
+    }
 
     val periodTxns =
         remember(transactions, selectedPeriod) {
@@ -123,6 +164,14 @@ fun InsightsScreen(
             Column {
                 TopAppBar(
                     title = { Text(text = stringResource(id = R.string.insights_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = { selectedTab = InsightsTab.OVERVIEW }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(id = DesignR.string.navigate_up),
+                            )
+                        }
+                    },
                 )
                 TabRow(
                     selectedTabIndex = selectedTab.ordinal,

@@ -71,11 +71,11 @@ class GenericFallbackParser {
 
         if (direction == null) return null
 
-        val channel =
+        var channel =
             when {
                 bodyLower.contains("upi") || bodyLower.contains("vpa") -> Channel.UPI
                 bodyLower.contains("atm") -> Channel.ATM
-                bodyLower.contains("card") -> Channel.CARD
+                bodyLower.contains("card") || bodyLower.contains("cc") -> Channel.CARD
                 bodyLower.contains("neft") -> Channel.NEFT
                 bodyLower.contains("imps") -> Channel.IMPS
                 bodyLower.contains("rtgs") -> Channel.NEFT
@@ -84,12 +84,7 @@ class GenericFallbackParser {
                 else -> Channel.OTHER
             }
 
-        val last4 =
-            Regex("(?i)(?:a/c|acct|account|ac|card).*?(?:\\*+|x+|ending\\s*(?:with|in)?\\s*|[.\\- ]+)(\\d{3,4})\\b")
-                .find(bodyLower)?.groupValues?.get(1)
-                ?: Regex("(?i)\\b(?:ending|ending in|ending with)\\s*(\\d{3,4})\\b")
-                    .find(bodyLower)?.groupValues?.get(1)
-                ?: Regex("(?i)(?:a/c|acct|card)[\\s\\-x]*(\\d{4})\\b").find(bodyLower)?.groupValues?.get(1)
+        var last4 = CardAccountExtractionHelper.extractLast4(body)
 
         val upiMatch = Regex("(?i)\\b([a-zA-Z0-9.\\-_]+@[a-zA-Z0-9]+)\\b").find(body)
         val upiId = upiMatch?.groupValues?.get(1)
@@ -130,21 +125,23 @@ class GenericFallbackParser {
 
             for (m in merchantMatches) {
                 val candidate = m.groupValues[1].trim()
-                val isDate =
-                    candidate.matches(Regex("(?i)^\\d{1,2}[-/][A-Za-z0-9]{3}(?:[-/]\\d{2,4})?$")) ||
-                        candidate.matches(Regex("^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$"))
-                val isDigitsOnly = candidate.matches(Regex("^[0-9+\\- ]+$"))
-                val isAmount = candidate.matches(Regex("(?i)^(?:rs\\.?|inr|₹)?\\s*[\\d,.]+$"))
-                val isAccountOrCard =
-                    candidate.matches(
-                        Regex(
-                            "(?i)^(?:card|account|a/c|acct|credit\\s+card|debit\\s+card|" +
-                                "bank(?:\\s+card)?|icici\\s+bank(?:\\s+card)?)(?:\\s+.*)?$",
-                        ),
-                    )
-                if (!isDate && !isDigitsOnly && !isAmount && !isAccountOrCard) {
-                    merchantRaw = candidate
-                    break
+                val cleaned = CardAccountExtractionHelper.cleanCandidateMerchant(candidate) { cardLast4 ->
+                    if (last4 == null) {
+                        last4 = cardLast4
+                    }
+                    channel = Channel.CARD
+                }
+
+                if (cleaned != null) {
+                    val isDate =
+                        cleaned.matches(Regex("(?i)^\\d{1,2}[-/][A-Za-z0-9]{3}(?:[-/]\\d{2,4})?$")) ||
+                            cleaned.matches(Regex("^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$"))
+                    val isDigitsOnly = cleaned.matches(Regex("^[0-9+\\- ]+$"))
+                    val isAmount = cleaned.matches(Regex("(?i)^(?:rs\\.?|inr|₹)?\\s*[\\d,.]+$"))
+                    if (!isDate && !isDigitsOnly && !isAmount) {
+                        merchantRaw = cleaned
+                        break
+                    }
                 }
             }
         }
@@ -175,7 +172,7 @@ class GenericFallbackParser {
 
         merchantRaw = cleanMerchant(merchantRaw)
 
-        val bankName = extractBankName(sms.sender, body)
+        val bankName = CardAccountExtractionHelper.extractBankName(sms.sender, body)
 
         val confidence =
             when {
@@ -212,24 +209,9 @@ class GenericFallbackParser {
                 cleaned = cleaned.substring(p.length).trim()
             }
         }
-        return if (cleaned.length >= 2) cleaned else null
-    }
-
-    private fun extractBankName(sender: String, body: String): String? {
-        val s = sender.uppercase()
-        val b = body.uppercase()
-        return when {
-            s.contains("HDFC") || b.contains("HDFC") -> "HDFC"
-            s.contains("ICICI") || b.contains("ICICI") -> "ICICI"
-            s.contains("SBI") || b.contains("SBI") -> "SBI"
-            s.contains("AXIS") || b.contains("AXIS") -> "AXIS"
-            s.contains("KOTAK") || b.contains("KOTAK") -> "KOTAK"
-            s.contains("PNB") || b.contains("PNB") -> "PNB"
-            s.contains("BOB") || b.contains("BOB") -> "BOB"
-            s.contains("IDFC") || b.contains("IDFC") -> "IDFC"
-            s.contains("INDUS") || b.contains("INDUS") -> "INDUSIND"
-            s.contains("YES") || b.contains("YES BANK") -> "YES"
-            else -> null
+        if (CardAccountExtractionHelper.isAccountOrCardOrSystemNoise(cleaned)) {
+            return null
         }
+        return if (cleaned.length >= 2) cleaned else null
     }
 }

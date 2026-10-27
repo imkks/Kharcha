@@ -20,6 +20,20 @@ class CategoryIconHelperTest {
         assertEquals(R.drawable.ic_category_transfer, CategoryIconHelper.getCategoryIcon("Transfer"))
         assertEquals(R.drawable.ic_category_other, CategoryIconHelper.getCategoryIcon("Miscellaneous"))
         assertEquals(R.drawable.ic_category_other, CategoryIconHelper.getCategoryIcon(null))
+
+        // Dedicated Axio mappings
+        assertEquals(R.drawable.ic_category_fuel, CategoryIconHelper.getCategoryIcon("Fuel"))
+        assertEquals(R.drawable.ic_category_donation, CategoryIconHelper.getCategoryIcon("Donation"))
+        assertEquals(R.drawable.ic_category_emi, CategoryIconHelper.getCategoryIcon("EMI"))
+        assertEquals(R.drawable.ic_category_shared, CategoryIconHelper.getCategoryIcon("Shared"))
+        assertEquals(R.drawable.ic_category_business, CategoryIconHelper.getCategoryIcon("Business"))
+        assertEquals(R.drawable.ic_category_savings, CategoryIconHelper.getCategoryIcon("Interest"))
+        assertEquals(R.drawable.ic_bank, CategoryIconHelper.getCategoryIcon("Bank Deposit"))
+        assertEquals(R.drawable.ic_category_refund, CategoryIconHelper.getCategoryIcon("Refund"))
+        assertEquals(R.drawable.ic_category_recharge, CategoryIconHelper.getCategoryIcon("Recharge"))
+        assertEquals(R.drawable.ic_category_rewards, CategoryIconHelper.getCategoryIcon("Rewards"))
+        assertEquals(R.drawable.ic_category_reimbursement, CategoryIconHelper.getCategoryIcon("Reimbursement"))
+        assertEquals(R.drawable.ic_category_credit, CategoryIconHelper.getCategoryIcon("Credit"))
     }
 
     @Test

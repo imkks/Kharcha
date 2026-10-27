@@ -18,4 +18,9 @@ interface AccountRepository {
     ): Account
     suspend fun saveAccount(account: Account)
     suspend fun clearAccounts()
+    suspend fun autoLinkAccounts(
+        transactions: List<com.kharcha.core.model.Transaction> = emptyList(),
+        explicitlyUnlinkedIds: Set<Long> = emptySet(),
+    )
+    suspend fun linkSubAccounts(primaryAccountId: Long, linkedSubAccountIds: Set<Long>)
 }

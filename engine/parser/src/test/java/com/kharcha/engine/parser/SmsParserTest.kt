@@ -1119,4 +1119,62 @@ class SmsParserTest {
         assertEquals(Channel.CARD, txn.channel)
         assertEquals(Direction.CREDIT, txn.direction)
     }
+
+    @Test
+    fun testCardAndMerchantSplittingFallback() {
+        val sms =
+            RawSms(
+                id = 53,
+                sender = "VM-HDFCBK",
+                body = "Rs 1,499.00 spent on HDFC Bank Card 8302 At ASSPL on 24-10-24. Avl limit Rs 45,000.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(149900L, txn.amountMinor)
+        assertEquals("8302", txn.accountLast4)
+        assertEquals("ASSPL", txn.merchantRaw)
+        assertEquals("HDFC", txn.bankName)
+        assertEquals(Channel.CARD, txn.channel)
+    }
+
+    @Test
+    fun testMaskedPanCardExtractionFallback() {
+        val sms =
+            RawSms(
+                id = 54,
+                sender = "VM-ICICIB",
+                body = "INR 2,499.00 spent on your Card 4620XXXXXXXX6567 at AMAZONIN on 20-Oct-26.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(249900L, txn.amountMinor)
+        assertEquals("6567", txn.accountLast4)
+        assertEquals("AMAZONIN", txn.merchantRaw)
+        assertEquals(Channel.CARD, txn.channel)
+    }
+
+    @Test
+    fun testDatePrefixMerchantStrippedFallback() {
+        val sms =
+            RawSms(
+                id = 55,
+                sender = "VM-ICICIB",
+                body = "INR 1,299.00 spent on Card XX3006 on 04-Oct-26 at GOOGLE STORE.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(129900L, txn.amountMinor)
+        assertEquals("3006", txn.accountLast4)
+        assertEquals("GOOGLE STORE", txn.merchantRaw)
+        assertEquals(Channel.CARD, txn.channel)
+    }
 }

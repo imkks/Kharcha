@@ -1,5 +1,6 @@
 package com.kharcha.engine.parser
 
+import com.kharcha.core.model.Channel
 import com.kharcha.core.model.ParseResult
 import com.kharcha.core.model.ParsedTxn
 import com.kharcha.core.model.RawSms
@@ -47,18 +48,32 @@ class SmsParserImpl(
 
                     val dateTime = DateParser.parse(dateStr, timeStr, template.dateFormats, sms.receivedAt)
 
-                    val last4 =
+                    val rawLast4 =
                         try {
                             matchResult.groups["last4"]?.value
                         } catch (e: IllegalArgumentException) {
                             null
                         }
-                    val merchant =
+                    var normalizedLast4 = CardAccountExtractionHelper.extractLast4(rawLast4)
+
+                    val rawMerchant =
                         try {
                             matchResult.groups["merchant"]?.value
                         } catch (e: IllegalArgumentException) {
                             null
                         }
+                    var channel = template.channel
+                    var merchant = rawMerchant
+                    if (merchant != null) {
+                        merchant =
+                            CardAccountExtractionHelper.cleanCandidateMerchant(merchant) { cardLast4 ->
+                                if (normalizedLast4 == null) {
+                                    normalizedLast4 = cardLast4
+                                }
+                                channel = Channel.CARD
+                            }
+                    }
+
                     val balanceStr =
                         try {
                             matchResult.groups["balance"]?.value
@@ -86,10 +101,10 @@ class SmsParserImpl(
                             currency = "INR",
                             direction = template.direction,
                             dateTime = dateTime,
-                            accountLast4 = last4,
+                            accountLast4 = normalizedLast4,
                             bankName = template.bank,
                             merchantRaw = merchant ?: upiId,
-                            channel = template.channel,
+                            channel = channel,
                             balanceAfterMinor = balanceMinor,
                             refNumber = refNumber,
                             upiId = upiId,

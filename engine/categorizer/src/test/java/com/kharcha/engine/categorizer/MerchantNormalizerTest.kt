@@ -40,6 +40,37 @@ class MerchantNormalizerTest {
     fun testNormalizeStripsPaymentGatewayPrefixes() {
         assertEquals("SWIGGY", MerchantNormalizer.normalize("RSP*SWIGGY PVT"))
         assertEquals("OPTICK LABS", MerchantNormalizer.normalize("RAZ*Optick Labs Inc"))
+        assertEquals("MYNTRA", MerchantNormalizer.normalize("Cashfree*Myntra"))
+        assertEquals("SWIGGY FOOD", MerchantNormalizer.normalize("Payu*Swiggy Food"))
+        assertEquals("ZEPTO", MerchantNormalizer.normalize("PHP*Zepto"))
+        assertEquals("SWIGGY", MerchantNormalizer.normalize("PPSL*SWIGGY LIM"))
+    }
+
+    @Test
+    fun testNormalizeStripsBankNarrativePrefixes() {
+        assertEquals("COUNTRYDELIGHT", MerchantNormalizer.normalize("date 21Feb24 trf to COUNTRYDELIGHT"))
+        assertEquals("VIJETHA", MerchantNormalizer.normalize("08Jul23 transfer to VIJETHA"))
+        assertEquals("VJ82 MY HOME MANGALA", MerchantNormalizer.normalize("14-01-24 to VJ82 MY HOME MANGALA"))
+        assertEquals("GOOGLE STORE", MerchantNormalizer.normalize("04-Oct-26 at GOOGLE STORE"))
+        assertEquals("AMAZON", MerchantNormalizer.normalize("30-Jul-23 at AMAZON"))
+        assertEquals("SWIGGY", MerchantNormalizer.normalize("HDFC Bank Card 8302 At SWIGGY"))
+        assertEquals("CROMA", MerchantNormalizer.normalize("HDFC Bank Card x8302 at CROMA"))
+        assertEquals("BUNDL TECHNOLOG", MerchantNormalizer.normalize("20-Jul-24 at BUNDL TECHNOLOG"))
+        assertEquals("UNICORN INFOSOL", MerchantNormalizer.normalize("28-Apr-24 at UNICORN INFOSOL"))
+    }
+
+    @Test
+    fun testNormalizePreservesShortNumbersAndEmbeddedIdentifiers() {
+        assertEquals("VJ82 MY HOME MANGALA", MerchantNormalizer.normalize("VJ82 MY HOME MANGALA"))
+        assertEquals("VJ80 MY HOME MAN", MerchantNormalizer.normalize("VJ80 MY HOME MAN"))
+        assertEquals("MS 7 NINE", MerchantNormalizer.normalize("MS 7 NINE"))
+        assertEquals("PUMP 25 TS POLICE WELFARE", MerchantNormalizer.normalize("PUMP 25 TS POLICE WELFARE"))
+    }
+
+    @Test
+    fun testNormalizeCleansWebUrlDomains() {
+        assertEquals("SWIGGY", MerchantNormalizer.normalize("WWW SWIGGY COM"))
+        assertEquals("BIGBASKET", MerchantNormalizer.normalize("WWWBIGBASKETCOM"))
     }
 
     @Test

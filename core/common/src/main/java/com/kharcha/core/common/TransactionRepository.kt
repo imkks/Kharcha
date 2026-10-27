@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 interface TransactionRepository {
     fun getTransactions(): Flow<List<Transaction>>
 
+    fun getTransactionsSync(): List<Transaction> = emptyList()
+
     suspend fun insertTransactions(transactions: List<Transaction>)
 
     suspend fun insertTransaction(transaction: Transaction)

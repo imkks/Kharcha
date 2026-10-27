@@ -96,17 +96,21 @@ class OnboardingViewModel
             _uiState.update { it.copy(currentState = state) }
         }
 
-        fun onPermissionResult(isGranted: Boolean) {
+        fun onPermissionResult(
+            isGranted: Boolean,
+            window: String = "90 days",
+        ) {
             if (isGranted) {
-                _uiState.update { it.copy(currentState = OnboardingState.SETUP, isPermissionDenied = false) }
+                _uiState.update { it.copy(currentState = OnboardingState.IMPORT_PROGRESS, isPermissionDenied = false) }
+                startImport(window = window, storeRaw = false)
             } else {
                 _uiState.update { it.copy(isPermissionDenied = true) }
             }
         }
 
         fun startImport(
-            window: String,
-            storeRaw: Boolean,
+            window: String = "90 days",
+            storeRaw: Boolean = false,
         ) {
             _uiState.update {
                 it.copy(
@@ -241,7 +245,7 @@ class OnboardingViewModel
                                     refNumber = parsedTxn.refNumber,
                                     upiId = parsedTxn.upiId,
                                     balanceAfter = parsedTxn.balanceAfterMinor,
-                                    note = if (storeRaw) sms.body.trim() else null,
+                                    note = sms.body.trim(),
                                     parseConfidence = parsedTxn.confidence,
                                     isReviewed = isReviewed,
                                 )
@@ -268,6 +272,13 @@ class OnboardingViewModel
                         transactionCount = foundCount,
                         isImportComplete = true,
                     )
+                }
+
+                try {
+                    val accountRepo = accountRepository ?: DefaultAccountRepository.getInstance(context)
+                    val allTxns = transactionRepository.getTransactionsSync()
+                    accountRepo.autoLinkAccounts(allTxns)
+                } catch (_: Throwable) {
                 }
 
                 enqueueBackgroundWorker()

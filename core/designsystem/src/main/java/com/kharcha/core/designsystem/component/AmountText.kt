@@ -5,6 +5,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextDecoration
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.financialColors
@@ -37,14 +38,22 @@ fun AmountText(
     val color =
         when (type) {
             TransactionType.Income -> financialColors.income
-            TransactionType.Transfer -> financialColors.transfer
+            TransactionType.Transfer, TransactionType.Refund -> financialColors.transfer
+            TransactionType.Ignored -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             else -> financialColors.expense
         }
+
+    val textDecoration =
+        if (type == TransactionType.Ignored) TextDecoration.LineThrough else TextDecoration.None
 
     Text(
         text = formatted,
         color = color,
-        style = style.copy(fontFeatureSettings = "tnum"),
+        style =
+            style.copy(
+                fontFeatureSettings = "tnum",
+                textDecoration = textDecoration,
+            ),
         modifier = modifier,
     )
 }

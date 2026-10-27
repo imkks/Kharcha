@@ -54,17 +54,21 @@ class DefaultAccountRepository(
             val currentList = _accounts.value.toMutableList()
 
             val isCardChannel = channel == Channel.CARD
+            val isBankChannel = channel == Channel.UPI || channel == Channel.NEFT ||
+                channel == Channel.IMPS || channel == Channel.ATM
             val hasCardText =
                 smsBody?.let { body ->
                     val b = body.lowercase()
-                    b.contains("credit card") || b.contains("card ending") ||
-                        b.contains("spent on card") || b.contains("towards your card") ||
-                        b.contains("towards credit card") || b.contains("in your credit card")
+                    (b.contains("credit card") || b.contains("card ending") ||
+                        b.contains("spent on card") || b.contains("in your credit card")) &&
+                        !b.contains("towards credit card") && !b.contains("towards your credit card") &&
+                        !b.contains("towards card") && !b.contains("for credit card")
                 } == true
 
             val type =
                 when {
-                    isCardChannel || hasCardText -> AccountType.CreditCard
+                    isCardChannel -> AccountType.CreditCard
+                    !isBankChannel && hasCardText -> AccountType.CreditCard
                     channel == Channel.WALLET -> AccountType.Wallet
                     else -> AccountType.Savings
                 }
@@ -142,6 +146,20 @@ class DefaultAccountRepository(
                 updated
             } else {
                 val nextId = (currentList.maxOfOrNull { it.id } ?: 0L) + 1L
+
+                val autoLinkedPrimaryId =
+                    if (type == AccountType.CreditCard || type == AccountType.Wallet) {
+                        currentList.find { primary ->
+                            (primary.type == AccountType.Savings || primary.type == AccountType.Current) &&
+                                AccountAutoLinker.normalizeBank(primary.bankName)?.equals(
+                                    AccountAutoLinker.normalizeBank(resolvedBank),
+                                    ignoreCase = true,
+                                ) == true
+                        }?.id
+                    } else {
+                        null
+                    }
+
                 val newAccount =
                     Account(
                         id = nextId,
@@ -151,8 +169,25 @@ class DefaultAccountRepository(
                         type = type,
                         currentBalance = balanceMinor,
                         balanceUpdatedAt = if (balanceMinor != null) now else null,
+                        linkedPrimaryAccountId = autoLinkedPrimaryId,
                     )
                 currentList.add(newAccount)
+
+                if (type == AccountType.Savings || type == AccountType.Current) {
+                    for (i in currentList.indices) {
+                        val acc = currentList[i]
+                        if ((acc.type == AccountType.CreditCard || acc.type == AccountType.Wallet) &&
+                            acc.linkedPrimaryAccountId == null &&
+                            AccountAutoLinker.normalizeBank(acc.bankName)?.equals(
+                                AccountAutoLinker.normalizeBank(resolvedBank),
+                                ignoreCase = true,
+                            ) == true
+                        ) {
+                            currentList[i] = acc.copy(linkedPrimaryAccountId = newAccount.id)
+                        }
+                    }
+                }
+
                 _accounts.value = currentList
                 saveToDisk(currentList)
                 newAccount
@@ -182,6 +217,36 @@ class DefaultAccountRepository(
             if (file.exists()) {
                 file.delete()
             }
+        }
+    }
+
+    override suspend fun autoLinkAccounts(
+        transactions: List<com.kharcha.core.model.Transaction>,
+        explicitlyUnlinkedIds: Set<Long>,
+    ) {
+        withContext(ioDispatcher) {
+            val current = _accounts.value
+            val updated = AccountAutoLinker.autoLinkAccounts(current, transactions, explicitlyUnlinkedIds)
+            if (updated != current) {
+                _accounts.value = updated
+                saveToDisk(updated)
+            }
+        }
+    }
+
+    override suspend fun linkSubAccounts(primaryAccountId: Long, linkedSubAccountIds: Set<Long>) {
+        withContext(ioDispatcher) {
+            val currentList = _accounts.value.toMutableList()
+            for (i in currentList.indices) {
+                val acc = currentList[i]
+                if (acc.id in linkedSubAccountIds) {
+                    currentList[i] = acc.copy(linkedPrimaryAccountId = primaryAccountId)
+                } else if (acc.linkedPrimaryAccountId == primaryAccountId && acc.id !in linkedSubAccountIds) {
+                    currentList[i] = acc.copy(linkedPrimaryAccountId = null)
+                }
+            }
+            _accounts.value = currentList
+            saveToDisk(currentList)
         }
     }
 
@@ -230,7 +295,11 @@ class DefaultAccountRepository(
                 val obj = jsonArray.getJSONObject(i)
                 list.add(jsonToAccount(obj))
             }
-            _accounts.value = list
+            val autoLinked = AccountAutoLinker.autoLinkAccounts(list)
+            _accounts.value = autoLinked
+            if (autoLinked != list) {
+                saveToDisk(autoLinked)
+            }
         } catch (_: Exception) {
             // Keep empty list if corrupted
         }

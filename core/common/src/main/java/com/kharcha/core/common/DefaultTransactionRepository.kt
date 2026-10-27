@@ -36,6 +36,8 @@ class DefaultTransactionRepository(
 
     override fun getTransactions(): Flow<List<Transaction>> = _transactions.asStateFlow()
 
+    override fun getTransactionsSync(): List<Transaction> = _transactions.value
+
     override suspend fun insertTransactions(transactions: List<Transaction>) {
         if (transactions.isEmpty()) return
         withContext(ioDispatcher) {

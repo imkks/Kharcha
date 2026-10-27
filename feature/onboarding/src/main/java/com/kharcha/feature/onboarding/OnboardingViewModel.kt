@@ -245,7 +245,7 @@ class OnboardingViewModel
                                     refNumber = parsedTxn.refNumber,
                                     upiId = parsedTxn.upiId,
                                     balanceAfter = parsedTxn.balanceAfterMinor,
-                                    note = if (storeRaw) sms.body.trim() else null,
+                                    note = sms.body.trim(),
                                     parseConfidence = parsedTxn.confidence,
                                     isReviewed = isReviewed,
                                 )
@@ -272,6 +272,13 @@ class OnboardingViewModel
                         transactionCount = foundCount,
                         isImportComplete = true,
                     )
+                }
+
+                try {
+                    val accountRepo = accountRepository ?: DefaultAccountRepository.getInstance(context)
+                    val allTxns = transactionRepository.getTransactionsSync()
+                    accountRepo.autoLinkAccounts(allTxns)
+                } catch (_: Throwable) {
                 }
 
                 enqueueBackgroundWorker()

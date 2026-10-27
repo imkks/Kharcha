@@ -26,6 +26,8 @@ interface UserPreferences {
     fun getCustomCreditCategories(): Set<String>
     fun addCustomCreditCategory(category: String)
     fun removeCustomCreditCategory(category: String)
+    fun getUnlinkedAccountIds(): Set<Long>
+    fun setAccountUnlinked(accountId: Long, unlinked: Boolean)
     fun clear()
 }
 
@@ -204,6 +206,31 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         prefs.edit().putString(KEY_CATEGORY_BUDGETS, json.toString()).apply()
     }
 
+    override fun getUnlinkedAccountIds(): Set<Long> {
+        val raw = prefs.getString(KEY_UNLINKED_ACCOUNT_IDS, null) ?: return emptySet()
+        return try {
+            val jsonArray = org.json.JSONArray(raw)
+            val set = mutableSetOf<Long>()
+            for (i in 0 until jsonArray.length()) {
+                set.add(jsonArray.getLong(i))
+            }
+            set
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    override fun setAccountUnlinked(accountId: Long, unlinked: Boolean) {
+        val current = getUnlinkedAccountIds().toMutableSet()
+        if (unlinked) {
+            current.add(accountId)
+        } else {
+            current.remove(accountId)
+        }
+        val jsonArray = org.json.JSONArray(current.toList())
+        prefs.edit().putString(KEY_UNLINKED_ACCOUNT_IDS, jsonArray.toString()).apply()
+    }
+
     override fun clear() {
         prefs.edit().clear().apply()
     }
@@ -220,6 +247,7 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_CUSTOM_CREDIT_CATEGORIES = "key_custom_credit_categories_json"
         private const val KEY_LAUNCH_IN_MONEY_MANAGER = "key_launch_in_money_manager"
         private const val KEY_AUTO_TRANSFER_THRESHOLD = "key_auto_transfer_threshold"
+        private const val KEY_UNLINKED_ACCOUNT_IDS = "key_unlinked_account_ids_json"
         const val DEFAULT_BUDGET_PAISE: Long = 30_000_00L
     }
 }

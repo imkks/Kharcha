@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -80,6 +82,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.kharcha.core.common.AccountAutoLinker
 import com.kharcha.core.common.CsvExportHelper
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.UserPreferences
@@ -184,8 +187,13 @@ fun MoreScreen(
                 showLinkAccountsSheet = true
             },
             onLinkNewAccountClick = {
-                primaryAccountForLinking = accounts.firstOrNull { it.linkedPrimaryAccountId == null }
-                showLinkAccountsSheet = true
+                val primary = accounts.firstOrNull {
+                    (it.type == AccountType.Savings || it.type == AccountType.Current) && it.linkedPrimaryAccountId == null
+                } ?: accounts.firstOrNull { it.linkedPrimaryAccountId == null } ?: accounts.firstOrNull()
+                if (primary != null) {
+                    primaryAccountForLinking = primary
+                    showLinkAccountsSheet = true
+                }
             },
             onBack = { showLinkAccountsPage = false },
             modifier = modifier,
@@ -457,15 +465,21 @@ fun MoreScreen(
         var currentPrimary by remember(primaryAccountForLinking) { mutableStateOf(primaryAccountForLinking!!) }
         val availablePrimaries =
             remember(accounts) {
-                accounts.filter { it.linkedPrimaryAccountId == null }
+                val bankAccounts = accounts.filter {
+                    (it.type == AccountType.Savings || it.type == AccountType.Current) && it.linkedPrimaryAccountId == null
+                }
+                bankAccounts.ifEmpty { accounts.filter { it.linkedPrimaryAccountId == null } }
             }
         val candidateAccounts =
             remember(accounts, currentPrimary) {
+                val primaryBank = AccountAutoLinker.normalizeBank(currentPrimary.bankName)
+                    ?: AccountAutoLinker.extractBankFromName(currentPrimary.name)
                 accounts.filter { it.id != currentPrimary.id }
                     .sortedByDescending { candidate ->
-                        val isSameBank =
-                            candidate.bankName?.equals(currentPrimary.bankName, ignoreCase = true) == true ||
-                                candidate.name.contains(currentPrimary.bankName ?: "", ignoreCase = true)
+                        val candidateBank = AccountAutoLinker.normalizeBank(candidate.bankName)
+                            ?: AccountAutoLinker.extractBankFromName(candidate.name)
+                        val isSameBank = primaryBank != null && candidateBank != null &&
+                            primaryBank.equals(candidateBank, ignoreCase = true)
                         if (candidate.linkedPrimaryAccountId == currentPrimary.id) 2 else if (isSameBank) 1 else 0
                     }
             }
@@ -2167,6 +2181,28 @@ private fun LinkAccountsScreenView(
             accounts.any { it.linkedPrimaryAccountId == primary.id }
         }
     }
+    var expandedAccountIds by remember(linkedPrimaryAccounts) {
+        mutableStateOf(linkedPrimaryAccounts.map { it.id }.toSet())
+    }
+
+    val unlinkedSuggestions = remember(accounts, linkedPrimaryAccounts) {
+        val primaryBanks = accounts.filter {
+            (it.type == AccountType.Savings || it.type == AccountType.Current) && it.linkedPrimaryAccountId == null
+        }
+        val unlinkedCards = accounts.filter {
+            (it.type == AccountType.CreditCard || it.type == AccountType.Wallet) && it.linkedPrimaryAccountId == null
+        }
+        primaryBanks.mapNotNull { primary ->
+            val pBank = AccountAutoLinker.normalizeBank(primary.bankName)
+                ?: AccountAutoLinker.extractBankFromName(primary.name)
+            val matchingCards = unlinkedCards.filter { card ->
+                val cBank = AccountAutoLinker.normalizeBank(card.bankName)
+                    ?: AccountAutoLinker.extractBankFromName(card.name)
+                pBank != null && cBank != null && pBank.equals(cBank, ignoreCase = true)
+            }
+            if (matchingCards.isNotEmpty()) primary to matchingCards else null
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -2213,6 +2249,82 @@ private fun LinkAccountsScreenView(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (linkedPrimaryAccounts.isEmpty()) {
+                if (unlinkedSuggestions.isNotEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.financialColors.cardBackground,
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.financialColors.limeAccent.copy(alpha = 0.5f)),
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.financialColors.limeAccent,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(id = R.string.settings_auto_link_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Found matching cards for your bank accounts. Link them to group transactions under your primary account.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.financialColors.textSecondary,
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                unlinkedSuggestions.forEach { (primary, cards) ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = primary.name,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White,
+                                            )
+                                            Text(
+                                                text = "${cards.size} matching card(s): ${cards.joinToString { it.name }}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.financialColors.textSecondary,
+                                            )
+                                        }
+                                        Button(
+                                            onClick = {
+                                                onMergeAccounts?.invoke(primary.id, cards.map { it.id }.toSet())
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.financialColors.paleLimeAddButton,
+                                                contentColor = MaterialTheme.financialColors.onPaleLimeAddButton,
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                        ) {
+                                            Text(text = "Link", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 item {
                     Column(
                         modifier = Modifier
@@ -2274,6 +2386,7 @@ private fun LinkAccountsScreenView(
             } else {
                 items(linkedPrimaryAccounts, key = { it.id }) { primary ->
                     val linkedSubAccounts = accounts.filter { it.linkedPrimaryAccountId == primary.id }
+                    val isExpanded = expandedAccountIds.contains(primary.id)
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -2284,9 +2397,18 @@ private fun LinkAccountsScreenView(
                         border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            // Primary Account Header
+                            // Primary Account Header (Clickable to expand/collapse)
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        expandedAccountIds = if (isExpanded) {
+                                            expandedAccountIds - primary.id
+                                        } else {
+                                            expandedAccountIds + primary.id
+                                        }
+                                    },
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
@@ -2316,120 +2438,135 @@ private fun LinkAccountsScreenView(
                                     }
                                 }
 
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.financialColors.limeAccent.copy(alpha = 0.15f),
-                                    border =
-                                        BorderStroke(
-                                            1.dp,
-                                            MaterialTheme.financialColors.limeAccent.copy(alpha = 0.3f),
-                                        ),
-                                ) {
-                                    Text(
-                                        text = stringResource(
-                                            id = R.string.settings_sub_accounts_linked_format,
-                                            linkedSubAccounts.size,
-                                        ),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.financialColors.limeAccent,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Tree-like structure of linked sub-accounts
-                            linkedSubAccounts.forEach { sub ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f),
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.financialColors.limeAccent.copy(alpha = 0.15f),
+                                        border =
+                                            BorderStroke(
+                                                1.dp,
+                                                MaterialTheme.financialColors.limeAccent.copy(alpha = 0.3f),
+                                            ),
                                     ) {
                                         Text(
-                                            text = "└── ",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.financialColors.textSecondary,
-                                            modifier = Modifier.padding(start = 8.dp),
-                                        )
-                                        Icon(
-                                            painter = painterResource(
-                                                id = if (sub.type == AccountType.CreditCard) {
-                                                    DesignR.drawable.ic_channel_card
-                                                } else {
-                                                    DesignR.drawable.ic_channel_wallet
-                                                },
+                                            text = stringResource(
+                                                id = R.string.settings_sub_accounts_linked_format,
+                                                linkedSubAccounts.size,
                                             ),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.financialColors.limeAccent,
-                                            modifier = Modifier.size(18.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.financialColors.limeAccent,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Column {
-                                            Text(
-                                                text = sub.name,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium,
-                                                color = Color.White,
-                                            )
-                                            Text(
-                                                text = "${sub.bankName ?: ""} ••${sub.last4 ?: "----"}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.financialColors.textSecondary,
-                                            )
-                                        }
                                     }
-
-                                    Checkbox(
-                                        checked = true,
-                                        onCheckedChange = { checked ->
-                                            if (!checked) {
-                                                val remainingIds = linkedSubAccounts
-                                                    .filter { it.id != sub.id }
-                                                    .map { it.id }
-                                                    .toSet()
-                                                onMergeAccounts?.invoke(primary.id, remainingIds)
-                                            }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = if (isExpanded) {
+                                            Icons.Default.KeyboardArrowUp
+                                        } else {
+                                            Icons.Default.KeyboardArrowDown
                                         },
-                                        colors = CheckboxDefaults.colors(
-                                            checkedColor = MaterialTheme.financialColors.limeAccent,
-                                            checkmarkColor = MaterialTheme.financialColors.onLimeAccent,
-                                        ),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.financialColors.textSecondary,
+                                        modifier = Modifier.size(20.dp),
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            if (isExpanded) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onLinkAccountForPrimary(primary) }
-                                    .padding(vertical = 6.dp, horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.financialColors.limeAccent,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = stringResource(id = R.string.settings_link_more_cards),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.financialColors.limeAccent,
-                                )
+                                // Tree-like structure of linked sub-accounts
+                                linkedSubAccounts.forEach { sub ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f),
+                                        ) {
+                                            Text(
+                                                text = "└── ",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.financialColors.textSecondary,
+                                                modifier = Modifier.padding(start = 8.dp),
+                                            )
+                                            Icon(
+                                                painter = painterResource(
+                                                    id = if (sub.type == AccountType.CreditCard) {
+                                                        DesignR.drawable.ic_channel_card
+                                                    } else {
+                                                        DesignR.drawable.ic_channel_wallet
+                                                    },
+                                                ),
+                                                contentDescription = null,
+                                                tint = MaterialTheme.financialColors.limeAccent,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text(
+                                                    text = sub.name,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color.White,
+                                                )
+                                                Text(
+                                                    text = "${sub.bankName ?: ""} ••${sub.last4 ?: "----"}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.financialColors.textSecondary,
+                                                )
+                                            }
+                                        }
+
+                                        Checkbox(
+                                            checked = true,
+                                            onCheckedChange = { checked ->
+                                                if (!checked) {
+                                                    val remainingIds = linkedSubAccounts
+                                                        .filter { it.id != sub.id }
+                                                        .map { it.id }
+                                                        .toSet()
+                                                    onMergeAccounts?.invoke(primary.id, remainingIds)
+                                                }
+                                            },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = MaterialTheme.financialColors.limeAccent,
+                                                checkmarkColor = MaterialTheme.financialColors.onLimeAccent,
+                                            ),
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onLinkAccountForPrimary(primary) }
+                                        .padding(vertical = 6.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.financialColors.limeAccent,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(id = R.string.settings_link_more_cards),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.financialColors.limeAccent,
+                                    )
+                                }
                             }
                         }
                     }

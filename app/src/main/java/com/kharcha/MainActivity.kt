@@ -21,6 +21,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -138,6 +139,13 @@ fun MainAppShell(
     val context = LocalContext.current
     val accountRepository = remember { DefaultAccountRepository.getInstance(context) }
     val accounts by accountRepository.getAccounts().collectAsState(initial = emptyList())
+
+    LaunchedEffect(accounts.size, transactions.size) {
+        if (accounts.isNotEmpty()) {
+            val unlinkedIds = userPreferences.getUnlinkedAccountIds()
+            accountRepository.autoLinkAccounts(transactions, unlinkedIds)
+        }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showReviewQueue by rememberSaveable { mutableStateOf(false) }
@@ -300,11 +308,12 @@ fun MainAppShell(
                         val currentAccounts = accountRepository.getAccountsSync()
                         for (a in currentAccounts) {
                             if (a.id in linkedIds) {
-                                accountRepository.saveAccount(a.copy(linkedPrimaryAccountId = primaryId))
+                                userPreferences.setAccountUnlinked(a.id, false)
                             } else if (a.linkedPrimaryAccountId == primaryId && a.id !in linkedIds) {
-                                accountRepository.saveAccount(a.copy(linkedPrimaryAccountId = null))
+                                userPreferences.setAccountUnlinked(a.id, true)
                             }
                         }
+                        accountRepository.linkSubAccounts(primaryId, linkedIds)
                     }
                 },
                 onAddTransactionClick = { showAddTransactionDialog = true },
@@ -418,15 +427,12 @@ fun MainAppShell(
                             val currentAccounts = accountRepository.getAccountsSync()
                             for (acc in currentAccounts) {
                                 if (acc.id in linkedIds) {
-                                    accountRepository.saveAccount(
-                                        acc.copy(linkedPrimaryAccountId = primaryId),
-                                    )
+                                    userPreferences.setAccountUnlinked(acc.id, false)
                                 } else if (acc.linkedPrimaryAccountId == primaryId && acc.id !in linkedIds) {
-                                    accountRepository.saveAccount(
-                                        acc.copy(linkedPrimaryAccountId = null),
-                                    )
+                                    userPreferences.setAccountUnlinked(acc.id, true)
                                 }
                             }
+                            accountRepository.linkSubAccounts(primaryId, linkedIds)
                             snackbarHostState.showSnackbar("Accounts linked and grouped successfully")
                         }
                     },

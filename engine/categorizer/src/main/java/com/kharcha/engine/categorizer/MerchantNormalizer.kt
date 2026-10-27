@@ -5,9 +5,15 @@ object MerchantNormalizer {
         Regex(
             "^(DATE\\s+)?\\d{1,2}[A-Z]{3}\\d{2,4}\\s+(TRANSFER\\s+TO|TRF\\s+TO)\\s+|" +
                 "^\\d{1,2}-\\d{2}-\\d{2,4}\\s+(TO|BY)\\s+|" +
-                "^\\d{1,2}-[A-Z]{3}-\\d{2,4}\\s+(AT|TO|BY)\\s+|" +
+                "^\\d{1,2}-[A-Z0-9]{3}(?:-\\d{2,4})?\\s+(AT|TO|BY)\\s+|" +
                 "^\\d{1,2}[A-Z]{3}\\d{2,4}\\s+(TRANSFER\\s+TO|TRF\\s+TO)\\s+|" +
                 "^\\d{1,2}-[A-Z]{3}-\\d{2,4}\\s+INFO[A-Z*]+\\s*",
+            RegexOption.IGNORE_CASE,
+        )
+
+    private val CARD_PREFIX_REGEX =
+        Regex(
+            "^(?:[A-Z0-9]+\\s+){0,3}(?:BANK\\s+)?(?:CREDIT\\s*CARD|DEBIT\\s*CARD|CARD|CC)\\s*(?:ENDING\\s*(?:WITH|IN)?|[X*.\\s\\-])*?[0-9]{3,4}\\s+(?:AT|TOWARDS|FOR|TO|ON)\\s+",
             RegexOption.IGNORE_CASE,
         )
 
@@ -48,7 +54,10 @@ object MerchantNormalizer {
         // 1. Strip bank narrative date and transfer prefixes
         normalized = normalized.replace(BANK_NARRATIVE_REGEX, "").trim()
 
-        // 2. Strip payment gateway prefixes
+        // 2. Strip card spend prefixes (e.g. HDFC Bank Card 8302 At SWIGGY)
+        normalized = normalized.replace(CARD_PREFIX_REGEX, "").trim()
+
+        // 3. Strip payment gateway prefixes
         normalized = normalized.replace(GATEWAY_PREFIX_REGEX, "").trim()
 
         // 3. Strip common channel prefixes

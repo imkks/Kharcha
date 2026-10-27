@@ -60,7 +60,9 @@ class DefaultAccountRepository(
                 smsBody?.let { body ->
                     val b = body.lowercase()
                     (b.contains("credit card") || b.contains("card ending") ||
-                        b.contains("spent on card") || b.contains("in your credit card")) &&
+                        b.contains("spent on card") || b.contains("in your credit card") ||
+                        b.contains("spent on hdfc bank card") || b.contains("spent on icici bank card") ||
+                        b.contains("spent using") || b.contains("card xx") || b.contains("card x")) &&
                         !b.contains("towards credit card") && !b.contains("towards your credit card") &&
                         !b.contains("towards card") && !b.contains("for credit card")
                 } == true
@@ -82,7 +84,16 @@ class DefaultAccountRepository(
 
             val resolvedLast4 =
                 when {
-                    !last4.isNullOrBlank() -> last4.trim()
+                    !last4.isNullOrBlank() -> {
+                        val digits = last4.filter { it.isDigit() }
+                        if (digits.length in 3..4) {
+                            digits
+                        } else if (digits.length > 4) {
+                            digits.takeLast(4)
+                        } else {
+                            last4.trim()
+                        }
+                    }
                     smsBody != null -> extractLast4FromText(smsBody, type)
                     else -> null
                 }
@@ -255,7 +266,9 @@ class DefaultAccountRepository(
             listOf(
                 "HDFC", "SBI", "ICICI", "AXIS", "KOTAK", "IDFC",
                 "PNB", "BOB", "CANARA", "INDUSIND", "YES", "AMEX",
-                "CITI", "RBL", "SCB", "FEDERAL",
+                "CITI", "RBL", "SCB", "FEDERAL", "STANDARD CHARTERED",
+                "HSBC", "BARODA", "UNION", "UCO", "BANDHAN", "AU",
+                "SLICE", "ONECARD", "JUPITER", "FI", "PAYTM", "AIRTEL",
             )
         val upper = body.uppercase()
         return banks.firstOrNull { upper.contains(it) }
@@ -265,21 +278,22 @@ class DefaultAccountRepository(
         if (type == AccountType.CreditCard) {
             val cardRegex =
                 Regex(
-                    """(?:card|cc)\s*(?:ending|no\.?|number|ending with|ending in)?\s*(?:xx|x|\*)*(\d{4})""",
-                    RegexOption.IGNORE_CASE,
+                    """(?i)(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
                 )
             val match = cardRegex.find(body)
             if (match != null) return match.groupValues[1]
         }
         val acctRegex =
             Regex(
-                """(?:a/c|acct|account)\s*(?:no\.?|number)?\s*(?:xx|x|\*)*(\d{4})""",
-                RegexOption.IGNORE_CASE,
+                """(?i)(?:a/c|acct|account|acc)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
             )
         val acctMatch = acctRegex.find(body)
         if (acctMatch != null) return acctMatch.groupValues[1]
 
-        val fallback = Regex("""(?:\*{2,}|x{2,}|xx)(\d{4})""", RegexOption.IGNORE_CASE)
+        val maskedMatch = Regex("""\b(?:\d{2,9})?[xX*]{1,12}(\d{3,4})\b""").find(body)
+        if (maskedMatch != null) return maskedMatch.groupValues[1]
+
+        val fallback = Regex("""(?:\*{2,}|x{2,}|xx)(\d{3,4})""", RegexOption.IGNORE_CASE)
         return fallback.find(body)?.groupValues?.get(1)
     }
 

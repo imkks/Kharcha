@@ -11,25 +11,26 @@ object AccountAutoLinker {
         "HDFC", "SBI", "ICICI", "AXIS", "KOTAK", "IDFC",
         "PNB", "BOB", "CANARA", "INDUSIND", "YES", "AMEX",
         "CITI", "RBL", "SCB", "FEDERAL", "STANDARD CHARTERED",
-        "HSBC", "BARODA", "UNION",
+        "HSBC", "BARODA", "UNION", "UCO", "BANDHAN", "AU",
+        "SLICE", "ONECARD", "JUPITER", "FI", "PAYTM", "AIRTEL",
     )
 
     // Pattern to extract credit card last 4 from a bill payment / transfer note
     private val CARD_TARGET_PATTERNS = listOf(
-        // "towards ICICI Bank Credit Card ending with 8302" or "to credit card 8302"
-        Regex("""(?i)(?:towards|for|to|of)\s+(?:your\s+)?(?:[a-z]+\s+){0,3}(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number|[*xX.-])*\s*([0-9]{3,4})"""),
-        // "Credit card ending 8302 payment"
-        Regex("""(?i)(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number|[*xX.-])*\s*([0-9]{3,4}).*?(?:payment|bill|autodebit|auto-debit|paid)"""),
+        // "towards ICICI Bank Credit Card ending with 8302" or "towards your Card 4620XXXXXXXX6567"
+        Regex("""(?i)(?:towards|for|to|of)\s+(?:your\s+)?(?:[a-z]+\s+){0,3}(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
+        // "CC 000434155XXXXXX8302 Autopay" or "Credit card ending 8302 payment"
+        Regex("""(?i)\b(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b.*?(?:payment|bill|autodebit|auto-debit|autopay|paid)"""),
         // "Payment of Rs ... for Card ending 8302"
-        Regex("""(?i)(?:payment|bill|autodebit|auto-debit|paid).*?(?:towards|for|to)\s+(?:[a-z]+\s+){0,2}(?:credit\s*card|card|cc)?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number|[*xX.-])*\s*([0-9]{3,4})"""),
+        Regex("""(?i)(?:payment|bill|autodebit|auto-debit|autopay|paid).*?(?:towards|for|to)\s+(?:[a-z]+\s+){0,2}(?:credit\s*card|card|cc)?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
     )
 
     // Pattern to extract debited bank account last 4
     private val BANK_SOURCE_PATTERNS = listOf(
-        // "from A/c XX1234" or "from ICICI Bank Acc XX1234"
-        Regex("""(?i)(?:from|through|via|in)\s+(?:[a-z]+\s+){0,3}(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.-]*([0-9]{3,4})"""),
-        // "A/c XX1234 has been debited" or "Acc XX1234 is debited"
-        Regex("""(?i)(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.-]*([0-9]{3,4})\s*(?:has\s+been|is|was)?\s*debited"""),
+        // "from A/c XX1234" or "from a/c **2321" or "from ICICI Bank Acc XX1234"
+        Regex("""(?i)(?:from|through|via|in)\s+(?:[a-z]+\s+){0,3}(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
+        // "A/c XX1234 has been debited" or "a/c **2321 is debited"
+        Regex("""(?i)(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b\s*(?:has\s+been|is|was)?\s*debited"""),
     )
 
     /**
@@ -87,7 +88,10 @@ object AccountAutoLinker {
             }
             if (targetCardLast4 == null) continue
 
-            val targetCard = creditCards.find { it.last4?.endsWith(targetCardLast4) == true } ?: continue
+            val targetCard = creditCards.find {
+                val cDigits = it.last4?.filter { ch -> ch.isDigit() }
+                cDigits != null && (cDigits.endsWith(targetCardLast4) || targetCardLast4.endsWith(cDigits))
+            } ?: continue
 
             var sourceBankLast4: String? = null
             for (p in BANK_SOURCE_PATTERNS) {
@@ -99,8 +103,10 @@ object AccountAutoLinker {
             }
 
             val targetBank = if (sourceBankLast4 != null) {
-                bankAccounts.find { it.last4?.endsWith(sourceBankLast4) == true }
-                    ?: bankAccounts.find { it.id == txn.accountId }
+                bankAccounts.find {
+                    val bDigits = it.last4?.filter { ch -> ch.isDigit() }
+                    bDigits != null && (bDigits.endsWith(sourceBankLast4) || sourceBankLast4.endsWith(bDigits))
+                } ?: bankAccounts.find { it.id == txn.accountId }
             } else {
                 bankAccounts.find { it.id == txn.accountId }
             }

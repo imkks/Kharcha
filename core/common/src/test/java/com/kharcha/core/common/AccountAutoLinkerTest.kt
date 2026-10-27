@@ -110,4 +110,70 @@ class AccountAutoLinkerTest {
         val linkedCard = result.find { it.id == 2L }
         assertNull(linkedCard?.linkedPrimaryAccountId)
     }
+
+    @Test
+    fun testBillPaymentWithMaskedPanAndAccount() {
+        val sbiBank = Account(
+            id = 11L,
+            name = "SBI Bank ••2321",
+            bankName = "SBI",
+            last4 = "2321",
+            type = AccountType.Savings,
+        )
+        val maskedCard = Account(
+            id = 21L,
+            name = "SBI Card ••6567",
+            bankName = "SBI",
+            last4 = "6567",
+            type = AccountType.CreditCard,
+        )
+
+        val txn = Transaction(
+            id = 101L,
+            accountId = 11L,
+            type = TransactionType.Expense,
+            amount = 2000000L,
+            dateTime = System.currentTimeMillis(),
+            note = "Rs 20,000 debited from a/c **2321 towards your Card 4620XXXXXXXX6567 payment",
+        )
+
+        val accounts = listOf(sbiBank, maskedCard)
+        val result = AccountAutoLinker.autoLinkAccounts(accounts, listOf(txn))
+
+        val linkedCard = result.find { it.id == 21L }
+        assertEquals(11L, linkedCard?.linkedPrimaryAccountId)
+    }
+
+    @Test
+    fun testAutopayBillPaymentLinking() {
+        val hdfcBank = Account(
+            id = 12L,
+            name = "HDFC Bank ••1234",
+            bankName = "HDFC",
+            last4 = "1234",
+            type = AccountType.Savings,
+        )
+        val hdfcCard = Account(
+            id = 22L,
+            name = "HDFC Card ••8302",
+            bankName = "HDFC",
+            last4 = "8302",
+            type = AccountType.CreditCard,
+        )
+
+        val txn = Transaction(
+            id = 102L,
+            accountId = 12L,
+            type = TransactionType.Expense,
+            amount = 542000L,
+            dateTime = System.currentTimeMillis(),
+            note = "CC 000434155XXXXXX8302 Autopay executed for Rs 5,420 from A/c XX1234",
+        )
+
+        val accounts = listOf(hdfcBank, hdfcCard)
+        val result = AccountAutoLinker.autoLinkAccounts(accounts, listOf(txn))
+
+        val linkedCard = result.find { it.id == 22L }
+        assertEquals(12L, linkedCard?.linkedPrimaryAccountId)
+    }
 }

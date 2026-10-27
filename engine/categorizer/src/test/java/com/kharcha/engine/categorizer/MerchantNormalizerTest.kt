@@ -52,6 +52,9 @@ class MerchantNormalizerTest {
         assertEquals("VIJETHA", MerchantNormalizer.normalize("08Jul23 transfer to VIJETHA"))
         assertEquals("VJ82 MY HOME MANGALA", MerchantNormalizer.normalize("14-01-24 to VJ82 MY HOME MANGALA"))
         assertEquals("GOOGLE STORE", MerchantNormalizer.normalize("04-Oct-26 at GOOGLE STORE"))
+        assertEquals("AMAZON", MerchantNormalizer.normalize("30-Jul-23 at AMAZON"))
+        assertEquals("SWIGGY", MerchantNormalizer.normalize("HDFC Bank Card 8302 At SWIGGY"))
+        assertEquals("CROMA", MerchantNormalizer.normalize("HDFC Bank Card x8302 at CROMA"))
         assertEquals("BUNDL TECHNOLOG", MerchantNormalizer.normalize("20-Jul-24 at BUNDL TECHNOLOG"))
         assertEquals("UNICORN INFOSOL", MerchantNormalizer.normalize("28-Apr-24 at UNICORN INFOSOL"))
     }

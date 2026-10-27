@@ -28,9 +28,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -247,11 +249,10 @@ fun TransactionDetailScreen(
         }
 
     val topBarTitle =
-        when (selectedType) {
-            TransactionType.Expense -> stringResource(id = R.string.detail_debit_title)
-            TransactionType.Income -> stringResource(id = R.string.detail_credit_title)
-            TransactionType.Transfer -> stringResource(id = DesignR.string.add_txn_type_transfer)
-            else -> stringResource(id = R.string.detail_title)
+        if (isCreditTxn) {
+            stringResource(id = R.string.detail_credit_title)
+        } else {
+            stringResource(id = R.string.detail_debit_title)
         }
 
     val hasPendingChanges =
@@ -612,72 +613,57 @@ fun TransactionDetailScreen(
                             }
                         }
 
-                        if (selectedType == TransactionType.Transfer) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.financialColors.transfer.copy(alpha = 0.15f),
-                            ) {
-                                Text(
-                                    text = "Transfer",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.financialColors.transfer,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                )
+                        val isCountedInTotals = selectedType.isCounted
+                        val countLabel =
+                            if (isCreditTxn) {
+                                stringResource(id = R.string.detail_account_income)
+                            } else {
+                                stringResource(id = R.string.detail_account_expense)
                             }
-                        } else {
-                            val isCountedInTotals = selectedType.isCounted
-                            val countLabel =
-                                if (isCreditTxn) {
-                                    stringResource(id = R.string.detail_account_income)
-                                } else {
-                                    stringResource(id = R.string.detail_account_expense)
-                                }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    text = countLabel,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White,
-                                )
-                                Switch(
-                                    checked = isCountedInTotals,
-                                    onCheckedChange = { countIt ->
-                                        selectedType =
-                                            when {
-                                                isCreditTxn ->
-                                                    if (countIt) TransactionType.Income else TransactionType.Refund
-                                                else ->
-                                                    if (countIt) TransactionType.Expense else TransactionType.Ignored
-                                            }
-                                        val msgRes =
-                                            when {
-                                                isCreditTxn ->
-                                                    if (countIt) {
-                                                        R.string.detail_toast_counted_income
-                                                    } else {
-                                                        R.string.detail_toast_not_counted_income
-                                                    }
-                                                else ->
-                                                    if (countIt) {
-                                                        R.string.detail_toast_counted_spends
-                                                    } else {
-                                                        R.string.detail_toast_not_counted_spends
-                                                    }
-                                            }
-                                        scope.launch { snackbarHostState.showSnackbar(context.getString(msgRes)) }
-                                    },
-                                    colors =
-                                        SwitchDefaults.colors(
-                                            checkedThumbColor = Color.White,
-                                            checkedTrackColor = MaterialTheme.financialColors.income,
-                                            uncheckedThumbColor = Color(0xFF9E9E9E),
-                                            uncheckedTrackColor = Color(0xFF2E2E2E),
-                                        ),
-                                )
-                            }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = countLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White,
+                            )
+                            Switch(
+                                checked = isCountedInTotals,
+                                onCheckedChange = { countIt ->
+                                    selectedType =
+                                        when {
+                                            isCreditTxn ->
+                                                if (countIt) TransactionType.Income else TransactionType.Refund
+                                            else ->
+                                                if (countIt) TransactionType.Expense else TransactionType.Ignored
+                                        }
+                                    val msgRes =
+                                        when {
+                                            isCreditTxn ->
+                                                if (countIt) {
+                                                    R.string.detail_toast_counted_income
+                                                } else {
+                                                    R.string.detail_toast_not_counted_income
+                                                }
+                                            else ->
+                                                if (countIt) {
+                                                    R.string.detail_toast_counted_spends
+                                                } else {
+                                                    R.string.detail_toast_not_counted_spends
+                                                }
+                                        }
+                                    scope.launch { snackbarHostState.showSnackbar(context.getString(msgRes)) }
+                                },
+                                colors =
+                                    SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = MaterialTheme.financialColors.income,
+                                        uncheckedThumbColor = Color(0xFF9E9E9E),
+                                        uncheckedTrackColor = Color(0xFF2E2E2E),
+                                    ),
+                            )
                         }
                     }
                 }
@@ -1525,14 +1511,34 @@ fun TransactionDetailScreen(
                 isCredit = isCreditTxn,
                 onCategorySelected = { cat ->
                     selectedCategory = cat
-                    if (cat in INWARD_INCOME_CATEGORIES) {
-                        selectedType = TransactionType.Income
-                    } else if (cat == "Refund") {
-                        selectedType = TransactionType.Refund
-                    } else if (cat in listOf("Transfer", "A/C Transfer", "Bill Payment", "Investment")) {
-                        selectedType = TransactionType.Transfer
-                    } else if (cat in EXPENSE_CATEGORIES) {
+                    if (isCreditTxn) {
+                        selectedType =
+                            if (cat in INWARD_INCOME_CATEGORIES) {
+                                TransactionType.Income
+                            } else {
+                                TransactionType.Refund
+                            }
+                    } else {
                         selectedType = TransactionType.Expense
+                    }
+                    showCategorySheet = false
+                },
+                onCategorySelectedWithType = { cat, isCounted ->
+                    selectedCategory = cat
+                    if (isCreditTxn) {
+                        selectedType =
+                            if (isCounted) {
+                                TransactionType.Income
+                            } else {
+                                TransactionType.Refund
+                            }
+                    } else {
+                        selectedType =
+                            if (isCounted) {
+                                TransactionType.Expense
+                            } else {
+                                TransactionType.Ignored
+                            }
                     }
                     showCategorySheet = false
                 },
@@ -2098,9 +2104,14 @@ internal fun CategoryPickerSheetContent(
     onDismiss: () -> Unit,
     isCredit: Boolean = false,
     modifier: Modifier = Modifier,
+    onCategorySelectedWithType: ((category: String, isCounted: Boolean) -> Unit)? = null,
 ) {
     var newCategoryText by remember { mutableStateOf("") }
     var currentSelected by remember { mutableStateOf(selectedCategory) }
+    val isCurrentIncome = currentSelected in INWARD_INCOME_CATEGORIES
+    var newCategoryMarkAsIncome by remember(isCredit, currentSelected) {
+        mutableStateOf(if (isCredit) isCurrentIncome else true)
+    }
 
     Column(
         modifier =
@@ -2120,7 +2131,7 @@ internal fun CategoryPickerSheetContent(
                     tint = Color.White,
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = stringResource(id = R.string.detail_category_sheet_title),
                 style = MaterialTheme.typography.titleLarge,
@@ -2166,69 +2177,6 @@ internal fun CategoryPickerSheetContent(
                         onCategorySelected(cat)
                     },
                 )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Footer explanation card for selected category
-                val isSelectedIncome = currentSelected in INWARD_INCOME_CATEGORIES
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.financialColors.cardBackground,
-                        ),
-                    border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-                ) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text =
-                                    if (isSelectedIncome) {
-                                        stringResource(id = R.string.detail_toast_counted_income)
-                                    } else {
-                                        stringResource(id = R.string.detail_toast_not_counted_income)
-                                    },
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = stringResource(id = R.string.category_mark_as_income_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF9E9E9E),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Switch(
-                            checked = isSelectedIncome,
-                            onCheckedChange = { makeIncome ->
-                                val target =
-                                    if (makeIncome) {
-                                        INWARD_INCOME_CATEGORIES.first()
-                                    } else {
-                                        INWARD_NON_INCOME_CATEGORIES.first()
-                                    }
-                                currentSelected = target
-                                onCategorySelected(target)
-                            },
-                            colors =
-                                SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = MaterialTheme.financialColors.income,
-                                    uncheckedThumbColor = Color(0xFF9E9E9E),
-                                    uncheckedTrackColor = Color(0xFF2E2E2E),
-                                ),
-                        )
-                    }
-                }
             } else {
                 CategoryGrid(
                     categories = EXPENSE_CATEGORIES,
@@ -2240,73 +2188,125 @@ internal fun CategoryPickerSheetContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.financialColors.cardBackground,
                 border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
             ) {
-                Row(
+                Column(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                            .padding(18.dp),
                 ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(24.dp)
-                                .background(
-                                    color =
-                                        if (isCredit) {
-                                            MaterialTheme.financialColors.income
-                                        } else {
-                                            MaterialTheme.financialColors.expense
-                                        },
-                                    shape = CircleShape,
-                                ),
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    OutlinedTextField(
-                        value = newCategoryText,
-                        onValueChange = { newCategoryText = it },
-                        placeholder = {
-                            Text(
-                                text = stringResource(id = R.string.category_new_hint),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF9E9E9E),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(36.dp)
+                                    .background(Color(0xFFBA86FC), CircleShape),
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            BasicTextField(
+                                value = newCategoryText,
+                                onValueChange = { newCategoryText = it },
+                                singleLine = true,
+                                textStyle =
+                                    MaterialTheme.typography.bodyLarge.copy(
+                                        color = Color.White,
+                                    ),
+                                cursorBrush = SolidColor(Color.White),
+                                decorationBox = { innerTextField ->
+                                    if (newCategoryText.isEmpty()) {
+                                        Text(
+                                            text = stringResource(id = R.string.category_new_hint),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = Color(0xFF9E9E9E),
+                                        )
+                                    }
+                                    innerTextField()
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             )
-                        },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        colors =
-                            OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color.Transparent,
-                                unfocusedBorderColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                            ),
-                    )
-                    if (newCategoryText.isNotBlank()) {
-                        IconButton(
-                            onClick = {
-                                val trimmed = newCategoryText.trim()
-                                if (trimmed.isNotBlank()) {
-                                    currentSelected = trimmed
-                                    onCategorySelected(trimmed)
-                                }
-                            },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.financialColors.income,
+                            HorizontalDivider(
+                                modifier = Modifier.fillMaxWidth(),
+                                thickness = 1.dp,
+                                color = Color(0xFF616161),
                             )
                         }
+                        if (newCategoryText.isNotBlank()) {
+                            IconButton(
+                                onClick = {
+                                    val trimmed = newCategoryText.trim()
+                                    if (trimmed.isNotBlank()) {
+                                        currentSelected = trimmed
+                                        if (onCategorySelectedWithType != null) {
+                                            onCategorySelectedWithType(trimmed, newCategoryMarkAsIncome)
+                                        } else {
+                                            onCategorySelected(trimmed)
+                                        }
+                                    }
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.financialColors.income,
+                                )
+                            }
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text =
+                                if (isCredit) {
+                                    stringResource(id = R.string.category_mark_as_income_toggle)
+                                } else {
+                                    stringResource(id = R.string.category_count_in_spends)
+                                },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White,
+                        )
+                        Switch(
+                            checked = newCategoryMarkAsIncome,
+                            onCheckedChange = { newCategoryMarkAsIncome = it },
+                            colors =
+                                SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = MaterialTheme.financialColors.income,
+                                    uncheckedThumbColor = Color(0xFF9E9E9E),
+                                    uncheckedTrackColor = Color(0xFF2E2E2E),
+                                ),
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text =
+                            if (isCredit) {
+                                stringResource(id = R.string.category_mark_as_income_desc)
+                            } else {
+                                stringResource(id = R.string.category_count_in_spends_desc)
+                            },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF9E9E9E),
+                    )
                 }
             }
         }
@@ -2346,7 +2346,7 @@ private fun CategoryGrid(
     onCategorySelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val chunked = categories.chunked(4)
+    val chunked = categories.chunked(3)
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -2354,7 +2354,7 @@ private fun CategoryGrid(
         for (row in chunked) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 for (cat in row) {
                     CategoryGridItem(
@@ -2364,7 +2364,7 @@ private fun CategoryGrid(
                         modifier = Modifier.weight(1f),
                     )
                 }
-                for (i in 0 until (4 - row.size)) {
+                for (i in 0 until (3 - row.size)) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
@@ -2386,53 +2386,57 @@ private fun CategoryGridItem(
     Column(
         modifier =
             modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(14.dp))
+                .then(
+                    if (isSelected) {
+                        Modifier.background(
+                            color = Color(0xFF202A1C),
+                            shape = RoundedCornerShape(14.dp),
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
                 .clickable(onClick = onClick)
-                .padding(vertical = 4.dp, horizontal = 2.dp),
+                .padding(vertical = 10.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(52.dp)
-                    .background(
-                        color =
-                            if (isSelected) {
-                                incomeGreen.copy(alpha = 0.18f)
-                            } else {
-                                MaterialTheme.financialColors.cardBackground
-                            },
-                        shape = CircleShape,
-                    )
-                    .then(
-                        if (isSelected) {
-                            Modifier.border(2.dp, incomeGreen, CircleShape)
-                        } else {
-                            Modifier.border(
-                                1.dp,
-                                MaterialTheme.financialColors.hairlineDivider,
-                                CircleShape,
-                            )
-                        },
-                    ),
+                    .size(46.dp)
+                    .background(Color.White, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = category,
                 modifier = Modifier.size(24.dp),
-                tint = if (isSelected) incomeGreen else colorToken.color,
+                tint = colorToken.color,
             )
         }
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = category,
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             textAlign = TextAlign.Center,
-            color = if (isSelected) incomeGreen else Color.White,
+            color = Color.White,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        Spacer(modifier = Modifier.height(4.dp))
+        if (isSelected) {
+            Box(
+                modifier =
+                    Modifier
+                        .width(26.dp)
+                        .height(3.dp)
+                        .background(incomeGreen, RoundedCornerShape(2.dp)),
+            )
+        } else {
+            Spacer(modifier = Modifier.height(3.dp))
+        }
     }
 }

@@ -75,9 +75,9 @@
     <string name="category_section_mark_as_not_income">Mark as not an income</string>
     <string name="category_new_hint">New category</string>
     <string name="category_mark_as_income_toggle">Mark as income</string>
-    <string name="category_mark_as_income_desc">
-        Transactions categorised with this category will be counted as income.
-    </string>
+    <string name="category_mark_as_income_desc">Transactions categorised with this category will be counted as income.</string>
+    <string name="category_count_in_spends">Count in spends</string>
+    <string name="category_count_in_spends_desc">Transactions categorised with this category will be counted as spends.</string>
     <string name="detail_category_search_hint">Search category…</string>
     <string name="detail_action_delete">Delete</string>
     <string name="detail_menu_options_title">Menu options</string>

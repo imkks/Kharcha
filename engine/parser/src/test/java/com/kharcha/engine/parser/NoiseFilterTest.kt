@@ -259,5 +259,17 @@ class NoiseFilterTest {
         val payoutResult = NoiseFilter.filter(payoutSms)
         assertNotNull(payoutResult)
         assertEquals(IgnoreReason.REMINDER, (payoutResult as ParseResult.Ignored).reason)
+
+        val telecomSms =
+            RawSms(
+                id = 19,
+                sender = "XX-AIRTEL",
+                body = "Your Airtel Mobile plan of Rs 299 has expired. Recharge now to enjoy uninterrupted services.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val telecomResult = NoiseFilter.filter(telecomSms)
+        assertNotNull(telecomResult)
+        assertEquals(IgnoreReason.REMINDER, (telecomResult as ParseResult.Ignored).reason)
     }
 }

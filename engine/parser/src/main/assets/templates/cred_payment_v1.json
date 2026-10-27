@@ -1,0 +1,10 @@
+{
+  "id": "cred_payment_v1",
+  "bank": "CRED",
+  "senderPatterns": ["^[A-Za-z]{2}-?(CREDCL|DREAMPLUG)$"],
+  "direction": "DEBIT",
+  "channel": "CARD",
+  "regex": "(?i)Payment\\s+of\\s+(?:Rs\\.?|INR|₹)?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+to\\s+(?<merchant>[^.\\n]+?)\\s+ending\\s+(?<last4>\\d{4})\\s+successful\\s+via\\s+CRED\\s+on\\s+(?<date>\\d{2}[-/]\\d{2}[-/]\\d{2,4})(?:.*?(?:UTR|Ref):?\\s*(?<ref>\\w+))?",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy", "dd/MM/yyyy"],
+  "confidence": 0.95
+}

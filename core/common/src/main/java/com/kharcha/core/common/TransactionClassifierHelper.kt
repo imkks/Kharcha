@@ -10,11 +10,19 @@ object TransactionClassifierHelper {
             "(?i)^(?:(?:(?:your|[A-Za-z]+)\\s+)?(?:[A-Za-z]+\\s+)*(?:credit\\s*card|debit\\s*card|card|cc)(?:\\s+ending|\\s+no\\.?|\\s+num|\\s*[*xX0-9]+|\\s*bil+)?.*|" +
                 "(?:card|cc)\\s*[*xX0-9]+.*|" +
                 ".*(?:autopay|mandate|billpay|credit card payment|credit card bil).*|" +
-                ".*(?:mobile number|secure digital banking).*|" +
-                "(?:HDFC|ICICI|SBI|AXIS|KOTAK|IDFC|PNB|BOB|UCO|YES|AMEX|CITI|RBL)\\s+CARD)$",
+                ".*(?:mobile number|secure digital banking|to know your balance|subject to clearing).*|" +
+                ".*-[Uu][Pp][Ii].*|" +
+                "(?:HDFC|ICICI|SBI|AXIS|KOTAK|IDFC|PNB|BOB|UCO|YES|AMEX|CITI|RBL)\\s+(?:CARD|UPI)|" +
+                "your|transaction|dispute|clearing|making a successful transaction|the amount to be|your end|" +
+                "an\\s+outstanding\\s+of.*|" +
+                "(?:rs\\.?|inr\\.?|₹)\\s*[\\d,.]*|" +
+                "(?:m/s\\.?|mr\\.?|mrs\\.?|ms\\.?|md\\.?|shri|smt)\\.?)$",
         )
 
-    private val DATE_AT_REGEX = Regex("""(?i)^\d{1,2}-[A-Za-z0-9]{3}(?:-\d{2,4})?\s+at\s+(.+)$""")
+    private val DATE_PREFIX_REGEX =
+        Regex(
+            """(?i)^(?:date\s+)?(?:\d{1,2}[A-Za-z]{3}\d{2,4}|\d{1,2}[-/][A-Za-z0-9]{3}[-/]\d{2,4}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}-[A-Za-z0-9]{3})\s+(?:transfer\s+to|trf\s+to|transfer\s+from|trf\s+from|transfer|trf|at|towards|for|to|from|by)\s*(.*)$""",
+        )
 
     fun cleanMerchantDisplay(raw: String?, bank: String?, channel: String?): String {
         if (raw.isNullOrBlank()) {
@@ -26,7 +34,7 @@ object TransactionClassifierHelper {
         }
 
         var candidate = trimmed
-        val dateMatch = DATE_AT_REGEX.find(candidate)
+        val dateMatch = DATE_PREFIX_REGEX.find(candidate)
         if (dateMatch != null && dateMatch.groupValues[1].isNotBlank()) {
             candidate = dateMatch.groupValues[1].trim()
         }
@@ -266,6 +274,7 @@ object TransactionClassifierHelper {
         }
         if (b.contains("salary") || b.contains("payroll") || b.contains("stipend") ||
             b.contains("wages") || b.contains("epfo") ||
+            m.contains("wells fargo") || m == "wells" || m.contains("qualcomm") ||
             (b.contains("clearing") && !b.contains("zerodha"))
         ) {
             return "Salary"
@@ -323,6 +332,7 @@ object TransactionClassifierHelper {
                 m.contains("bescom") || m.contains("electricity") || m.contains("water") ||
                 m.contains("gas") || m.contains("broadband") || m.contains("bill") ||
                 m.contains("urban company") || m.contains("urbanclap") ||
+                m.contains("waterwala") || m.contains("auto debit") || m.contains("bill payment") ||
                 m.contains("mygate") -> "Bills & Utilities"
 
             m.contains("seva") || m.contains("donation") || m.contains("foundation") ||
@@ -339,7 +349,8 @@ object TransactionClassifierHelper {
             m.contains("zerodha") || m.contains("groww") || m.contains("mutual") ||
                 m.contains("sip") || m.contains("indmoney") || m.contains("upstox") -> "Investments"
 
-            m.contains("other") || m.contains("misc") -> "Other"
+            m.contains("atm") || m.contains("cash wdl") || m.contains("cash withdrawal") ||
+                m.contains("other") || m.contains("misc") -> "Other"
 
             else -> "Unknown Category"
         }

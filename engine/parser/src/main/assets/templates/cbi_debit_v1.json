@@ -1,0 +1,10 @@
+{
+  "id": "cbi_debit_v1",
+  "bank": "CENTRAL BANK",
+  "senderPatterns": ["^[A-Za-z]{2}-?(CBISMS|CENTBK|CBIIND)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)A/c\\s+[X*]*(?<last4>\\d{4})\\s+debited\\s+by\\s+(?:Rs\\.?|INR|₹)?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}[-/]\\d{2}[-/]\\d{2,4})\\s+through\\s+UPI(?::\\s*(?<ref>\\w+))?\\s+to\\s+(?<merchant>[^.\\n]+)(?:\\.\\s*Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["dd/MM/yyyy", "dd-MM-yyyy", "dd/MM/yy", "dd-MM-yy"],
+  "confidence": 0.95
+}

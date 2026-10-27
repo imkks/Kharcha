@@ -1202,4 +1202,334 @@ class SmsParserTest {
         assertEquals("BOFAH26272092252", txn.refNumber)
         assertEquals(35135522L, txn.balanceAfterMinor)
     }
+
+    @Test
+    fun testSbiUpiDebitWithDebitedAtSbiAndDate() {
+        val sms =
+            RawSms(
+                id = 57,
+                sender = "VM-SBIUPI",
+                body = "Your A/C ending with 1234 debited@SBI by 500.00 on 22Feb22 transfer to MR DIKSHIT SHARMA Ref 123456789012",
+                receivedAt = 1645488000000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(50000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("MR DIKSHIT SHARMA", txn.merchantRaw)
+        assertEquals("123456789012", txn.refNumber)
+        org.junit.Assert.assertNotEquals("debited@SBI", txn.upiId)
+        assertEquals(Channel.UPI, txn.channel)
+    }
+
+    @Test
+    fun testWellsFargoNeftCreditSalary() {
+        val sms =
+            RawSms(
+                id = 58,
+                sender = "VM-HDFCBK",
+                body = "Update! INR 1,50,000.00 deposited in HDFC Bank A/c XX1999 on 31-Dec-25 for " +
+                    "NEFT-HDFCH00825101407-WELLS. Avl bal INR 2,00,000.00.",
+                receivedAt = 1767139200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(15000000L, txn.amountMinor)
+        assertEquals("1999", txn.accountLast4)
+        assertEquals("WELLS", txn.merchantRaw)
+        assertEquals("HDFCH00825101407", txn.refNumber)
+        assertEquals(Channel.NEFT, txn.channel)
+        assertEquals(Direction.CREDIT, txn.direction)
+    }
+
+    @Test
+    fun testAtmWithdrawalExtraction() {
+        val sms =
+            RawSms(
+                id = 59,
+                sender = "VM-SBINB",
+                body = "INR 5,000.00 withdrawn from A/c XX1234 on 04-Jan-24 at SBI ATM S1BB000454545 from A/c. Avl bal INR 10,000.00.",
+                receivedAt = 1704326400000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(500000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("SBI ATM", txn.merchantRaw)
+        assertEquals(Channel.ATM, txn.channel)
+    }
+
+    @Test
+    fun testHdfcAutoDebitInfoCode() {
+        val sms =
+            RawSms(
+                id = 60,
+                sender = "VM-HDFCBK",
+                body = "INR 3,189.00 debited from HDFC Bank A/c XX1999 on 04-Oct-26 InfoATD*Auto Debi. Avl bal INR 50,000.00.",
+                receivedAt = 1791072000000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(318900L, txn.amountMinor)
+        assertEquals("1999", txn.accountLast4)
+        assertEquals("Auto Debit", txn.merchantRaw)
+        assertEquals(Direction.DEBIT, txn.direction)
+    }
+
+    @Test
+    fun testDateAndTransferPrefixStrippedInFallback() {
+        val sms =
+            RawSms(
+                id = 61,
+                sender = "VM-HDFCBK",
+                body = "INR 2,500.00 debited from A/c XX1234 on date 21Feb24 trf to COUNTRYDELIGHT Ref 9876543210.",
+                receivedAt = 1708473600000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(250000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("COUNTRYDELIGHT", txn.merchantRaw)
+        assertEquals("9876543210", txn.refNumber)
+    }
+
+    @Test
+    fun testFallbackParser_ignoresPrecedingBalanceAndExtractsRealAmount() {
+        val sms =
+            RawSms(
+                id = 62,
+                sender = "VM-CENTBK",
+                body = "Dear Customer, available balance in your account is Rs 18,500.00. Rs 250.00 debited for Chai Point.",
+                receivedAt = 1708473600000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(25000L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("Chai Point", txn.merchantRaw)
+    }
+
+    @Test
+    fun testFallbackParser_billPaymentFromDebitCardIsDebitNotCredit() {
+        val sms =
+            RawSms(
+                id = 63,
+                sender = "VM-SBICRD",
+                body = "Payment of Rs. 1,499.00 received from your SBI Debit Card XX1234 for Airtel Broadband.",
+                receivedAt = 1708473600000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(149900L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("1234", txn.accountLast4)
+    }
+
+    @Test
+    fun testBoiDebitTemplate() {
+        val sms =
+            RawSms(
+                id = 64,
+                sender = "VM-BOITXN",
+                body = "Your A/C XXXXX1234 is debited for Rs 850.00 on 24-10-2026 by UPI/6291823/Zomato. Avl Bal Rs 14,250.00",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(85000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("Zomato", txn.merchantRaw)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("boi_debit_v1", txn.templateId)
+    }
+
+    @Test
+    fun testCbiDebitTemplate() {
+        val sms =
+            RawSms(
+                id = 65,
+                sender = "VM-CBISMS",
+                body = "A/c *1234 debited by Rs.1,200.00 on 24/10/2026 through UPI:629182 to swiggy@okhdfcbank. Bal: Rs.5,400.00",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(120000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("swiggy@okhdfcbank", txn.merchantRaw)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("cbi_debit_v1", txn.templateId)
+    }
+
+    @Test
+    fun testIndianBankDebitTemplate() {
+        val sms =
+            RawSms(
+                id = 66,
+                sender = "VM-INDBNK",
+                body = "Dear Customer, A/c no. ending 1234 is debited by Rs. 450.00 on 24-10-2026 to Zomato. Ref: 429182. Bal: Rs 8,100",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(45000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("Zomato", txn.merchantRaw)
+        assertEquals("indian_bank_debit_v1", txn.templateId)
+    }
+
+    @Test
+    fun testAubankDebitTemplate() {
+        val sms =
+            RawSms(
+                id = 67,
+                sender = "VM-AUBANK",
+                body = "Rs. 1,499.00 spent on AU Bank Debit Card ending 1234 at RELIANCE RETAIL on 24-Oct-26. Avail Bal: Rs 42,100",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(149900L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("RELIANCE RETAIL", txn.merchantRaw)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("aubank_debit_v1", txn.templateId)
+    }
+
+    @Test
+    fun testCredPaymentTemplate() {
+        val sms =
+            RawSms(
+                id = 68,
+                sender = "VM-CREDCL",
+                body = "Payment of Rs 14,500.00 to HDFC Credit Card ending 1234 successful via CRED on 24-10-2026. UTR: 4291823",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1450000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("cred_payment_v1", txn.templateId)
+    }
+
+    @Test
+    fun testPluxeeSpendTemplate() {
+        val sms =
+            RawSms(
+                id = 69,
+                sender = "VM-PLUXEE",
+                body = "Spent Rs. 420.00 on Pluxee Card 1234 at SWEET DREAMS on 24-Oct-26. Remaining card balance: Rs 1,840.00",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(42000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("SWEET DREAMS", txn.merchantRaw)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("pluxee_spend_v1", txn.templateId)
+    }
+
+    @Test
+    fun testSbiAccountDebitTemplate() {
+        val sms =
+            RawSms(
+                id = 70,
+                sender = "VM-SBINB",
+                body = "Dear SBI Customer, A/c X1234 debited by Rs 5,000.00 on 24Oct26 through ATM cash wdl. Bal: Rs 24,150.00",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(500000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("sbi_account_debit_v1", txn.templateId)
+    }
+
+    @Test
+    fun testKotakDebitTemplate() {
+        val sms =
+            RawSms(
+                id = 71,
+                sender = "VM-KOTAKB",
+                body = "Sent Rs. 3,500.00 from Kotak Bank A/c XX1234 to Reliance Digital on 24-Oct-2026. Net Banking Ref 123456. Bal: Rs 41,000",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(350000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("Reliance Digital", txn.merchantRaw)
+        assertEquals("kotak_debit_v1", txn.templateId)
+    }
+
+    @Test
+    fun testBobCardSpendTemplate() {
+        val sms =
+            RawSms(
+                id = 72,
+                sender = "VM-BOBTXN",
+                body = "Rs. 950.00 spent on Bank of Baroda Debit Card XX1234 at DMART on 24-10-2026. Avl Bal: Rs 8,300",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(95000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("DMART", txn.merchantRaw)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("bob_card_spend_v1", txn.templateId)
+    }
+
+    @Test
+    fun testCanaraUpiDebitTemplate() {
+        val sms =
+            RawSms(
+                id = 73,
+                sender = "VM-CANBNK",
+                body = "Your A/c ending 1234 debited by INR 620.00 on 24-Oct-2026 via UPI to Zomato. UPI Ref 429182. Avail Bal: INR 19,400",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(62000L, txn.amountMinor)
+        assertEquals("1234", txn.accountLast4)
+        assertEquals("Zomato", txn.merchantRaw)
+        assertEquals("canara_upi_debit_v1", txn.templateId)
+    }
 }

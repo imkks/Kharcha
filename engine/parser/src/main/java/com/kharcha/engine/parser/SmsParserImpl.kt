@@ -83,7 +83,7 @@ class SmsParserImpl(
                     val balanceMinor = AmountParser.parseMinorUnits(balanceStr)
                     val refNumber =
                         try {
-                            matchResult.groups["ref"]?.value
+                            matchResult.groups["ref"]?.value ?: matchResult.groups["refEnd"]?.value
                         } catch (e: IllegalArgumentException) {
                             null
                         }

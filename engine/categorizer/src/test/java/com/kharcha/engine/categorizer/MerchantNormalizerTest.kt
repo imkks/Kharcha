@@ -83,4 +83,14 @@ class MerchantNormalizerTest {
         assertEquals("", MerchantNormalizer.normalize(null))
         assertEquals("", MerchantNormalizer.normalize("   "))
     }
+
+    @Test
+    fun testNormalizeHandlesInfoCodesAndWellsFargo() {
+        assertEquals("AUTO DEBIT", MerchantNormalizer.normalize("04-Oct-26 InfoATD*Auto Debi"))
+        assertEquals("PPF TRANSFER", MerchantNormalizer.normalize("04-May-26 InfoTrf to PPF 00"))
+        assertEquals("BILL PAYMENT", MerchantNormalizer.normalize("23-Apr-26 InfoBIL*NEFT*IN12"))
+        assertEquals("WELLS FARGO", MerchantNormalizer.normalize("WELLS"))
+        assertEquals("WELLS FARGO", MerchantNormalizer.normalize("WELLS FARGO"))
+        assertEquals("WELLS FARGO", MerchantNormalizer.normalize("NEFT-HDFCH00825101407-WELLS"))
+    }
 }

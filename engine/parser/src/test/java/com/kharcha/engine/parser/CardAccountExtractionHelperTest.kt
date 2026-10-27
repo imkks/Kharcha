@@ -66,5 +66,83 @@ class CardAccountExtractionHelperTest {
         val (sender2, ref2) = CardAccountExtractionHelper.extractNeftSenderAndRef(rawSingle)
         assertEquals("ZERODHA BROKING LTD", sender2)
         assertNull(ref2)
+
+        val rawWells1 = "for NEFT-HDFCH00825101407-WELLS. Avl bal"
+        val (sender3, ref3) = CardAccountExtractionHelper.extractNeftSenderAndRef(rawWells1)
+        assertEquals("WELLS", sender3)
+        assertEquals("HDFCH00825101407", ref3)
+
+        val rawWells2 = "by NEFT-211250238918-WELLS FARGO. Bal"
+        val (sender4, ref4) = CardAccountExtractionHelper.extractNeftSenderAndRef(rawWells2)
+        assertEquals("WELLS FARGO", sender4)
+        assertEquals("211250238918", ref4)
+    }
+
+    @Test
+    fun testCleanAtmMerchant() {
+        assertEquals("SBI ATM", CardAccountExtractionHelper.cleanAtmMerchant("SBI ATM S1BB000454545 from"))
+        assertEquals("ICICI ATM", CardAccountExtractionHelper.cleanAtmMerchant("ICI ATM S1CNP941 from"))
+        assertEquals("AXIS ATM", CardAccountExtractionHelper.cleanAtmMerchant("AXS ATM BPCN1590 from"))
+        assertEquals("UCO ATM", CardAccountExtractionHelper.cleanAtmMerchant("UCO ATM VA207203 from"))
+        assertEquals("HDFC ATM", CardAccountExtractionHelper.cleanAtmMerchant("HDF ATM S1ANRN7 from"))
+        assertEquals("Cash Withdrawal", CardAccountExtractionHelper.cleanAtmMerchant("18-Aug-25 NFS*CASH WDL*"))
+        assertEquals("ATM Withdrawal", CardAccountExtractionHelper.cleanAtmMerchant("04-Jan-24 ATM*S1CNI828*"))
+        assertEquals("HDFC ATM", CardAccountExtractionHelper.cleanAtmMerchant("ATM*S1CNI828*", "HDFC"))
+    }
+
+    @Test
+    fun testCleanCandidateMerchant_stripsVariousDateAndTransferPrefixes() {
+        assertEquals(
+            "COUNTRYDELIGHT",
+            CardAccountExtractionHelper.cleanCandidateMerchant("date 21Feb24 trf to COUNTRYDELIGHT"),
+        )
+        assertEquals(
+            "ASHISH ANAND",
+            CardAccountExtractionHelper.cleanCandidateMerchant("13Aug24 transfer from ASHISH ANAND"),
+        )
+        assertEquals(
+            "VIJETHA",
+            CardAccountExtractionHelper.cleanCandidateMerchant("08Jul23 transfer to VIJETHA"),
+        )
+        assertEquals(
+            "Udemy India LLP",
+            CardAccountExtractionHelper.cleanCandidateMerchant("09-Sep-25 from Udemy India LLP"),
+        )
+        assertEquals(
+            "APOLLO PHARMACY",
+            CardAccountExtractionHelper.cleanCandidateMerchant("25-01-24 to APOLLO PHARMACY"),
+        )
+        assertEquals(
+            "IBIBO GROUP PRI",
+            CardAccountExtractionHelper.cleanCandidateMerchant("03-Sep-26 at IBIBO GROUP PRI"),
+        )
+    }
+
+    @Test
+    fun testCleanCandidateMerchant_handlesHdfcInfoCodes() {
+        assertEquals(
+            "Auto Debit",
+            CardAccountExtractionHelper.cleanCandidateMerchant("04-Oct-26 InfoATD*Auto Debi"),
+        )
+        assertEquals(
+            "PPF Transfer",
+            CardAccountExtractionHelper.cleanCandidateMerchant("04-May-26 InfoTrf to PPF 00"),
+        )
+        assertEquals(
+            "Bill Payment",
+            CardAccountExtractionHelper.cleanCandidateMerchant("23-Apr-26 InfoBIL*NEFT*IN12"),
+        )
+    }
+
+    @Test
+    fun testCleanCandidateMerchant_rejectsChannelAndNoise() {
+        assertNull(CardAccountExtractionHelper.cleanCandidateMerchant("02-01-2024 by UCO-UPI"))
+        assertNull(CardAccountExtractionHelper.cleanCandidateMerchant("HDFC UPI"))
+        assertNull(CardAccountExtractionHelper.cleanCandidateMerchant("SBI UPI"))
+        assertNull(CardAccountExtractionHelper.cleanCandidateMerchant("Transaction"))
+        assertNull(CardAccountExtractionHelper.cleanCandidateMerchant("your"))
+        assertNull(CardAccountExtractionHelper.cleanCandidateMerchant("clearing"))
+        assertNull(CardAccountExtractionHelper.cleanCandidateMerchant("dispute"))
+        assertNull(CardAccountExtractionHelper.cleanCandidateMerchant("Rs."))
     }
 }

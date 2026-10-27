@@ -197,6 +197,20 @@ class TransactionClassifierHelperTest {
         )
         assertEquals("Salary", salaryCategory)
 
+        val wellsSalary = TransactionClassifierHelper.guessCategory(
+            merchant = "WELLS FARGO",
+            isCredit = true,
+            body = "INR 1,50,000.00 credited to A/c XX1999 on 31-Dec-25 by NEFT from WELLS FARGO",
+        )
+        assertEquals("Salary", wellsSalary)
+
+        val qualcommSalary = TransactionClassifierHelper.guessCategory(
+            merchant = "QUALCOMM INDIA PVT LTD",
+            isCredit = true,
+            body = "INR 1,69,221.00 deposited in HDFC Bank A/c XX1999 on 29-SEP-26",
+        )
+        assertEquals("Salary", qualcommSalary)
+
         // Inward: Broker Payout / Investment Return
         val zerodhaCategory = TransactionClassifierHelper.guessCategory(
             merchant = "Clearing",
@@ -209,8 +223,13 @@ class TransactionClassifierHelperTest {
         // Outward: Spends mapped to proper categories
         assertEquals("Groceries", TransactionClassifierHelper.guessCategory("Vijetha Super Markets", isCredit = false))
         assertEquals("Food & Dining", TransactionClassifierHelper.guessCategory("HungerBox", isCredit = false))
+        assertEquals("Food & Dining", TransactionClassifierHelper.guessCategory("EatClub", isCredit = false))
         assertEquals("Shopping", TransactionClassifierHelper.guessCategory("Decathlon", isCredit = false))
         assertEquals("Fuel", TransactionClassifierHelper.guessCategory("Pump 25 Ts Police", isCredit = false))
         assertEquals("Travel", TransactionClassifierHelper.guessCategory("Telangana State Road Tran", isCredit = false))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Auto Debit", isCredit = false))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Bill Payment", isCredit = false))
+        assertEquals("Other", TransactionClassifierHelper.guessCategory("SBI ATM", isCredit = false))
+        assertEquals("Other", TransactionClassifierHelper.guessCategory("Cash Withdrawal", isCredit = false))
     }
 }

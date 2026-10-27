@@ -66,6 +66,12 @@ object NoiseFilter {
                 "from\\s+your\\s+insurer|policy\\s+period|medi\\s*assist|insurance\\s+claim|" +
                 "health\\s+insurance\\s+claim)\\b",
         )
+    private val telecomExpiryRegex =
+        Regex(
+            "(?i)\\b(?:plan|pack|validity)\\s+(?:has\\s+)?expir(?:ed|es)|" +
+                "\\b(?:recharge\\s+(?:now|with|to)|enjoy\\s+uninterrupted)\\b|" +
+                "\\b(?:recharge\\s+(?:of|for)\\s+(?:rs\\.?|inr|₹)?\\s*\\d+\\s+is\\s+due)\\b",
+        )
     private val failedRegex =
         Regex("(?i)\\b(declined|failed|insufficient funds|unsuccessful)\\b")
     private val mandateRegex =
@@ -109,6 +115,7 @@ object NoiseFilter {
             preDebitMandateRegex.containsMatchIn(body) ||
             futureDebitRegex.containsMatchIn(body) ||
             maintainBalanceRegex.containsMatchIn(body) ||
+            (telecomExpiryRegex.containsMatchIn(body) && !hasTransactionKeyword) ||
             (bodyLower.contains("mandate") && (bodyLower.contains("umn") || bodyLower.contains("will be")))
         ) {
             return ParseResult.Ignored(IgnoreReason.REMINDER)

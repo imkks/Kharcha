@@ -33,40 +33,57 @@ class GenericFallbackParser {
             return null
         }
 
-        val amountMatch = amountRegex.find(bodyLower) ?: fallbackAmountRegex.find(bodyLower) ?: return null
+        val scopedBody = ClauseSemanticScoper.isolateTransactionClause(body)
+        val scopedLower = scopedBody.lowercase()
+
+        val amountMatch =
+            amountRegex.find(scopedLower)
+                ?: fallbackAmountRegex.find(scopedLower)
+                ?: amountRegex.find(bodyLower)
+                ?: fallbackAmountRegex.find(bodyLower)
+                ?: return null
         val amountMinor = AmountParser.parseMinorUnits(amountMatch.groupValues[1]) ?: return null
 
-        var direction: Direction? = null
-        val isExplicitAccountDebit =
+        val isBillPaymentFromUser =
             Regex(
-                "(?i)\\b(?:a/c|acct|account|card|acc)\\b.*\\bdebited\\b|" +
-                    "\\bdebited\\s+(?:for|with|from)\\b|\\bsent\\s+(?:rs|inr|₹).*\\bfrom\\b",
-            ).containsMatchIn(bodyLower)
-        val isExplicitAccountCredit =
-            Regex(
-                "(?i)\\b(?:a/c|acct|account|card|acc)\\b.*\\bcredited\\b|" +
-                    "\\bcredited\\s+(?:to|in|into)\\b|\\bdeposited\\s+in\\b|\\bcredit\\s+alert\\b",
+                "(?i)received\\s+from\\s+(?:(?:your|the)\\s+)?(?:(?:sbi|hdfc|icici|axis|kotak)\\s+)?(?:debit\\s*card|credit\\s*card|card|a/c|account)",
             ).containsMatchIn(bodyLower)
 
-        if (isExplicitAccountDebit && !isExplicitAccountCredit) {
+        var direction: Direction? = null
+        if (isBillPaymentFromUser) {
             direction = Direction.DEBIT
-        } else if (isExplicitAccountCredit && !isExplicitAccountDebit) {
-            direction = Direction.CREDIT
-        } else if (isExplicitAccountDebit && isExplicitAccountCredit) {
-            // E.g. "Acct XX321 debited ... Acct XX034 credited" / "... Zepto credited" -> user's account debited
-            direction = Direction.DEBIT
-        } else if (bodyLower.contains("transferred to") || bodyLower.contains("transfer to")) {
-            direction = Direction.DEBIT
-        } else if (bodyLower.contains("transferred from") || bodyLower.contains("transfer from")) {
-            direction = Direction.CREDIT
-        } else if (debitKeywords.any { bodyLower.contains(it) } && !creditKeywords.any { bodyLower.contains(it) }) {
-            direction = Direction.DEBIT
-        } else if (creditKeywords.any { bodyLower.contains(it) }) {
-            direction = Direction.CREDIT
-        } else if (debitKeywords.any { bodyLower.contains(it) }) {
-            direction = Direction.DEBIT
-        } else if (bodyLower.contains("transfer") || bodyLower.contains("transferred")) {
-            direction = if (bodyLower.contains("to your a/c")) Direction.CREDIT else Direction.DEBIT
+        } else {
+            val isExplicitAccountDebit =
+                Regex(
+                    "(?i)\\b(?:a/c|acct|account|card|acc)\\b.*\\bdebited\\b|" +
+                        "\\bdebited\\s+(?:for|with|from)\\b|\\bsent\\s+(?:rs|inr|₹).*\\bfrom\\b",
+                ).containsMatchIn(bodyLower)
+            val isExplicitAccountCredit =
+                Regex(
+                    "(?i)\\b(?:a/c|acct|account|card|acc)\\b.*\\bcredited\\b|" +
+                        "\\bcredited\\s+(?:to|in|into)\\b|\\bdeposited\\s+in\\b|\\bcredit\\s+alert\\b",
+                ).containsMatchIn(bodyLower)
+
+            if (isExplicitAccountDebit && !isExplicitAccountCredit) {
+                direction = Direction.DEBIT
+            } else if (isExplicitAccountCredit && !isExplicitAccountDebit) {
+                direction = Direction.CREDIT
+            } else if (isExplicitAccountDebit && isExplicitAccountCredit) {
+                // E.g. "Acct XX321 debited ... Acct XX034 credited" / "... Zepto credited" -> user's account debited
+                direction = Direction.DEBIT
+            } else if (bodyLower.contains("transferred to") || bodyLower.contains("transfer to")) {
+                direction = Direction.DEBIT
+            } else if (bodyLower.contains("transferred from") || bodyLower.contains("transfer from")) {
+                direction = Direction.CREDIT
+            } else if (debitKeywords.any { bodyLower.contains(it) } && !creditKeywords.any { bodyLower.contains(it) }) {
+                direction = Direction.DEBIT
+            } else if (creditKeywords.any { bodyLower.contains(it) }) {
+                direction = Direction.CREDIT
+            } else if (debitKeywords.any { bodyLower.contains(it) }) {
+                direction = Direction.DEBIT
+            } else if (bodyLower.contains("transfer") || bodyLower.contains("transferred")) {
+                direction = if (bodyLower.contains("to your a/c")) Direction.CREDIT else Direction.DEBIT
+            }
         }
 
         if (direction == null) return null
@@ -86,7 +103,10 @@ class GenericFallbackParser {
 
         var last4 = CardAccountExtractionHelper.extractLast4(body)
 
-        val upiMatch = Regex("(?i)\\b([a-zA-Z0-9.\\-_]+@[a-zA-Z0-9]+)\\b").find(body)
+        val upiMatch =
+            Regex(
+                "(?i)\\b(?!(?:debited|credited|spent|withdrawn|balance|avl|paid)@)([a-zA-Z0-9.\\-_]{2,}@[a-zA-Z0-9]+)\\b",
+            ).find(body)
         val upiId = upiMatch?.groupValues?.get(1)
 
         val refMatch =
@@ -103,10 +123,16 @@ class GenericFallbackParser {
         val contentBody =
             body.replace(
                 Regex(
-                    "(?i)\\b(?:if\\s+(?:not\\s+you|this\\s+was\\s+not\\s+you|not\\s+done\\s+by\\s+you)|" +
+                    "(?i)\\b(?:" +
+                        "if\\s+(?:not\\s+you|this\\s+was\\s+not\\s+you|not\\s+done\\s+by\\s+you)|" +
+                        "(?:for\\s+)?(?:any\\s+)?dispute(?:\\s+call|\\s+sms|\\s+report|\\s*[,.]|$)|" +
                         "to\\s+block|call\\s+\\d+|sms\\s+block|report\\s+(?:fraud|to)|" +
                         "forward\\s+(?:this)?\\s*sms|" +
-                        "cheque\\s+deposits?\\s+in\\s+a/c\\s+are\\s+subject\\s+to\\s+clearing).*$",
+                        "(?:cheque\\s+deposits?\\s+in\\s+a/c\\s+are\\s+)?subject\\s+to\\s+clearing|" +
+                        "for\\s+more\\s+secure\\s+digital\\s+banking|" +
+                        "(?:call|dial|sms)\\s+.*\\b(?:to\\s+know\\s+your\\s+balance|for\\s+dispute)|" +
+                        "download\\s+app|link\\s+to\\s+download" +
+                        ").*$",
                 ),
                 "",
             )
@@ -145,9 +171,10 @@ class GenericFallbackParser {
                 if (cleaned != null) {
                     val isDate =
                         cleaned.matches(Regex("(?i)^\\d{1,2}[-/][A-Za-z0-9]{3}(?:[-/]\\d{2,4})?$")) ||
-                            cleaned.matches(Regex("^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$"))
+                            cleaned.matches(Regex("^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$")) ||
+                            cleaned.matches(Regex("(?i)^\\d{1,2}[A-Za-z]{3}\\d{2,4}$"))
                     val isDigitsOnly = cleaned.matches(Regex("^[0-9+\\- ]+$"))
-                    val isAmount = cleaned.matches(Regex("(?i)^(?:rs\\.?|inr|₹)?\\s*[\\d,.]+$"))
+                    val isAmount = cleaned.matches(Regex("(?i)^(?:rs\\.?|inr\\.?|₹)?\\s*[\\d,.]*$"))
                     if (!isDate && !isDigitsOnly && !isAmount) {
                         merchantRaw = cleaned
                         break
@@ -183,6 +210,14 @@ class GenericFallbackParser {
         merchantRaw = cleanMerchant(merchantRaw)
 
         val bankName = CardAccountExtractionHelper.extractBankName(sms.sender, body)
+
+        if (channel == Channel.ATM || bodyLower.contains("atm") || bodyLower.contains("cash wdl")) {
+            channel = Channel.ATM
+            val atmMerchant = CardAccountExtractionHelper.cleanAtmMerchant(merchantRaw ?: contentBody, bankName)
+            if (atmMerchant != null) {
+                merchantRaw = atmMerchant
+            }
+        }
 
         val confidence =
             when {

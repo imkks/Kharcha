@@ -1,0 +1,10 @@
+{
+  "id": "iob_debit_v1",
+  "bank": "IOB",
+  "senderPatterns": ["^[A-Za-z]{2}-?(IOBCHN|IOBTXN|IOBSMS)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)(?:Your\\s+)?a/c\\s*(?:no\\.?)?\\s*[X*]*(?<last4>\\d{4})\\s+debited\\s+by\\s+(?:Rs\\.?|INR|₹)?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}[-/]\\d{2}[-/]\\d{2,4})(?:\\.\\s*Info:?\\s*(?<merchant>[^.\\n]+?))?(?:\\.\\s*(?:Available|Avl)\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy", "dd/MM/yyyy"],
+  "confidence": 0.95
+}

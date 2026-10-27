@@ -1,0 +1,10 @@
+{
+  "id": "boi_debit_v1",
+  "bank": "BOI",
+  "senderPatterns": ["^[A-Za-z]{2}-?(BOITXN|BOIIND|BOISMS)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)(?:Your\\s+)?A/C\\s+[X*]*(?<last4>\\d{4})\\s+is\\s+debited\\s+(?:for\\s+)?(?:Rs\\.?|INR|₹)?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}[-/]\\d{2}[-/]\\d{2,4}|\\d{2}[A-Za-z]{3}\\d{2,4})\\s+by\\s+UPI(?:/(?:P2M|P2P)?/?(?<ref>\\w+)/|\\s+to\\s+)(?<merchant>[^./\\n]+)(?:\\.\\s*Avl\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy", "ddMMMyyyy", "dd-MMM-yyyy", "ddMMMyy"],
+  "confidence": 0.95
+}

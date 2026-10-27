@@ -49,9 +49,22 @@ class GenericFallbackParser {
                 "(?i)received\\s+from\\s+(?:(?:your|the)\\s+)?(?:(?:sbi|hdfc|icici|axis|kotak)\\s+)?(?:debit\\s*card|credit\\s*card|card|a/c|account)",
             ).containsMatchIn(bodyLower)
 
+        val isAutoDebitFromAccount =
+            Regex(
+                """(?i)(?:auto\s*debit|autodebit|auto-debit)\s+(?:from|through)\s+(?:account|a/c|acc)""",
+            ).containsMatchIn(bodyLower) || bodyLower.contains("through auto debit from account")
+
+        val isCardPaymentAck =
+            Regex(
+                """(?i)(?:thank\s+you\s+for\s+(?:your\s+)?payment|payment\s+(?:of\s+.*?\s+)?received)\s+towards\s+.*?(?:credit\s*card|card|cc)""",
+            ).containsMatchIn(bodyLower) ||
+                (bodyLower.contains("cardmember") && bodyLower.contains("payment") && bodyLower.contains("received"))
+
         var direction: Direction? = null
-        if (isBillPaymentFromUser) {
+        if (isBillPaymentFromUser || isAutoDebitFromAccount) {
             direction = Direction.DEBIT
+        } else if (isCardPaymentAck) {
+            direction = Direction.CREDIT
         } else {
             val isExplicitAccountDebit =
                 Regex(
@@ -88,10 +101,15 @@ class GenericFallbackParser {
 
         if (direction == null) return null
 
+        val isCardOnlyAck = isCardPaymentAck && !isAutoDebitFromAccount
+
         var channel =
             when {
                 bodyLower.contains("upi") || bodyLower.contains("vpa") -> Channel.UPI
                 bodyLower.contains("atm") -> Channel.ATM
+                isCardOnlyAck -> Channel.CARD
+                isAutoDebitFromAccount -> Channel.OTHER
+                bodyLower.contains("credit card bil") -> Channel.OTHER
                 bodyLower.contains("card") || bodyLower.contains("cc") -> Channel.CARD
                 bodyLower.contains("neft") -> Channel.NEFT
                 bodyLower.contains("imps") -> Channel.IMPS
@@ -101,7 +119,14 @@ class GenericFallbackParser {
                 else -> Channel.OTHER
             }
 
-        var last4 = CardAccountExtractionHelper.extractLast4(body)
+        val sourceAccountLast4 = if (isAutoDebitFromAccount) {
+            Regex("""(?i)(?:from|through)\s+(?:account|a/c|acc)\s*[*xX.\s\-]*([0-9]{3,4})\b""")
+                .find(body)?.groupValues?.get(1)
+        } else {
+            null
+        }
+
+        var last4 = sourceAccountLast4 ?: CardAccountExtractionHelper.extractLast4(body)
 
         val upiMatch =
             Regex(

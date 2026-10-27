@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -192,134 +193,7 @@ fun MainAppShell(
             currentDestination = AppDestination.HOME
         }
 
-        if (selectedTransactionForDetail != null) {
-            BackHandler { selectedTransactionForDetail = null }
-            val txn = selectedTransactionForDetail!!
-            TransactionDetailScreen(
-                transaction = txn,
-                allTransactions = transactions,
-                accounts = accounts,
-                onBack = { selectedTransactionForDetail = null },
-                onNavigateToTransaction = { txnId ->
-                    selectedTransactionForDetail = transactions.find { it.id == txnId }
-                },
-                onNavigateToMerchant = { merchantName ->
-                    selectedTransactionForDetail = null
-                    selectedEntityForDetail = SelectedEntity(title = merchantName, isMerchant = true)
-                },
-                onLinkTransactions = { primaryId, secondaryId, isRefund ->
-                    scope.launch {
-                        transactionRepository.linkTransactions(primaryId, secondaryId, isRefund)
-                        snackbarHostState.showSnackbar("Transactions linked")
-                        selectedTransactionForDetail =
-                            transactions.find { it.id == primaryId }?.copy(linkedTransactionId = secondaryId)
-                    }
-                },
-                onUnlinkTransaction = { id ->
-                    scope.launch {
-                        transactionRepository.unlinkTransactions(id)
-                        snackbarHostState.showSnackbar("Transactions unlinked")
-                        selectedTransactionForDetail =
-                            transactions.find { it.id == id }?.copy(linkedTransactionId = null)
-                    }
-                },
-                onSave = { updated, propagate ->
-                    scope.launch {
-                        if (propagate) {
-                            val newCategory = updated.categorySource ?: "Other"
-                            val count =
-                                transactionRepository.updateTransactionAndPropagateMerchant(
-                                    transaction = updated,
-                                    newCategory = newCategory,
-                                    newType = updated.type,
-                                    userPreferences = userPreferences,
-                                )
-                            val merchant = updated.merchantNormalised ?: updated.merchantRaw ?: "Merchant"
-                            if (count > 1) {
-                                snackbarHostState.showSnackbar("Updated $count transactions for $merchant")
-                            } else {
-                                snackbarHostState.showSnackbar("Transaction updated")
-                            }
-                        } else {
-                            transactionRepository.updateTransaction(updated)
-                            snackbarHostState.showSnackbar("Transaction updated")
-                        }
-                    }
-                    selectedTransactionForDetail = null
-                },
-                onSaveTransactions = { updatedList, updateRule ->
-                    scope.launch {
-                        transactionRepository.updateTransactions(updatedList)
-                        if (updateRule) {
-                            val merchant =
-                                updatedList.firstOrNull()?.merchantNormalised
-                                    ?: updatedList.firstOrNull()?.merchantRaw
-                            val category = updatedList.firstOrNull()?.categorySource
-                            if (!merchant.isNullOrBlank() && !category.isNullOrBlank()) {
-                                userPreferences.setMerchantCategory(merchant, category)
-                            }
-                        }
-                        val count = updatedList.size
-                        if (count > 1) {
-                            snackbarHostState.showSnackbar("Updated $count transactions")
-                        } else {
-                            snackbarHostState.showSnackbar("Transaction updated")
-                        }
-                    }
-                    selectedTransactionForDetail = null
-                },
-                onDelete = { toDelete ->
-                    scope.launch {
-                        transactionRepository.updateTransaction(
-                            toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
-                        )
-                        snackbarHostState.showSnackbar("Transaction deleted")
-                    }
-                    selectedTransactionForDetail = null
-                },
-            )
-        } else if (selectedEntityForDetail != null) {
-            val entity = selectedEntityForDetail!!
-            BackHandler { selectedEntityForDetail = null }
-            EntityTransactionsScreen(
-                title = entity.title,
-                isMerchant = entity.isMerchant,
-                allTransactions = transactions,
-                onBack = { selectedEntityForDetail = null },
-                onTransactionClick = { selectedTransactionForDetail = it },
-            )
-        } else if (selectedAccountForDetail != null) {
-            val acc = selectedAccountForDetail!!
-            BackHandler { selectedAccountForDetail = null }
-            AccountDetailScreen(
-                account = acc,
-                allAccounts = accounts,
-                allTransactions = transactions,
-                onBack = { selectedAccountForDetail = null },
-                onTransactionClick = { selectedTransactionForDetail = it },
-                onSaveAccount = { updatedAccount ->
-                    scope.launch {
-                        accountRepository.saveAccount(updatedAccount)
-                        selectedAccountForDetail = updatedAccount
-                    }
-                },
-                onMergeAccounts = { primaryId, linkedIds ->
-                    scope.launch {
-                        val currentAccounts = accountRepository.getAccountsSync()
-                        for (a in currentAccounts) {
-                            if (a.id in linkedIds) {
-                                userPreferences.setAccountUnlinked(a.id, false)
-                            } else if (a.linkedPrimaryAccountId == primaryId && a.id !in linkedIds) {
-                                userPreferences.setAccountUnlinked(a.id, true)
-                            }
-                        }
-                        accountRepository.linkSubAccounts(primaryId, linkedIds)
-                    }
-                },
-                onAddTransactionClick = { showAddTransactionDialog = true },
-                onSetBudgetClick = { showSetBudgetSheet = true },
-            )
-        } else {
+        Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 snackbarHost = {
                     SnackbarHost(snackbarHostState) { data ->
@@ -462,6 +336,134 @@ fun MainAppShell(
                     onAccountClick = { selectedAccountForDetail = it },
                 )
             }
+
+            if (selectedTransactionForDetail != null) {
+            BackHandler { selectedTransactionForDetail = null }
+            val txn = selectedTransactionForDetail!!
+            TransactionDetailScreen(
+                transaction = txn,
+                allTransactions = transactions,
+                accounts = accounts,
+                onBack = { selectedTransactionForDetail = null },
+                onNavigateToTransaction = { txnId ->
+                    selectedTransactionForDetail = transactions.find { it.id == txnId }
+                },
+                onNavigateToMerchant = { merchantName ->
+                    selectedTransactionForDetail = null
+                    selectedEntityForDetail = SelectedEntity(title = merchantName, isMerchant = true)
+                },
+                onLinkTransactions = { primaryId, secondaryId, isRefund ->
+                    scope.launch {
+                        transactionRepository.linkTransactions(primaryId, secondaryId, isRefund)
+                        snackbarHostState.showSnackbar("Transactions linked")
+                        selectedTransactionForDetail =
+                            transactions.find { it.id == primaryId }?.copy(linkedTransactionId = secondaryId)
+                    }
+                },
+                onUnlinkTransaction = { id ->
+                    scope.launch {
+                        transactionRepository.unlinkTransactions(id)
+                        snackbarHostState.showSnackbar("Transactions unlinked")
+                        selectedTransactionForDetail =
+                            transactions.find { it.id == id }?.copy(linkedTransactionId = null)
+                    }
+                },
+                onSave = { updated, propagate ->
+                    scope.launch {
+                        if (propagate) {
+                            val newCategory = updated.categorySource ?: "Other"
+                            val count =
+                                transactionRepository.updateTransactionAndPropagateMerchant(
+                                    transaction = updated,
+                                    newCategory = newCategory,
+                                    newType = updated.type,
+                                    userPreferences = userPreferences,
+                                )
+                            val merchant = updated.merchantNormalised ?: updated.merchantRaw ?: "Merchant"
+                            if (count > 1) {
+                                snackbarHostState.showSnackbar("Updated $count transactions for $merchant")
+                            } else {
+                                snackbarHostState.showSnackbar("Transaction updated")
+                            }
+                        } else {
+                            transactionRepository.updateTransaction(updated)
+                            snackbarHostState.showSnackbar("Transaction updated")
+                        }
+                    }
+                    selectedTransactionForDetail = null
+                },
+                onSaveTransactions = { updatedList, updateRule ->
+                    scope.launch {
+                        transactionRepository.updateTransactions(updatedList)
+                        if (updateRule) {
+                            val merchant =
+                                updatedList.firstOrNull()?.merchantNormalised
+                                    ?: updatedList.firstOrNull()?.merchantRaw
+                            val category = updatedList.firstOrNull()?.categorySource
+                            if (!merchant.isNullOrBlank() && !category.isNullOrBlank()) {
+                                userPreferences.setMerchantCategory(merchant, category)
+                            }
+                        }
+                        val count = updatedList.size
+                        if (count > 1) {
+                            snackbarHostState.showSnackbar("Updated $count transactions")
+                        } else {
+                            snackbarHostState.showSnackbar("Transaction updated")
+                        }
+                    }
+                    selectedTransactionForDetail = null
+                },
+                onDelete = { toDelete ->
+                    scope.launch {
+                        transactionRepository.updateTransaction(
+                            toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
+                        )
+                        snackbarHostState.showSnackbar("Transaction deleted")
+                    }
+                    selectedTransactionForDetail = null
+                },
+            )
+        } else if (selectedEntityForDetail != null) {
+            val entity = selectedEntityForDetail!!
+            BackHandler { selectedEntityForDetail = null }
+            EntityTransactionsScreen(
+                title = entity.title,
+                isMerchant = entity.isMerchant,
+                allTransactions = transactions,
+                onBack = { selectedEntityForDetail = null },
+                onTransactionClick = { selectedTransactionForDetail = it },
+            )
+        } else if (selectedAccountForDetail != null) {
+            val acc = selectedAccountForDetail!!
+            BackHandler { selectedAccountForDetail = null }
+            AccountDetailScreen(
+                account = acc,
+                allAccounts = accounts,
+                allTransactions = transactions,
+                onBack = { selectedAccountForDetail = null },
+                onTransactionClick = { selectedTransactionForDetail = it },
+                onSaveAccount = { updatedAccount ->
+                    scope.launch {
+                        accountRepository.saveAccount(updatedAccount)
+                        selectedAccountForDetail = updatedAccount
+                    }
+                },
+                onMergeAccounts = { primaryId, linkedIds ->
+                    scope.launch {
+                        val currentAccounts = accountRepository.getAccountsSync()
+                        for (a in currentAccounts) {
+                            if (a.id in linkedIds) {
+                                userPreferences.setAccountUnlinked(a.id, false)
+                            } else if (a.linkedPrimaryAccountId == primaryId && a.id !in linkedIds) {
+                                userPreferences.setAccountUnlinked(a.id, true)
+                            }
+                        }
+                        accountRepository.linkSubAccounts(primaryId, linkedIds)
+                    }
+                },
+                onAddTransactionClick = { showAddTransactionDialog = true },
+                onSetBudgetClick = { showSetBudgetSheet = true },
+            )
         }
     }
 
@@ -574,6 +576,7 @@ fun MainAppShell(
             },
         )
     }
+}
 }
 
 @Composable

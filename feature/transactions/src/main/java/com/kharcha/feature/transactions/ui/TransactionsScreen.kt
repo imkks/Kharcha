@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -197,6 +198,7 @@ fun TransactionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val transactionsListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
     val availableMonths =
         remember(transactions) {
@@ -605,6 +607,7 @@ fun TransactionsScreen(
                 when (selectedSubTab) {
                     TransactionsSubTab.TRANSACTIONS -> {
                         LazyColumn(
+                            state = transactionsListState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 32.dp),
                         ) {

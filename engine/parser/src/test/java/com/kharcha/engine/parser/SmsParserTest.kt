@@ -1532,4 +1532,105 @@ class SmsParserTest {
         assertEquals("Zomato", txn.merchantRaw)
         assertEquals("canara_upi_debit_v1", txn.templateId)
     }
+
+    @Test
+    fun testHdfcUpiDebitToAccountTransferMessage() {
+        val sms =
+            RawSms(
+                id = 74,
+                sender = "VM-HDFCBK",
+                body = "HDFC Bank:Rs. 53000.00 debited from a/c *1999 on 04/10/26 to a/c **0034 (UPI Ref No. 615324150359). Not you? Call on 18002586161 to report",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(5300000L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("1999", txn.accountLast4)
+        assertEquals(Channel.UPI, txn.channel)
+        assertEquals("615324150359", txn.refNumber)
+    }
+
+    @Test
+    fun testIdfcCreditCardPaymentMessage() {
+        val sms =
+            RawSms(
+                id = 75,
+                sender = "AX-IDFCFB-S",
+                body = "Thank you for payment of INR 10,641.62 towards your FIRST Wealth Credit Card XX5625 on 05 Jun 2026. IDFC FIRST Bank",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1064162L, txn.amountMinor)
+        assertEquals(Direction.CREDIT, txn.direction)
+        assertEquals("5625", txn.accountLast4)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("IDFC", txn.bankName)
+    }
+
+    @Test
+    fun testIciciCreditCardAutoDebitMessage() {
+        val sms =
+            RawSms(
+                id = 76,
+                sender = "AD-ICICIT-S",
+                body = "Dear Customer, thank you for your payment of INR 11,311.00 towards ICICI Bank Credit Card Account XX1268 through Auto Debit from Account XX2321 on 04-Oct-26",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1131100L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("2321", txn.accountLast4)
+        assertEquals("ICICI", txn.bankName)
+    }
+
+    @Test
+    fun testHdfcCardmemberPaymentReceivedMessage() {
+        val sms =
+            RawSms(
+                id = 77,
+                sender = "VD-HDFCBK-S",
+                body = "DEAR HDFCBANK CARDMEMBER, PAYMENT OF Rs. 595.00 RECEIVED TOWARDS YOUR CREDIT CARD ENDING WITH 8302 ON 2-6-2025.YOUR AVAILABLE LIMIT IS RS. 154621.36",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(59500L, txn.amountMinor)
+        assertEquals(Direction.CREDIT, txn.direction)
+        assertEquals("8302", txn.accountLast4)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("HDFC", txn.bankName)
+        assertEquals(15462136L, txn.balanceAfterMinor)
+    }
+
+    @Test
+    fun testIciciAccountDebitCreditCardBillMessage() {
+        val sms =
+            RawSms(
+                id = 78,
+                sender = "VM-ICICIB",
+                body = "ICICI Bank Acct XX321 debited for Rs 96808.63 on 05-Aug-26; Credit Card Bil credited. UPI:621717806116. Call 18002662 for dispute. SMS BLOCK 321 to 9215676766.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(9680863L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("321", txn.accountLast4)
+        assertEquals(Channel.UPI, txn.channel)
+        assertEquals("621717806116", txn.refNumber)
+        assertEquals("ICICI", txn.bankName)
+    }
 }

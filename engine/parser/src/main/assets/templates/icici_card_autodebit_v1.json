@@ -1,0 +1,10 @@
+{
+  "id": "icici_card_autodebit_v1",
+  "bank": "ICICI",
+  "senderPatterns": ["^[A-Za-z]{2}-?(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$", "^(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$"],
+  "direction": "DEBIT",
+  "channel": "OTHER",
+  "regex": "(?i)Dear\\s+Customer,?\\s+thank\\s+you\\s+for\\s+(?:your\\s+)?payment\\s+of\\s+(?:INR|Rs\\.?|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+towards\\s+(?<merchant>ICICI\\s+Bank\\s+Credit\\s+Card(?:\\s+Account)?\\s+(?:XX|\\*+)?\\d{4})\\s+through\\s+Auto\\s+Debit\\s+from\\s+Account\\s+(?:XX|\\*+)?(?<last4>\\d{3,4})\\s+on\\s+(?<date>\\d{2}-[a-zA-Z]{3}-\\d{2,4})",
+  "dateFormats": ["dd-MMM-yy", "dd-MMM-yyyy"],
+  "confidence": 0.95
+}

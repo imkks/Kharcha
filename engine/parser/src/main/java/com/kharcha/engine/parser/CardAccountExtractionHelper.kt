@@ -4,13 +4,13 @@ import com.kharcha.core.model.Channel
 
 object CardAccountExtractionHelper {
 
-    private val MASKED_ACCOUNT_REGEX = Regex("""\b(?:\d{2,9})?[xX*]{1,12}(\d{3,4})\b""")
+    private val MASKED_ACCOUNT_REGEX = Regex("""(?i)(?:[xX*]{1,12}|\b\d{2,9}[xX*]+)(\d{3,4})\b""")
     private val CARD_OR_ACC_ENDING_REGEX =
         Regex("""(?i)(?:card|cc|acct?|account)?\s*(?:ending(?:\s+with|\s+in)?)\s*[*xX.\s\-]*(\d{3,4})\b""")
     private val CARD_OR_ACC_NUM_REGEX =
         Regex("""(?i)\b(?:credit\s*card|debit\s*card|card|cc|a/c|acc|acct|account)\s*(?:no\.?|num(?:ber)?|[xX*.\s\-])*?\b(\d{3,4})\b""")
     private val EXPLICIT_ENDING_REGEX = Regex("""(?i)\b(?:ending|ending in|ending with)\s*[*xX.\s\-]*(\d{3,4})\b""")
-    private val CONSECUTIVE_MASK_REGEX = Regex("""(?:\*{2,}|x{2,}|xx)(\d{3,4})""", RegexOption.IGNORE_CASE)
+    private val CONSECUTIVE_MASK_REGEX = Regex("""(?:\*{1,}|x{2,}|xx)(\d{3,4})""", RegexOption.IGNORE_CASE)
 
     private val DATE_PREFIX_REGEX =
         Regex(

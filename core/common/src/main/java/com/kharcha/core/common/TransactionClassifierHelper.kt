@@ -9,6 +9,9 @@ object TransactionClassifierHelper {
         Regex(
             "(?i)^(?:(?:(?:your|[A-Za-z]+)\\s+)?(?:[A-Za-z]+\\s+)*(?:credit\\s*card|debit\\s*card|card|cc)(?:\\s+ending|\\s+no\\.?|\\s+num|\\s*[*xX0-9]+|\\s*bil+)?.*|" +
                 "(?:card|cc)\\s*[*xX0-9]+.*|" +
+                "(?:a/c|acc|acct|account)\\s*[*xX0-9]+.*|" +
+                "to\\s+(?:a/c|acc|acct|account)\\s*[*xX0-9]+.*|" +
+                "[*xX]{1,12}\\d{3,4}.*|" +
                 ".*(?:autopay|mandate|billpay|credit card payment|credit card bil).*|" +
                 ".*(?:mobile number|secure digital banking|to know your balance|subject to clearing).*|" +
                 ".*-[Uu][Pp][Ii].*|" +
@@ -29,6 +32,14 @@ object TransactionClassifierHelper {
             return if (!bank.isNullOrBlank()) "$bank ${channel ?: "Txn"}" else "Transaction"
         }
         val trimmed = raw.trim()
+
+        val directAccountPattern =
+            Regex("""(?i)^(?:to\s+)?(?:a/c|acc|acct|account)\s*[*xX]{1,12}(\d{3,4})$""")
+        val directAccountMatch = directAccountPattern.find(trimmed)
+        if (directAccountMatch != null) {
+            return "Account ••${directAccountMatch.groupValues[1]}"
+        }
+
         if (trimmed.matches(ACCOUNT_OR_CARD_NOISE_REGEX)) {
             return if (!bank.isNullOrBlank()) "$bank ${channel ?: "Card"}" else "Transaction"
         }
@@ -117,21 +128,21 @@ object TransactionClassifierHelper {
         if (body.isNullOrBlank()) return null
         val pattern =
             Regex(
-                """(?i)(?:towards|for|to|of)\s+(?:your\s+)?(?:[a-zA-Z]+\s+){0,3}(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
+                """(?i)(?:towards|for|to|of)\s+(?:your\s+)?(?:[a-zA-Z]+\s+){0,3}(?:credit\s*card|card|cc)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
             )
         val match = pattern.find(body)
         if (match != null) return match.groupValues[1]
 
         val autopayPattern =
             Regex(
-                """(?i)\b(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b.*?(?:payment|bill|autodebit|auto-debit|autopay|paid)""",
+                """(?i)\b(?:credit\s*card|card|cc)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b.*?(?:payment|bill|autodebit|auto-debit|autopay|paid)""",
             )
         val autopayMatch = autopayPattern.find(body)
         if (autopayMatch != null) return autopayMatch.groupValues[1]
 
         val fallbackPattern =
             Regex(
-                """(?i)(?:credit\s*card|card)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
+                """(?i)(?:credit\s*card|card)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
             )
         return fallbackPattern.find(body)?.groupValues?.get(1)
     }
@@ -149,7 +160,14 @@ object TransactionClassifierHelper {
             Regex(
                 """(?i)(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b\s*(?:has\s+been|is|was)?\s*debited""",
             )
-        return debitedPattern.find(body)?.groupValues?.get(1)
+        val debitedMatch = debitedPattern.find(body)
+        if (debitedMatch != null) return debitedMatch.groupValues[1]
+
+        val debitedFromPattern =
+            Regex(
+                """(?i)debited\s+from\s+(?:a/c|acc|acct|account)?\s*[*xX.\s\-]*([0-9]{3,4})\b""",
+            )
+        return debitedFromPattern.find(body)?.groupValues?.get(1)
     }
 
     fun isTransferNarrative(

@@ -53,6 +53,10 @@ class DefaultAccountRepository(
         return withContext(ioDispatcher) {
             val currentList = _accounts.value.toMutableList()
 
+            val targetCardLast4 = smsBody?.let { TransactionClassifierHelper.extractTargetCardLast4(it) }
+            val sourceAccountLast4 = smsBody?.let { TransactionClassifierHelper.extractSourceAccountLast4(it) }
+            val isBillPayment = smsBody?.let { TransactionClassifierHelper.isCreditCardBillPayment(it) } == true
+
             val isCardChannel = channel == Channel.CARD
             val isBankChannel = channel == Channel.UPI || channel == Channel.NEFT ||
                 channel == Channel.IMPS || channel == Channel.ATM
@@ -62,16 +66,20 @@ class DefaultAccountRepository(
                     (b.contains("credit card") || b.contains("card ending") ||
                         b.contains("spent on card") || b.contains("in your credit card") ||
                         b.contains("spent on hdfc bank card") || b.contains("spent on icici bank card") ||
-                        b.contains("spent using") || b.contains("card xx") || b.contains("card x")) &&
+                        b.contains("spent using") || b.contains("card xx") || b.contains("card x") ||
+                        b.contains("cardmember") || b.contains("credit limit") || b.contains("available limit")) &&
                         !b.contains("towards credit card") && !b.contains("towards your credit card") &&
-                        !b.contains("towards card") && !b.contains("for credit card")
+                        !b.contains("towards card") && !b.contains("for credit card") &&
+                        !b.contains("credit card bil") && !b.contains("credit card payment")
                 } == true
 
             val type =
                 when {
+                    sourceAccountLast4 != null && (last4 == null || last4 == sourceAccountLast4) -> AccountType.Savings
                     isCardChannel -> AccountType.CreditCard
                     !isBankChannel && hasCardText -> AccountType.CreditCard
                     channel == Channel.WALLET -> AccountType.Wallet
+                    isBillPayment && targetCardLast4 != null && sourceAccountLast4 == null -> AccountType.CreditCard
                     else -> AccountType.Savings
                 }
 
@@ -84,6 +92,8 @@ class DefaultAccountRepository(
 
             val resolvedLast4 =
                 when {
+                    type == AccountType.CreditCard && targetCardLast4 != null -> targetCardLast4
+                    type == AccountType.Savings && sourceAccountLast4 != null -> sourceAccountLast4
                     !last4.isNullOrBlank() -> {
                         val digits = last4.filter { it.isDigit() }
                         if (digits.length in 3..4) {
@@ -136,6 +146,7 @@ class DefaultAccountRepository(
                 }
 
             val now = timestamp ?: System.currentTimeMillis()
+            val primaryAccount: Account
             if (existingIndex != -1) {
                 val existing = currentList[existingIndex]
                 val lastUpdated = existing.balanceUpdatedAt
@@ -152,9 +163,7 @@ class DefaultAccountRepository(
                         existing
                     }
                 currentList[existingIndex] = updated
-                _accounts.value = currentList
-                saveToDisk(currentList)
-                updated
+                primaryAccount = updated
             } else {
                 val nextId = (currentList.maxOfOrNull { it.id } ?: 0L) + 1L
 
@@ -198,11 +207,39 @@ class DefaultAccountRepository(
                         }
                     }
                 }
-
-                _accounts.value = currentList
-                saveToDisk(currentList)
-                newAccount
+                primaryAccount = newAccount
             }
+
+            // If SMS has both a source bank account and a target credit card (e.g. Auto Debit for credit card),
+            // ensure the target credit card also exists and is explicitly linked to the debited primary account.
+            if (sourceAccountLast4 != null && targetCardLast4 != null && sourceAccountLast4 != targetCardLast4) {
+                val cardBank = resolvedBank ?: "Credit"
+                val existingCardIndex = currentList.indexOfFirst {
+                    it.type == AccountType.CreditCard && it.last4 == targetCardLast4 &&
+                        (it.bankName == null || it.bankName.equals(cardBank, ignoreCase = true))
+                }
+                if (existingCardIndex != -1) {
+                    val cardAcc = currentList[existingCardIndex]
+                    if (cardAcc.linkedPrimaryAccountId == null) {
+                        currentList[existingCardIndex] = cardAcc.copy(linkedPrimaryAccountId = primaryAccount.id)
+                    }
+                } else {
+                    val cardNextId = (currentList.maxOfOrNull { it.id } ?: 0L) + 1L
+                    val newCard = Account(
+                        id = cardNextId,
+                        name = "$cardBank Card ••$targetCardLast4",
+                        bankName = cardBank,
+                        last4 = targetCardLast4,
+                        type = AccountType.CreditCard,
+                        linkedPrimaryAccountId = primaryAccount.id,
+                    )
+                    currentList.add(newCard)
+                }
+            }
+
+            _accounts.value = currentList
+            saveToDisk(currentList)
+            primaryAccount
         }
     }
 
@@ -276,13 +313,19 @@ class DefaultAccountRepository(
 
     private fun extractLast4FromText(body: String, type: AccountType): String? {
         if (type == AccountType.CreditCard) {
+            val target = TransactionClassifierHelper.extractTargetCardLast4(body)
+            if (target != null) return target
             val cardRegex =
                 Regex(
-                    """(?i)(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
+                    """(?i)(?:credit\s*card|card|cc)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
                 )
             val match = cardRegex.find(body)
             if (match != null) return match.groupValues[1]
+        } else {
+            val source = TransactionClassifierHelper.extractSourceAccountLast4(body)
+            if (source != null) return source
         }
+
         val acctRegex =
             Regex(
                 """(?i)(?:a/c|acct|account|acc)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
@@ -290,10 +333,10 @@ class DefaultAccountRepository(
         val acctMatch = acctRegex.find(body)
         if (acctMatch != null) return acctMatch.groupValues[1]
 
-        val maskedMatch = Regex("""\b(?:\d{2,9})?[xX*]{1,12}(\d{3,4})\b""").find(body)
+        val maskedMatch = Regex("""(?i)(?:[xX*]{1,12}|\b\d{2,9}[xX*]+)(\d{3,4})\b""").find(body)
         if (maskedMatch != null) return maskedMatch.groupValues[1]
 
-        val fallback = Regex("""(?:\*{2,}|x{2,}|xx)(\d{3,4})""", RegexOption.IGNORE_CASE)
+        val fallback = Regex("""(?:\*{1,}|x{2,}|xx)(\d{3,4})""", RegexOption.IGNORE_CASE)
         return fallback.find(body)?.groupValues?.get(1)
     }
 

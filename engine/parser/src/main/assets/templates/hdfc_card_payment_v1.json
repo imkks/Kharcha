@@ -1,0 +1,10 @@
+{
+  "id": "hdfc_card_payment_v1",
+  "bank": "HDFC",
+  "senderPatterns": ["^[A-Za-z]{2}-?(HDFCBK|HDFCSMS|HDFC)(-[A-Za-z0-9]+)?$", "^(HDFCBK|HDFCSMS|HDFC)(-[A-Za-z0-9]+)?$"],
+  "direction": "CREDIT",
+  "channel": "CARD",
+  "regex": "(?i)DEAR\\s+HDFCBANK\\s+CARDMEMBER,?\\s+PAYMENT\\s+OF\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+RECEIVED\\s+TOWARDS\\s+YOUR\\s+CREDIT\\s+CARD\\s+ENDING\\s+WITH\\s+(?<last4>\\d{4})\\s+ON\\s+(?<date>\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})\\.?\\s*(?:YOUR\\s+AVAILABLE\\s+LIMIT\\s+IS\\s+(?:RS\\.?|INR|₹)\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["d-M-yyyy", "dd-MM-yyyy", "d/M/yyyy", "dd/MM/yyyy", "d-M-yy", "dd-MM-yy"],
+  "confidence": 0.95
+}

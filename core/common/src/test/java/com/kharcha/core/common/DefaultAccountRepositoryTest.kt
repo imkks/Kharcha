@@ -157,4 +157,90 @@ class DefaultAccountRepositoryTest {
             assertEquals("8302", account.last4)
             assertEquals("HDFC Card ••8302", account.name)
         }
+
+    @Test
+    fun resolvesAutoDebitCreatesSavingsAndLinksCreditCard() =
+        runTest(testDispatcher) {
+            val body =
+                "Dear Customer, thank you for your payment of INR 11,311.00 towards ICICI Bank Credit Card Account XX1268 through Auto Debit from Account XX2321 on 04-Oct-26"
+            val debitedAccount =
+                repository.resolveOrCreateAccount(
+                    bankName = "ICICI",
+                    last4 = "2321",
+                    channel = Channel.OTHER,
+                    smsBody = body,
+                )
+
+            assertEquals(AccountType.Savings, debitedAccount.type)
+            assertEquals("ICICI", debitedAccount.bankName)
+            assertEquals("2321", debitedAccount.last4)
+            assertEquals("ICICI ••2321", debitedAccount.name)
+
+            val allAccounts = repository.getAccountsSync()
+            assertEquals(2, allAccounts.size)
+
+            val cardAccount = allAccounts.find { it.type == AccountType.CreditCard }
+            org.junit.Assert.assertNotNull(cardAccount)
+            assertEquals("ICICI", cardAccount?.bankName)
+            assertEquals("1268", cardAccount?.last4)
+            assertEquals("ICICI Card ••1268", cardAccount?.name)
+            assertEquals(debitedAccount.id, cardAccount?.linkedPrimaryAccountId)
+        }
+
+    @Test
+    fun resolvesCardmemberPaymentAsCreditCard() =
+        runTest(testDispatcher) {
+            val body =
+                "DEAR HDFCBANK CARDMEMBER, PAYMENT OF Rs. 595.00 RECEIVED TOWARDS YOUR CREDIT CARD ENDING WITH 8302 ON 2-6-2025.YOUR AVAILABLE LIMIT IS RS. 154621.36"
+            val account =
+                repository.resolveOrCreateAccount(
+                    bankName = "HDFC",
+                    last4 = "8302",
+                    channel = Channel.CARD,
+                    smsBody = body,
+                )
+
+            assertEquals(AccountType.CreditCard, account.type)
+            assertEquals("HDFC", account.bankName)
+            assertEquals("8302", account.last4)
+            assertEquals("HDFC Card ••8302", account.name)
+        }
+
+    @Test
+    fun resolvesAccountDebitForCreditCardBillAsSavings() =
+        runTest(testDispatcher) {
+            val body =
+                "ICICI Bank Acct XX321 debited for Rs 96808.63 on 05-Aug-26; Credit Card Bil credited. UPI:621717806116. Call 18002662 for dispute. SMS BLOCK 321 to 9215676766."
+            val account =
+                repository.resolveOrCreateAccount(
+                    bankName = "ICICI",
+                    last4 = "321",
+                    channel = Channel.UPI,
+                    smsBody = body,
+                )
+
+            assertEquals(AccountType.Savings, account.type)
+            assertEquals("ICICI", account.bankName)
+            assertEquals("321", account.last4)
+            assertEquals("ICICI ••321", account.name)
+        }
+
+    @Test
+    fun resolvesAsteriskMaskedAccountInHdfcTransfer() =
+        runTest(testDispatcher) {
+            val body =
+                "HDFC Bank:Rs. 53000.00 debited from a/c *1999 on 04/10/26 to a/c **0034 (UPI Ref No. 615324150359). Not you? Call on 18002586161 to report"
+            val account =
+                repository.resolveOrCreateAccount(
+                    bankName = "HDFC",
+                    last4 = "1999",
+                    channel = Channel.UPI,
+                    smsBody = body,
+                )
+
+            assertEquals(AccountType.Savings, account.type)
+            assertEquals("HDFC", account.bankName)
+            assertEquals("1999", account.last4)
+            assertEquals("HDFC ••1999", account.name)
+        }
 }

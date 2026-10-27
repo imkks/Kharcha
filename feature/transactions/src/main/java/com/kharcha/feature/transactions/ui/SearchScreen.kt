@@ -60,6 +60,7 @@ import com.kharcha.core.designsystem.component.SearchField
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 
 enum class SearchTab {
@@ -114,12 +115,12 @@ fun SearchScreen(
         remember(transactions, searchQuery) {
             val allSms =
                 transactions.map { tx ->
+                    val store = tx.merchantRaw ?: "Store"
+                    val ref = tx.refNumber ?: "N/A"
                     SmsSnippet(
                         id = tx.id,
                         sender = tx.channel?.name ?: "BANK-ALERT",
                         dateEpoch = tx.dateTime,
-                        val store = tx.merchantRaw ?: "Store"
-                        val ref = tx.refNumber ?: "N/A"
                         body = tx.note ?: "Txn of ₹${tx.amount / 100} at $store ref $ref",
                         isParsed = tx.isReviewed,
                         transaction = tx,

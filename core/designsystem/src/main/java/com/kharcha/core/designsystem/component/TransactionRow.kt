@@ -40,6 +40,7 @@ import com.kharcha.core.designsystem.R
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

@@ -61,6 +61,7 @@ import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 import java.time.Instant
 import java.time.LocalDate

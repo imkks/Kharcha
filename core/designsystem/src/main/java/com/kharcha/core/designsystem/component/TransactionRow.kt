@@ -27,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -97,9 +96,7 @@ fun TransactionRow(
             )
             .then(
                 if (!isCounted) {
-                    Modifier
-                        .alpha(0.45f)
-                        .blur(1.dp)
+                    Modifier.alpha(0.72f)
                 } else {
                     Modifier
                 },

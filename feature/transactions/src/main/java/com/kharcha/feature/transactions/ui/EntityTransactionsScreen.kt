@@ -42,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -421,9 +420,7 @@ fun EntityTransactionRow(
             .clickable(onClick = onClick)
             .then(
                 if (!isCounted) {
-                    Modifier
-                        .alpha(0.45f)
-                        .blur(1.dp)
+                    Modifier.alpha(0.72f)
                 } else {
                     Modifier
                 },

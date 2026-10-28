@@ -84,6 +84,7 @@ import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 import java.time.Instant
 import java.time.YearMonth
@@ -173,13 +174,13 @@ fun AccountDetailScreen(
 
     val monthExpensePaise = remember(allMonthTransactions) {
         allMonthTransactions
-            .filter { it.type == TransactionType.Expense }
+            .filter { it.type == TransactionType.Expense && it.isCounted }
             .sumOf { it.amount }
     }
 
     val monthIncomePaise = remember(allMonthTransactions) {
         allMonthTransactions
-            .filter { it.type == TransactionType.Income }
+            .filter { it.type == TransactionType.Income && it.isCounted }
             .sumOf { it.amount }
     }
 

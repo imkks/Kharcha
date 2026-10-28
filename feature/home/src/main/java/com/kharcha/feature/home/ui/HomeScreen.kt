@@ -161,14 +161,14 @@ fun HomeScreen(
     val spentThisMonth =
         remember(currentMonthTransactions) {
             currentMonthTransactions
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.Expense && it.isCounted }
                 .sumOf { it.amount }
         }
 
     val incomeThisMonth =
         remember(currentMonthTransactions) {
             currentMonthTransactions
-                .filter { it.type == TransactionType.Income }
+                .filter { it.type == TransactionType.Income && it.isCounted }
                 .sumOf { it.amount }
         }
 
@@ -202,6 +202,7 @@ fun HomeScreen(
             currentMonthTransactions
                 .filter {
                     it.type == TransactionType.Expense &&
+                        it.isCounted &&
                         (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed)
                 }
                 .sumOf { it.amount }
@@ -212,6 +213,7 @@ fun HomeScreen(
             currentMonthTransactions
                 .filter {
                     it.type == TransactionType.Expense &&
+                        it.isCounted &&
                         it.categorySource != "Unknown" &&
                         it.categorySource != "Other"
                 }

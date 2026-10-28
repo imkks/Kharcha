@@ -47,6 +47,8 @@ val TransactionType.isCredit: Boolean
 val Transaction.isTransfer: Boolean
     get() = categorySource.equals("Transfer", ignoreCase = true) ||
         categorySource.equals("A/C Transfer", ignoreCase = true) ||
+        categorySource.equals("Bill Payment", ignoreCase = true) ||
+        categorySource.equals("Credit Card Bill", ignoreCase = true) ||
         merchantNormalised.equals("Transfer", ignoreCase = true) ||
         type == TransactionType.Transfer
 

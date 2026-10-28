@@ -115,8 +115,9 @@ object TransactionClassifierHelper {
 
         val isAutoDebitForCard =
             (b.contains("auto debit") || b.contains("autodebit") || b.contains("auto-debit") ||
-                b.contains("standing instruction") || b.contains("nach") || b.contains("e-mandate")) &&
-                (b.contains("card") || b.contains("cc") || b.contains("credit"))
+                b.contains("standing instruction") || b.contains("nach") || b.contains("e-mandate") ||
+                b.contains("infoatd") || b.contains("auto debi")) &&
+                (b.contains("card") || b.contains("cc") || b.contains("credit") || b.contains("infoatd"))
 
         return hasCardPhrase || isAutoDebitForCard
     }

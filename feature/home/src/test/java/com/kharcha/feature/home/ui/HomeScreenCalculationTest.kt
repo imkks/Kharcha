@@ -3,6 +3,7 @@ package com.kharcha.feature.home.ui
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Instant
@@ -69,6 +70,36 @@ class HomeScreenCalculationTest {
 
         assertEquals(1_650_00L, totalSpent)
         assertEquals(85_000_00L, totalIncome)
+    }
+
+    @Test
+    fun testCreditCardBillPaymentTransferDoesNotDoubleCountInSpend() {
+        val octEpoch = Instant.parse("2026-10-15T10:00:00Z").toEpochMilli()
+        val cardSpend = Transaction(
+            id = 1L,
+            amount = 11_311_00L,
+            type = TransactionType.Expense,
+            channel = Channel.CARD,
+            dateTime = octEpoch,
+            merchantRaw = "Amazon",
+            categorySource = "Shopping",
+        )
+        val billPaymentDebit = Transaction(
+            id = 2L,
+            amount = 11_311_00L,
+            type = TransactionType.Expense,
+            channel = Channel.OTHER,
+            dateTime = octEpoch,
+            merchantRaw = "ICICI Bank Credit Card",
+            categorySource = "Bill Payment",
+        )
+
+        val transactions = listOf(cardSpend, billPaymentDebit)
+        val countedExpenses = transactions
+            .filter { it.type == TransactionType.Expense && it.isCounted }
+            .sumOf { it.amount }
+
+        assertEquals(11_311_00L, countedExpenses)
     }
 
     @Test

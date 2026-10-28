@@ -157,6 +157,13 @@ class IDFCFirstBankParser : BaseIndianBankParser() {
             return false
         }
 
+        // Skip credit card bill payment confirmations - these are transfers between own accounts
+        if ((lowerMessage.contains("thank you for payment") || lowerMessage.contains("thank you for your payment")) &&
+            lowerMessage.contains("credit card")
+        ) {
+            return false
+        }
+
         // Must contain transaction keywords - IDFC specific patterns
         val transactionKeywords = listOf(
             "debit", "debited", "credited", "withdrawn", "deposited",

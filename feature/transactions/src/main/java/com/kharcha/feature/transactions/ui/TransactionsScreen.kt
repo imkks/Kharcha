@@ -310,14 +310,14 @@ fun TransactionsScreen(
     val monthIncome =
         remember(monthAllTransactions) {
             monthAllTransactions
-                .filter { it.type == TransactionType.Income }
+                .filter { it.type == TransactionType.Income && it.isCounted }
                 .sumOf { it.amount }
         }
 
     val monthExpense =
         remember(monthAllTransactions) {
             monthAllTransactions
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.Expense && it.isCounted }
                 .sumOf { it.amount }
         }
 

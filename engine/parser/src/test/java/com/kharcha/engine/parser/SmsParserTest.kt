@@ -1583,13 +1583,21 @@ class SmsParserTest {
                 subId = null,
             )
         val result = parser.parse(sms)
-        assertTrue(result is ParseResult.Success)
-        val txn = (result as ParseResult.Success).txn
-        assertEquals(1064162L, txn.amountMinor)
-        assertEquals(Direction.CREDIT, txn.direction)
-        assertEquals("5625", txn.accountLast4)
-        assertEquals(Channel.CARD, txn.channel)
-        assertEquals("IDFC", txn.bankName)
+        assertTrue("Credit card bill payment confirmation should be skipped", result is ParseResult.NoMatch)
+    }
+
+    @Test
+    fun testIdfcCreditCardBillPayment44514Skipped() {
+        val sms =
+            RawSms(
+                id = 19328,
+                sender = "JD-IDFCFB-S",
+                body = "Thank you for payment of INR 44,514.44 towards your FIRST Wealth Credit Card XX5625 on 06 Oct 2026. IDFC FIRST Bank",
+                receivedAt = 1791225591988L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("IDFC credit card bill payment acknowledgment should be skipped", result is ParseResult.NoMatch)
     }
 
     @Test

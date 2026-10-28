@@ -58,6 +58,7 @@ import com.kharcha.core.model.Account
 import com.kharcha.core.model.TimePeriod
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import java.time.YearMonth
 
 enum class InsightsTab(val labelRes: Int) {
@@ -121,7 +122,7 @@ fun InsightsScreen(
 
     val expenses =
         remember(periodTxns) {
-            periodTxns.filter { it.type == TransactionType.Expense }
+            periodTxns.filter { it.type == TransactionType.Expense && it.isCounted }
         }
 
     val categoryShares =
@@ -141,7 +142,7 @@ fun InsightsScreen(
 
     val totalIncome =
         remember(periodTxns) {
-            periodTxns.filter { it.type == TransactionType.Income }.sumOf { it.amount }
+            periodTxns.filter { it.type == TransactionType.Income && it.isCounted }.sumOf { it.amount }
         }
     val totalExpense =
         remember(expenses) {

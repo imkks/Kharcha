@@ -543,7 +543,7 @@ fun calculateEntityMonthlySpend(
 
         val spend =
             transactions
-                .filter { it.dateTime in monthStart..monthEnd && it.type == TransactionType.Expense }
+                .filter { it.dateTime in monthStart..monthEnd && it.type == TransactionType.EXPENSE }
                 .sumOf { it.amount }
 
         results.add(

@@ -57,7 +57,7 @@ fun calculateCumulativeSpendByDay(
 
     val currentMonthExpenses =
         transactions.filter {
-            it.type == TransactionType.Expense && it.dateTime >= monthStart
+            it.type == TransactionType.EXPENSE && it.dateTime >= monthStart
         }
 
     val spendByDay = LongArray(currentDay + 1)

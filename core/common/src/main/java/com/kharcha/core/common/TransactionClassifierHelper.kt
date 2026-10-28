@@ -253,41 +253,18 @@ object TransactionClassifierHelper {
             (b.contains("clearing") && !b.contains("zerodha") && !b.contains("upi"))
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun classifyType(
         direction: Direction,
-        body: String,
+        body: String? = null,
         merchant: String? = null,
         amountMinor: Long = 0L,
         channel: Channel? = null,
     ): TransactionType {
-        val b = body.lowercase()
-        val m = merchant?.lowercase() ?: ""
-        if (direction == Direction.CREDIT) {
-            if (isRefundNarrative(body, merchant)) {
-                return TransactionType.Refund
-            }
-            if (isCreditCardBillPayment(body, merchant)) {
-                return TransactionType.Refund
-            }
-            if (isTransferNarrative(body, merchant, amountMinor, channel)) {
-                return TransactionType.Refund
-            }
-            val isKnownNonIncome =
-                b.contains("upi") || b.contains("credit alert") ||
-                    b.contains("reversal") || b.contains("cashback") || b.contains("reward") ||
-                    b.contains("vpa") || m.contains("@")
-            if (isKnownNonIncome && !isSalaryOrIncome(b, m)) {
-                return TransactionType.Refund
-            }
-            return TransactionType.Income
+        return if (direction == Direction.CREDIT) {
+            TransactionType.INCOME
         } else {
-            if (isTransferNarrative(body, merchant, amountMinor, channel)) {
-                return TransactionType.Transfer
-            }
-            if (isRefundNarrative(body, merchant)) {
-                return TransactionType.Refund
-            }
-            return TransactionType.Expense
+            TransactionType.EXPENSE
         }
     }
 

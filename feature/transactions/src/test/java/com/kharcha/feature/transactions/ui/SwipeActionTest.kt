@@ -12,7 +12,7 @@ class SwipeActionTest {
 
     private fun createTxn(
         id: Long = 1L,
-        type: TransactionType = TransactionType.Expense,
+        type: TransactionType = TransactionType.EXPENSE,
         isReviewed: Boolean = false,
     ): Transaction =
         Transaction(
@@ -31,24 +31,26 @@ class SwipeActionTest {
 
     @Test
     fun testSwipeDeleteMarksIgnoredAndReviewed() {
-        val original = createTxn(id = 10L, type = TransactionType.Expense, isReviewed = false)
-        val deleted = original.copy(type = TransactionType.Ignored, isReviewed = true)
+        val original = createTxn(id = 10L, type = TransactionType.EXPENSE, isReviewed = false)
+        val deleted = original.copy(isExcluded = true, isReviewed = true)
 
-        assertEquals(TransactionType.Ignored, deleted.type)
+        assertTrue(deleted.isExcluded)
         assertTrue(deleted.isReviewed)
         assertEquals(original.id, deleted.id)
     }
 
     @Test
     fun testSwipeDeleteUndoRestoresOriginal() {
-        val original = createTxn(id = 10L, type = TransactionType.Expense, isReviewed = false)
-        val deleted = original.copy(type = TransactionType.Ignored, isReviewed = true)
+        val original = createTxn(id = 10L, type = TransactionType.EXPENSE, isReviewed = false)
+        val deleted = original.copy(isExcluded = true, isReviewed = true)
+        assertTrue(deleted.isExcluded)
 
         // Undo action restores original instance
         val restored = original
 
-        assertEquals(TransactionType.Expense, restored.type)
+        assertEquals(TransactionType.EXPENSE, restored.type)
         assertFalse(restored.isReviewed)
+        assertFalse(restored.isExcluded)
         assertEquals(original.amount, restored.amount)
     }
 

@@ -121,14 +121,14 @@ fun TrendsScreen(
     val selectedMonthSpendsMinor =
         remember(monthTransactions) {
             monthTransactions
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.EXPENSE }
                 .sumOf { it.amount }
         }
 
     val selectedMonthIncomeMinor =
         remember(monthTransactions) {
             monthTransactions
-                .filter { it.type == TransactionType.Income }
+                .filter { it.type == TransactionType.INCOME }
                 .sumOf { it.amount }
         }
 

@@ -21,7 +21,7 @@ class TransactionFilterTest {
             Transaction(
                 id = 1L,
                 accountId = 101L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 amount = 45000L,
                 dateTime = System.currentTimeMillis(),
                 merchantRaw = "Swiggy",
@@ -32,7 +32,7 @@ class TransactionFilterTest {
             Transaction(
                 id = 2L,
                 accountId = 101L,
-                type = TransactionType.Income,
+                type = TransactionType.INCOME,
                 amount = 15000000L,
                 dateTime = System.currentTimeMillis() - 86400000L,
                 merchantRaw = "Salary Employer",
@@ -43,7 +43,7 @@ class TransactionFilterTest {
             Transaction(
                 id = 3L,
                 accountId = 101L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 amount = 12000L,
                 dateTime = System.currentTimeMillis(),
                 merchantRaw = "Uber India",
@@ -54,11 +54,12 @@ class TransactionFilterTest {
             Transaction(
                 id = 4L,
                 accountId = 101L,
-                type = TransactionType.Transfer,
+                type = TransactionType.EXPENSE,
                 amount = 500000L,
                 dateTime = System.currentTimeMillis() - 172800000L,
                 merchantRaw = "Self Transfer",
                 merchantNormalised = "Self Transfer",
+                categorySource = "Transfer",
                 channel = Channel.IMPS,
                 isReviewed = true,
             ),
@@ -73,8 +74,8 @@ class TransactionFilterTest {
     @Test
     fun testFilterExpense() {
         val result = filterTransactions(testTxns, "", TransactionFilterType.EXPENSE)
-        assertEquals(2, result.size)
-        assertTrue(result.all { it.type == TransactionType.Expense })
+        assertEquals(3, result.size)
+        assertTrue(result.all { it.type == TransactionType.EXPENSE })
     }
 
     @Test

@@ -31,4 +31,5 @@ data class Transaction(
     val accountLast4: String? = null,
     val bankName: String? = null,
     val sender: String? = null,
+    val isExcluded: Boolean = false,
 )

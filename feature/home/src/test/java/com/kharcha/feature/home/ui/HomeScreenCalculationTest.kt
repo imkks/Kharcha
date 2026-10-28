@@ -24,7 +24,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 1L,
                 amount = 450_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = octEpoch1,
                 merchantRaw = "Swiggy",
@@ -32,7 +32,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 2L,
                 amount = 1_200_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.CARD,
                 dateTime = octEpoch2,
                 merchantRaw = "BESCOM",
@@ -40,7 +40,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 3L,
                 amount = 85_000_00L,
-                type = TransactionType.Income,
+                type = TransactionType.INCOME,
                 channel = Channel.NEFT,
                 dateTime = octEpochIncome,
                 merchantRaw = "Acme Corp",
@@ -48,7 +48,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 4L,
                 amount = 999_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = sepEpoch,
                 merchantRaw = "Amazon",
@@ -60,11 +60,11 @@ class HomeScreenCalculationTest {
         }
 
         val totalSpent = octTransactions
-            .filter { it.type == TransactionType.Expense }
+            .filter { it.type == TransactionType.EXPENSE }
             .sumOf { it.amount }
 
         val totalIncome = octTransactions
-            .filter { it.type == TransactionType.Income }
+            .filter { it.type == TransactionType.INCOME }
             .sumOf { it.amount }
 
         assertEquals(1_650_00L, totalSpent)
@@ -93,7 +93,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 1L,
                 amount = 962_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = Instant.parse("2026-10-15T10:00:00Z").toEpochMilli(),
                 categorySource = "Unknown",
@@ -102,7 +102,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 2L,
                 amount = 27_878_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.CARD,
                 dateTime = Instant.parse("2026-10-16T11:00:00Z").toEpochMilli(),
                 categorySource = "Shopping",
@@ -111,7 +111,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 3L,
                 amount = 10_290_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = Instant.parse("2026-10-17T12:00:00Z").toEpochMilli(),
                 categorySource = "Food & Drinks",
@@ -120,7 +120,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 4L,
                 amount = 5_000_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = Instant.parse("2026-10-18T14:00:00Z").toEpochMilli(),
                 categorySource = "Shopping",
@@ -129,12 +129,12 @@ class HomeScreenCalculationTest {
         )
 
         val unknownSpend = transactions
-            .filter { it.type == TransactionType.Expense && (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed) }
+            .filter { it.type == TransactionType.EXPENSE && (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed) }
             .sumOf { it.amount }
         assertEquals(962_00L, unknownSpend)
 
         val topSpendCategories = transactions
-            .filter { it.type == TransactionType.Expense && it.categorySource != "Unknown" && it.categorySource != "Other" }
+            .filter { it.type == TransactionType.EXPENSE && it.categorySource != "Unknown" && it.categorySource != "Other" }
             .groupBy { it.categorySource ?: "Others" }
             .mapValues { entry -> entry.value.sumOf { it.amount } }
             .toList()
@@ -153,7 +153,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 1L,
                 amount = 100_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = 1L,
                 note = "Order from Swiggy #Online #Food",
@@ -161,7 +161,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 2L,
                 amount = 200_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = 2L,
                 note = "Blinkit grocery #Online",
@@ -169,7 +169,7 @@ class HomeScreenCalculationTest {
             Transaction(
                 id = 3L,
                 amount = 300_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = 3L,
                 note = "Rent for apartment #Rent",

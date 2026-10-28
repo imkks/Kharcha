@@ -198,7 +198,13 @@ class OnboardingViewModel
                                     sms.body,
                                     normMerchant,
                                 )
-                            val isTransfer = type == TransactionType.Transfer
+                            val isTransfer =
+                                TransactionClassifierHelper.isTransferNarrative(
+                                    sms.body,
+                                    normMerchant,
+                                    parsedTxn.amountMinor,
+                                    parsedTxn.channel,
+                                )
                             val normLower = normMerchant.lowercase().trim()
                             val isUserCategorized = userRules.containsKey(normLower)
                             val category =

@@ -79,8 +79,15 @@ class ImportWorker
                                                 amountMinor = parsed.amountMinor,
                                                 channel = parsed.channel,
                                             )
-                                        val isTransfer = type == TransactionType.Transfer
-                                        val isRefund = type == TransactionType.Refund
+                                        val isTransfer =
+                                            TransactionClassifierHelper.isTransferNarrative(
+                                                sms.body,
+                                                normMerchant,
+                                                parsed.amountMinor,
+                                                parsed.channel,
+                                            )
+                                        val isRefund =
+                                            TransactionClassifierHelper.isRefundNarrative(sms.body, normMerchant)
                                         val category =
                                             TransactionClassifierHelper.guessCategory(
                                                 merchant = normMerchant,

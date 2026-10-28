@@ -20,7 +20,7 @@ class MoreScreenTest {
         Transaction(
             id = id,
             accountId = 101L,
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             amount = amount,
             dateTime = 1729000000000L,
             merchantNormalised = "Swiggy",

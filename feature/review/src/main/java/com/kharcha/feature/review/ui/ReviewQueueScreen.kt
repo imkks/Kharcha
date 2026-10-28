@@ -273,12 +273,13 @@ private fun ReviewCardContent(
             ) {
                 // Hero Amount
                 val amountColor =
-                    when (transaction.type) {
-                        TransactionType.Income, TransactionType.Refund -> MaterialTheme.financialColors.income
-                        TransactionType.Expense -> MaterialTheme.financialColors.expense
-                        TransactionType.Transfer -> MaterialTheme.financialColors.transfer
-                        TransactionType.Investment -> MaterialTheme.colorScheme.primary
-                        TransactionType.Ignored -> MaterialTheme.colorScheme.outline
+                    if (transaction.isExcluded) {
+                        MaterialTheme.colorScheme.outline
+                    } else {
+                        when (transaction.type) {
+                            TransactionType.INCOME -> MaterialTheme.financialColors.income
+                            TransactionType.EXPENSE -> MaterialTheme.financialColors.expense
+                        }
                     }
 
                 val amountFormatted =
@@ -286,12 +287,10 @@ private fun ReviewCardContent(
                         "₹ ••••••"
                     } else {
                         when (transaction.type) {
-                            TransactionType.Expense ->
+                            TransactionType.EXPENSE ->
                                 MoneyFormatter.formatMinorUnits(transaction.amount, showSign = true, isCredit = false)
-                            TransactionType.Income, TransactionType.Refund ->
+                            TransactionType.INCOME ->
                                 MoneyFormatter.formatMinorUnits(transaction.amount, showSign = true, isCredit = true)
-                            else ->
-                                MoneyFormatter.formatMinorUnits(transaction.amount, showSign = false)
                         }
                     }
 

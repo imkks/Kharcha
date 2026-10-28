@@ -71,7 +71,7 @@ class CategoryBudgetTest {
                 Transaction(
                     id = 1L,
                     accountId = 101L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 450_00L,
                     dateTime = System.currentTimeMillis(),
                     channel = Channel.CARD,
@@ -80,7 +80,7 @@ class CategoryBudgetTest {
                 Transaction(
                     id = 2L,
                     accountId = 101L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 150_00L,
                     dateTime = System.currentTimeMillis(),
                     channel = Channel.CARD,
@@ -89,7 +89,7 @@ class CategoryBudgetTest {
                 Transaction(
                     id = 3L,
                     accountId = 102L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 200_00L,
                     dateTime = System.currentTimeMillis(),
                     channel = Channel.UPI,

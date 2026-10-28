@@ -263,10 +263,10 @@ fun TransactionsScreen(
 
                 when {
                     activeFilter.types.isEmpty() -> true
-                    activeFilter.types == setOf(TransactionType.Expense) ->
-                        txn.type == TransactionType.Expense || !txn.isCounted
-                    activeFilter.types == setOf(TransactionType.Income) ->
-                        txn.type == TransactionType.Income
+                    activeFilter.types == setOf(TransactionType.EXPENSE) ->
+                        txn.type == TransactionType.EXPENSE
+                    activeFilter.types == setOf(TransactionType.INCOME) ->
+                        txn.type == TransactionType.INCOME
                     else -> activeFilter.types.contains(txn.type)
                 }
             }
@@ -310,14 +310,14 @@ fun TransactionsScreen(
     val monthIncome =
         remember(monthAllTransactions) {
             monthAllTransactions
-                .filter { it.type == TransactionType.Income }
+                .filter { it.type == TransactionType.INCOME }
                 .sumOf { it.amount }
         }
 
     val monthExpense =
         remember(monthAllTransactions) {
             monthAllTransactions
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.EXPENSE }
                 .sumOf { it.amount }
         }
 
@@ -509,7 +509,7 @@ fun TransactionsScreen(
                         val selectedTxns = transactions.filter { selectedIds.contains(it.id) }
                         val updated =
                             selectedTxns.map {
-                                it.copy(type = TransactionType.Ignored, isReviewed = true)
+                                it.copy(isExcluded = true, isReviewed = true)
                             }
                         onUpdateTransactions(updated)
                         val count = selectedTxns.size
@@ -622,23 +622,23 @@ fun TransactionsScreen(
                                         showSetBudgetSheet = true
                                         onSetBudgetClick()
                                     },
-                                    isExpenseSelected = currentFilter.types == setOf(TransactionType.Expense),
-                                    isIncomeSelected = currentFilter.types == setOf(TransactionType.Income),
+                                    isExpenseSelected = currentFilter.types == setOf(TransactionType.EXPENSE),
+                                    isIncomeSelected = currentFilter.types == setOf(TransactionType.INCOME),
                                     onExpenseClick = {
                                         val newTypes =
-                                            if (currentFilter.types == setOf(TransactionType.Expense)) {
+                                            if (currentFilter.types == setOf(TransactionType.EXPENSE)) {
                                                 emptySet()
                                             } else {
-                                                setOf(TransactionType.Expense)
+                                                setOf(TransactionType.EXPENSE)
                                             }
                                         updateFilter(currentFilter.copy(types = newTypes))
                                     },
                                     onIncomeClick = {
                                         val newTypes =
-                                            if (currentFilter.types == setOf(TransactionType.Income)) {
+                                            if (currentFilter.types == setOf(TransactionType.INCOME)) {
                                                 emptySet()
                                             } else {
-                                                setOf(TransactionType.Income)
+                                                setOf(TransactionType.INCOME)
                                             }
                                         updateFilter(currentFilter.copy(types = newTypes))
                                     },
@@ -656,8 +656,8 @@ fun TransactionsScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     val isAllSelected = currentFilter.types.isEmpty()
-                                    val isExpenseSelected = currentFilter.types == setOf(TransactionType.Expense)
-                                    val isIncomeSelected = currentFilter.types == setOf(TransactionType.Income)
+                                    val isExpenseSelected = currentFilter.types == setOf(TransactionType.EXPENSE)
+                                    val isIncomeSelected = currentFilter.types == setOf(TransactionType.INCOME)
 
                                     FilterChip(
                                         selected = isAllSelected,
@@ -678,7 +678,7 @@ fun TransactionsScreen(
                                         selected = isExpenseSelected,
                                         onClick = {
                                             val newTypes =
-                                                if (isExpenseSelected) emptySet() else setOf(TransactionType.Expense)
+                                                if (isExpenseSelected) emptySet() else setOf(TransactionType.EXPENSE)
                                             updateFilter(currentFilter.copy(types = newTypes))
                                         },
                                         label = {
@@ -693,7 +693,7 @@ fun TransactionsScreen(
                                         selected = isIncomeSelected,
                                         onClick = {
                                             val newTypes =
-                                                if (isIncomeSelected) emptySet() else setOf(TransactionType.Income)
+                                                if (isIncomeSelected) emptySet() else setOf(TransactionType.INCOME)
                                             updateFilter(currentFilter.copy(types = newTypes))
                                         },
                                         label = {
@@ -957,7 +957,7 @@ fun TransactionsScreen(
     }
 
     if (showBulkTypeDialog) {
-        var chosenType by remember { mutableStateOf(TransactionType.Expense) }
+        var chosenType by remember { mutableStateOf(TransactionType.EXPENSE) }
         AlertDialog(
             onDismissRequest = { showBulkTypeDialog = false },
             title = {
@@ -969,9 +969,8 @@ fun TransactionsScreen(
             text = {
                 Column {
                     listOf(
-                        TransactionType.Expense,
-                        TransactionType.Income,
-                        TransactionType.Transfer,
+                        TransactionType.EXPENSE,
+                        TransactionType.INCOME,
                     ).forEach { type ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1144,7 +1143,7 @@ fun CategoriesTabContent(
     onCategoryClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    val expenses = transactions.filter { it.type == TransactionType.EXPENSE && it.amount > 0 }
     val totalExpense = expenses.sumOf { it.amount }
     val slices =
         remember(transactions) {
@@ -1499,7 +1498,7 @@ fun MerchantsTabContent(
     onMerchantClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    val expenses = transactions.filter { it.type == TransactionType.EXPENSE && it.amount > 0 }
     val isPrivacy = LocalPrivacyMode.current
     val topMerchants =
         remember(expenses) {
@@ -1700,7 +1699,7 @@ fun MonthPickerSheet(
                         }
                     val monthSpent =
                         monthTxns
-                            .filter { it.type == TransactionType.Expense }
+                            .filter { it.type == TransactionType.EXPENSE }
                             .sumOf { it.amount }
                     val isPrivacy = LocalPrivacyMode.current
                     val formattedSpent =
@@ -1798,7 +1797,7 @@ fun DayHeader(
 ) {
     val dayTotalMinor =
         transactions
-            .filter { it.type == TransactionType.Expense }
+            .filter { it.type == TransactionType.EXPENSE }
             .sumOf { it.amount }
 
     val formattedDate = formatDate(dateEpoch, todayText, yesterdayText)
@@ -1881,11 +1880,10 @@ fun filterTransactions(
         val matchesFilter =
             when (filter) {
                 TransactionFilterType.ALL -> true
-                TransactionFilterType.EXPENSE -> txn.type == TransactionType.Expense
-                TransactionFilterType.INCOME -> txn.type == TransactionType.Income
+                TransactionFilterType.EXPENSE -> txn.type == TransactionType.EXPENSE
+                TransactionFilterType.INCOME -> txn.type == TransactionType.INCOME
                 TransactionFilterType.TRANSFER ->
-                    txn.type == TransactionType.Transfer ||
-                        txn.categorySource.equals("Transfer", ignoreCase = true)
+                    txn.categorySource.equals("Transfer", ignoreCase = true)
                 TransactionFilterType.NEEDS_REVIEW -> !txn.isReviewed
             }
 

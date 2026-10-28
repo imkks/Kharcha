@@ -73,7 +73,7 @@ class AccountAutoLinkerTest {
         val txn = Transaction(
             id = 100L,
             accountId = 10L,
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             amount = 1500000L,
             dateTime = System.currentTimeMillis(),
             note = "Dear Customer, your ICICI Bank Acc XX1234 has been debited for Rs 15,000.00 on 12-Oct-24 towards ICICI Bank Credit Card ending with 8302. Info: BIL/000123.",
@@ -131,7 +131,7 @@ class AccountAutoLinkerTest {
         val txn = Transaction(
             id = 101L,
             accountId = 11L,
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             amount = 2000000L,
             dateTime = System.currentTimeMillis(),
             note = "Rs 20,000 debited from a/c **2321 towards your Card 4620XXXXXXXX6567 payment",
@@ -164,7 +164,7 @@ class AccountAutoLinkerTest {
         val txn = Transaction(
             id = 102L,
             accountId = 12L,
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             amount = 542000L,
             dateTime = System.currentTimeMillis(),
             note = "CC 000434155XXXXXX8302 Autopay executed for Rs 5,420 from A/c XX1234",

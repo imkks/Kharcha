@@ -39,16 +39,16 @@ class CategorizationPipelineTest {
                 )
 
             // 1. High confidence match
-            val res1 = pipeline.categorize(CategorizationInput(100L, "MATCH", null, null, TransactionType.Expense))
+            val res1 = pipeline.categorize(CategorizationInput(100L, "MATCH", null, null, TransactionType.EXPENSE))
             assertEquals("High", res1.categoryId)
 
             // 2. Low confidence falls through to fallback
-            val res2 = pipeline.categorize(CategorizationInput(100L, "LOW", null, null, TransactionType.Expense))
+            val res2 = pipeline.categorize(CategorizationInput(100L, "LOW", null, null, TransactionType.EXPENSE))
             assertEquals("Unknown Category", res2.categoryId)
             assertEquals(CategorySource.Fallback, res2.source)
 
             // 3. No match falls through to fallback
-            val res3 = pipeline.categorize(CategorizationInput(100L, "UNKNOWN", null, null, TransactionType.Expense))
+            val res3 = pipeline.categorize(CategorizationInput(100L, "UNKNOWN", null, null, TransactionType.EXPENSE))
             assertEquals("Unknown Category", res3.categoryId)
             assertEquals(CategorySource.Fallback, res3.source)
         }

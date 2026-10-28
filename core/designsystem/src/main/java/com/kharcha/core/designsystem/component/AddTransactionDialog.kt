@@ -192,9 +192,9 @@ fun AddTransactionDialog(
         val validAmount = amountMinor ?: return null
         val txnType =
             if (switchOption == TransactionTypeSwitchOption.SPEND) {
-                TransactionType.Expense
+                TransactionType.EXPENSE
             } else {
-                TransactionType.Income
+                TransactionType.INCOME
             }
 
         val location = LocationCaptureHelper.getLastKnownLocation(context)

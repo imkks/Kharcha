@@ -18,6 +18,7 @@ fun AmountText(
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.bodyLarge,
     maskIfPrivacy: Boolean = true,
+    isExcluded: Boolean = false,
 ) {
     val isPrivacyMode = LocalPrivacyMode.current
     val formatted =
@@ -25,26 +26,26 @@ fun AmountText(
             "₹ ••••••"
         } else {
             when (type) {
-                TransactionType.Income ->
+                TransactionType.INCOME ->
                     MoneyFormatter.formatMinorUnits(amountMinor, showSign = true, isCredit = true)
-                TransactionType.Expense ->
+                TransactionType.EXPENSE ->
                     MoneyFormatter.formatMinorUnits(amountMinor, showSign = true, isCredit = false)
-                else ->
-                    MoneyFormatter.formatMinorUnits(amountMinor, showSign = false)
             }
         }
 
     val financialColors = MaterialTheme.financialColors
     val color =
-        when (type) {
-            TransactionType.Income -> financialColors.income
-            TransactionType.Transfer, TransactionType.Refund -> financialColors.transfer
-            TransactionType.Ignored -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            else -> financialColors.expense
+        if (isExcluded) {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        } else {
+            when (type) {
+                TransactionType.INCOME -> financialColors.income
+                TransactionType.EXPENSE -> financialColors.expense
+            }
         }
 
     val textDecoration =
-        if (type == TransactionType.Ignored) TextDecoration.LineThrough else TextDecoration.None
+        if (isExcluded) TextDecoration.LineThrough else TextDecoration.None
 
     Text(
         text = formatted,

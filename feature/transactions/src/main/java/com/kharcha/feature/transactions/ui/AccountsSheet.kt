@@ -76,7 +76,7 @@ fun AccountsSheet(
 
     val totalExpense =
         remember(transactions) {
-            transactions.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+            transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
         }
 
     val accountOptions =
@@ -87,7 +87,7 @@ fun AccountsSheet(
                     val allAssociatedIds = setOf(acc.id) + linkedIds
                     val txns = transactions.filter { it.accountId in allAssociatedIds }
                     val expenseSum =
-                        txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+                        txns.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
                     AccountOption(
                         key = "acc_${acc.id}",
                         name = acc.name,
@@ -114,7 +114,7 @@ fun AccountsSheet(
                     val accIds = txns.map { it.accountId }.toSet()
                     val channels = txns.mapNotNull { it.channel }.toSet()
                     val expenseSum =
-                        txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+                        txns.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
                     AccountOption(
                         key = name,
                         name = name,

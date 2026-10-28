@@ -46,7 +46,6 @@ import com.kharcha.core.designsystem.component.BudgetProgressBar
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.model.Transaction
-import com.kharcha.core.model.TransactionType
 import java.time.LocalDate
 
 @Composable

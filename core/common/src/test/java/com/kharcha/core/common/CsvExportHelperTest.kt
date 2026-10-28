@@ -15,7 +15,7 @@ class CsvExportHelperTest {
                 Transaction(
                     id = 101L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 18596_70L,
                     currency = "INR",
                     dateTime = 1790447880000L,
@@ -51,7 +51,7 @@ class CsvExportHelperTest {
         assertTrue(row.contains("101"))
         assertTrue(row.contains("1859670"))
         assertTrue(row.contains("18596.70"))
-        assertTrue(row.contains("Expense"))
+        assertTrue(row.contains("EXPENSE"))
         assertTrue(row.contains("CARD"))
         assertTrue(row.contains("Shopping"))
         assertTrue(row.contains("hdfc_card_spend_v1"))
@@ -71,7 +71,7 @@ class CsvExportHelperTest {
                 Transaction(
                     id = 1L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 250_00L,
                     dateTime = 1790447880000L,
                     merchantNormalised = "Unknown Cafe",
@@ -83,7 +83,7 @@ class CsvExportHelperTest {
                 Transaction(
                     id = 2L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 350_00L,
                     dateTime = 1790447880000L,
                     merchantNormalised = "Unknown Cafe",
@@ -95,7 +95,7 @@ class CsvExportHelperTest {
                 Transaction(
                     id = 3L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 500_00L,
                     dateTime = 1790447880000L,
                     merchantNormalised = "Swiggy",

@@ -11,55 +11,54 @@ class TransactionDetailToggleTest {
 
     @Test
     fun testDebitExpenseToggleStateAndToastMapping() {
-        fun onDebitToggle(isExpense: Boolean): Pair<TransactionType, Int> {
-            val newType = if (isExpense) TransactionType.Expense else TransactionType.Ignored
-            val toastRes = if (isExpense) {
+        fun onDebitToggle(isCounted: Boolean): Pair<Boolean, Int> {
+            val isExcluded = !isCounted
+            val toastRes = if (isCounted) {
                 R.string.detail_toast_counted_spends
             } else {
                 R.string.detail_toast_not_counted_spends
             }
-            return newType to toastRes
+            return isExcluded to toastRes
         }
 
         val toggledOff = onDebitToggle(false)
-        assertEquals(TransactionType.Ignored, toggledOff.first)
+        assertTrue(toggledOff.first)
         assertEquals(R.string.detail_toast_not_counted_spends, toggledOff.second)
 
         val toggledOn = onDebitToggle(true)
-        assertEquals(TransactionType.Expense, toggledOn.first)
+        assertFalse(toggledOn.first)
         assertEquals(R.string.detail_toast_counted_spends, toggledOn.second)
     }
 
     @Test
     fun testCreditIncomeToggleStateAndToastMapping() {
-        fun onCreditToggle(isIncome: Boolean): Pair<TransactionType, Int> {
-            val newType = if (isIncome) TransactionType.Income else TransactionType.Refund
-            val toastRes = if (isIncome) {
+        fun onCreditToggle(isCounted: Boolean): Pair<Boolean, Int> {
+            val isExcluded = !isCounted
+            val toastRes = if (isCounted) {
                 R.string.detail_toast_counted_income
             } else {
                 R.string.detail_toast_not_counted_income
             }
-            return newType to toastRes
+            return isExcluded to toastRes
         }
 
         val toggledOn = onCreditToggle(true)
-        assertEquals(TransactionType.Income, toggledOn.first)
+        assertFalse(toggledOn.first)
         assertEquals(R.string.detail_toast_counted_income, toggledOn.second)
 
         val toggledOff = onCreditToggle(false)
-        assertEquals(TransactionType.Refund, toggledOff.first)
+        assertTrue(toggledOff.first)
         assertEquals(R.string.detail_toast_not_counted_income, toggledOff.second)
     }
 
     @Test
     fun testSplitCardAvailabilityForDebitVsCredit() {
         fun isSplitAvailable(type: TransactionType): Boolean {
-            return type != TransactionType.Income && type != TransactionType.Refund
+            return type == TransactionType.EXPENSE
         }
 
-        assertTrue(isSplitAvailable(TransactionType.Expense))
-        assertFalse(isSplitAvailable(TransactionType.Income))
-        assertFalse(isSplitAvailable(TransactionType.Refund))
+        assertTrue(isSplitAvailable(TransactionType.EXPENSE))
+        assertFalse(isSplitAvailable(TransactionType.INCOME))
     }
 
     @Test

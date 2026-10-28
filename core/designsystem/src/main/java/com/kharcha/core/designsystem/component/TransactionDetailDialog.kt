@@ -146,28 +146,20 @@ fun TransactionDetailDialog(
                 ) {
                     listOf(
                         Triple(
-                            TransactionType.Expense,
+                            TransactionType.EXPENSE,
                             stringResource(id = R.string.add_txn_type_expense),
                             R.drawable.ic_trending_down,
                         ),
                         Triple(
-                            TransactionType.Income,
+                            TransactionType.INCOME,
                             stringResource(id = R.string.add_txn_type_income),
                             R.drawable.ic_trending_up,
-                        ),
-                        Triple(
-                            TransactionType.Transfer,
-                            stringResource(id = R.string.add_txn_type_transfer),
-                            R.drawable.ic_category_transfer,
                         ),
                     ).forEach { (type, label, iconRes) ->
                         FilterChip(
                             selected = selectedType == type,
                             onClick = {
                                 selectedType = type
-                                if (type == TransactionType.Transfer) {
-                                    selectedCategory = "Transfer"
-                                }
                             },
                             label = { Text(text = label) },
                             leadingIcon = {
@@ -198,9 +190,6 @@ fun TransactionDetailDialog(
                             selected = selectedCategory == category,
                             onClick = {
                                 selectedCategory = category
-                                if (category == "Transfer") {
-                                    selectedType = TransactionType.Transfer
-                                }
                             },
                             label = { Text(text = category) },
                             leadingIcon = {

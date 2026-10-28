@@ -71,7 +71,7 @@ fun buildCategorySlices(
     otherLabel: String = "Others",
     maxCategories: Int = 5,
 ): List<DonutSliceData> {
-    val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    val expenses = transactions.filter { it.type == TransactionType.EXPENSE && it.amount > 0 }
     val totalExpense = expenses.sumOf { it.amount }
     if (totalExpense <= 0L) return emptyList()
 

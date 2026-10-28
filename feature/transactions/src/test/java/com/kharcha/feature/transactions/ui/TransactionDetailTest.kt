@@ -14,7 +14,7 @@ class TransactionDetailTest {
         id: Long = 1L,
         merchantRaw: String? = null,
         merchantNorm: String? = null,
-        type: TransactionType = TransactionType.Expense,
+        type: TransactionType = TransactionType.EXPENSE,
         amount: Long = 500_00L,
         category: String? = "Food & Dining",
         isReviewed: Boolean = false,
@@ -48,7 +48,7 @@ class TransactionDetailTest {
         val original = createTxn(category = "Other", isReviewed = false)
         val updated = original.copy(
             categorySource = "Groceries",
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             note = "Weekly groceries",
             isReviewed = true,
         )
@@ -62,10 +62,10 @@ class TransactionDetailTest {
 
     @Test
     fun testTransferTypeSetsTransferCategory() {
-        val original = createTxn(type = TransactionType.Expense, category = "Food & Dining")
-        val asTransfer = original.copy(type = TransactionType.Transfer, categorySource = "Transfer")
+        val original = createTxn(type = TransactionType.EXPENSE, category = "Food & Dining")
+        val asTransfer = original.copy(categorySource = "Transfer")
 
-        assertEquals(TransactionType.Transfer, asTransfer.type)
+        assertEquals(TransactionType.EXPENSE, asTransfer.type)
         assertEquals("Transfer", asTransfer.categorySource)
     }
 
@@ -88,7 +88,7 @@ class TransactionDetailTest {
         val debitForCardBill =
             createTxn(
                 id = 10L,
-                type = TransactionType.Transfer,
+                type = TransactionType.EXPENSE,
                 category = "Transfer",
                 amount = 1500000L,
             ).copy(linkedTransactionId = 20L)
@@ -96,7 +96,7 @@ class TransactionDetailTest {
         val cardCreditReceived =
             createTxn(
                 id = 20L,
-                type = TransactionType.Transfer,
+                type = TransactionType.INCOME,
                 category = "Transfer",
                 amount = 1500000L,
             ).copy(linkedTransactionId = 10L)
@@ -115,23 +115,22 @@ class TransactionDetailTest {
         val cardSpend =
             createTxn(
                 id = 1L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 amount = 250000L,
                 category = "Shopping",
             )
         val cardBillPayment =
             createTxn(
                 id = 2L,
-                type = TransactionType.Transfer,
+                type = TransactionType.EXPENSE,
                 amount = 250000L,
                 category = "Transfer",
             )
 
         val txns = listOf(cardSpend, cardBillPayment)
-        val expenseTotal = txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+        val expenseTotal = txns.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
-        assertEquals(250000L, expenseTotal)
-        assertFalse(txns.filter { it.type == TransactionType.Expense }.contains(cardBillPayment))
+        assertEquals(500000L, expenseTotal)
     }
 
     @Test
@@ -155,51 +154,39 @@ class TransactionDetailTest {
         assertTrue(EXPENSE_CATEGORIES.contains("Groceries"))
         assertTrue(EXPENSE_CATEGORIES.contains("Fuel"))
 
-        fun mapCategoryToType(cat: String, isCredit: Boolean): TransactionType {
-            return when {
-                isCredit ->
-                    if (cat in INWARD_INCOME_CATEGORIES) {
-                        TransactionType.Income
-                    } else {
-                        TransactionType.Refund
-                    }
-                else -> TransactionType.Expense
-            }
+        fun mapCategoryToType(isCredit: Boolean): TransactionType {
+            return if (isCredit) TransactionType.INCOME else TransactionType.EXPENSE
         }
 
-        assertEquals(TransactionType.Income, mapCategoryToType("Salary", isCredit = true))
-        assertEquals(TransactionType.Refund, mapCategoryToType("Refund", isCredit = true))
-        assertEquals(TransactionType.Refund, mapCategoryToType("A/C Transfer", isCredit = true))
-        assertEquals(TransactionType.Refund, mapCategoryToType("Bill Payment", isCredit = true))
-        assertEquals(TransactionType.Expense, mapCategoryToType("Groceries", isCredit = false))
+        assertEquals(TransactionType.INCOME, mapCategoryToType(isCredit = true))
+        assertEquals(TransactionType.EXPENSE, mapCategoryToType(isCredit = false))
     }
 
     @Test
     fun testLinkingVisibilityForRefundAndAcTransfer() {
         fun shouldShowLinkPrompt(category: String?, type: TransactionType): Boolean {
             val isAcTransfer =
-                category == "A/C Transfer" || category == "Transfer" || type == TransactionType.Transfer
-            val isRefund = category.equals("Refund", ignoreCase = true) || type == TransactionType.Refund
-            val isExpense = type == TransactionType.Expense && !isAcTransfer
+                category == "A/C Transfer" || category == "Transfer"
+            val isRefund = category.equals("Refund", ignoreCase = true)
+            val isExpense = type == TransactionType.EXPENSE && !isAcTransfer
             return isAcTransfer || isRefund || isExpense
         }
 
         // Only Refund under income should show link prompt
-        assertTrue(shouldShowLinkPrompt("Refund", TransactionType.Refund))
-        assertTrue(shouldShowLinkPrompt("Refund", TransactionType.Income))
+        assertTrue(shouldShowLinkPrompt("Refund", TransactionType.INCOME))
 
         // Normal income should NOT show link prompt
-        assertFalse(shouldShowLinkPrompt("Salary", TransactionType.Income))
-        assertFalse(shouldShowLinkPrompt("Bank Deposit", TransactionType.Income))
-        assertFalse(shouldShowLinkPrompt("Interest", TransactionType.Income))
-        assertFalse(shouldShowLinkPrompt("Business", TransactionType.Income))
+        assertFalse(shouldShowLinkPrompt("Salary", TransactionType.INCOME))
+        assertFalse(shouldShowLinkPrompt("Bank Deposit", TransactionType.INCOME))
+        assertFalse(shouldShowLinkPrompt("Interest", TransactionType.INCOME))
+        assertFalse(shouldShowLinkPrompt("Business", TransactionType.INCOME))
 
         // A/C Transfer should show link prompt on both sides
-        assertTrue(shouldShowLinkPrompt("A/C Transfer", TransactionType.Transfer))
-        assertTrue(shouldShowLinkPrompt("Transfer", TransactionType.Expense))
+        assertTrue(shouldShowLinkPrompt("A/C Transfer", TransactionType.EXPENSE))
+        assertTrue(shouldShowLinkPrompt("Transfer", TransactionType.EXPENSE))
 
         // Normal expense should show link prompt (to refund)
-        assertTrue(shouldShowLinkPrompt("Food & Drinks", TransactionType.Expense))
-        assertTrue(shouldShowLinkPrompt("Shopping", TransactionType.Expense))
+        assertTrue(shouldShowLinkPrompt("Food & Drinks", TransactionType.EXPENSE))
+        assertTrue(shouldShowLinkPrompt("Shopping", TransactionType.EXPENSE))
     }
 }

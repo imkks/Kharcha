@@ -19,7 +19,7 @@ class SpendPacingSparklineTest {
         amount: Long,
         dayOfMonth: Int,
         month: Int = 10,
-        type: TransactionType = TransactionType.Expense,
+        type: TransactionType = TransactionType.EXPENSE,
     ): Transaction =
         Transaction(
             id = id,
@@ -49,7 +49,7 @@ class SpendPacingSparklineTest {
             createTxn(1L, 100_00L, dayOfMonth = 2),
             createTxn(2L, 150_00L, dayOfMonth = 2), // Same day
             createTxn(3L, 200_00L, dayOfMonth = 5),
-            createTxn(4L, 500_00L, dayOfMonth = 10, type = TransactionType.Income), // Income ignored
+            createTxn(4L, 500_00L, dayOfMonth = 10, type = TransactionType.INCOME), // Income ignored
             createTxn(5L, 300_00L, dayOfMonth = 20, month = 9), // Last month ignored
         )
 

@@ -16,12 +16,8 @@ enum class Channel {
 }
 
 enum class TransactionType {
-    Expense,
-    Income,
-    Transfer,
-    Refund,
-    Investment,
-    Ignored,
+    EXPENSE,
+    INCOME,
 }
 
 enum class AccountType {
@@ -39,11 +35,14 @@ enum class TimePeriod {
 }
 
 val TransactionType.isCounted: Boolean
-    get() = this == TransactionType.Expense || this == TransactionType.Income
+    get() = true
 
 val TransactionType.isCredit: Boolean
-    get() = this == TransactionType.Income || this == TransactionType.Refund
+    get() = this == TransactionType.INCOME
 
 val Transaction.isCounted: Boolean
-    get() = type.isCounted
+    get() = !isExcluded
+
+val Transaction.isCredit: Boolean
+    get() = type == TransactionType.INCOME
 

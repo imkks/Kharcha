@@ -20,7 +20,7 @@ class PeriodHelperTest {
         Transaction(
             id = id,
             accountId = 1L,
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             amount = 100_00L,
             dateTime = dateTime,
             createdAt = dateTime,

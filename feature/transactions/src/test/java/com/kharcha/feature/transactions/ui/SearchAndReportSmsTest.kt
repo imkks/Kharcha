@@ -15,7 +15,7 @@ class SearchAndReportSmsTest {
             Transaction(
                 id = 1L,
                 amount = 450_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = 1L,
                 merchantRaw = "Swiggy",
@@ -24,7 +24,7 @@ class SearchAndReportSmsTest {
             Transaction(
                 id = 2L,
                 amount = 1200_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.CARD,
                 dateTime = 2L,
                 merchantRaw = "Amazon India",
@@ -33,7 +33,7 @@ class SearchAndReportSmsTest {
             Transaction(
                 id = 3L,
                 amount = 85000_00L,
-                type = TransactionType.Income,
+                type = TransactionType.INCOME,
                 channel = Channel.NEFT,
                 dateTime = 3L,
                 merchantRaw = "Acme Salary",

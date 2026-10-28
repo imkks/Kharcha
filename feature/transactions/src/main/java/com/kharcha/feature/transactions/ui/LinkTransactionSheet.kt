@@ -64,7 +64,7 @@ fun LinkTransactionSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var searchQuery by remember { mutableStateOf("") }
-    val isLinkingToRefund = targetTransaction.type == TransactionType.Expense
+    val isLinkingToRefund = targetTransaction.type == TransactionType.EXPENSE
 
     val targetMerchant =
         targetTransaction.merchantNormalised
@@ -78,21 +78,17 @@ fun LinkTransactionSheet(
                 if (isTransferLink) {
                     if (isCreditTarget) {
                         // On credit side -> link debit
-                        candidate.type == TransactionType.Expense ||
-                            candidate.type == TransactionType.Transfer
+                        candidate.type == TransactionType.EXPENSE
                     } else {
                         // On debit side -> link credit
-                        candidate.type == TransactionType.Income ||
-                            candidate.type == TransactionType.Transfer ||
-                            candidate.type == TransactionType.Refund
+                        candidate.type == TransactionType.INCOME
                     }
                 } else {
                     if (isLinkingToRefund) {
                         candidate.categorySource.equals("Refund", ignoreCase = true) ||
-                            candidate.type == TransactionType.Refund ||
                             TransactionClassifierHelper.isRefundNarrative(candidate.note)
                     } else {
-                        candidate.type == TransactionType.Expense
+                        candidate.type == TransactionType.EXPENSE
                     }
                 }
             }

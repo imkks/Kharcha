@@ -391,9 +391,9 @@ fun AdvancedFilterSheet(
                         ) {
                             val types =
                                 listOf(
-                                    TransactionType.Expense to
+                                    TransactionType.EXPENSE to
                                         stringResource(id = R.string.transactions_filter_expense),
-                                    TransactionType.Income to
+                                    TransactionType.INCOME to
                                         stringResource(id = R.string.transactions_filter_income),
                                 )
                             types.forEach { (type, label) ->

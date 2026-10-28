@@ -24,20 +24,20 @@ class LayersTest {
             val provider = { ByteArrayInputStream(json.toByteArray()) }
             val layer = DictionaryLayer(provider)
 
-            val input1 = CategorizationInput(45000L, "SWIGGY", "UPI", null, TransactionType.Expense)
+            val input1 = CategorizationInput(45000L, "SWIGGY", "UPI", null, TransactionType.EXPENSE)
             val result1 = layer.categorize(input1)
             assertNotNull(result1)
             assertEquals("Food Delivery", result1?.categoryId)
             assertEquals(CategorySource.Dictionary, result1?.source)
             assertEquals(0.85f, result1?.confidence ?: 0f, 0.01f)
 
-            val input2 = CategorizationInput(45000L, "UPI/SWIGGY INSTAMART", "UPI", null, TransactionType.Expense)
+            val input2 = CategorizationInput(45000L, "UPI/SWIGGY INSTAMART", "UPI", null, TransactionType.EXPENSE)
             val result2 = layer.categorize(input2)
             assertNotNull(result2)
             assertEquals("Food Delivery", result2?.categoryId)
             assertEquals(0.8f, result2?.confidence ?: 0f, 0.01f)
 
-            val input3 = CategorizationInput(45000L, "UNKNOWN", "UPI", null, TransactionType.Expense)
+            val input3 = CategorizationInput(45000L, "UNKNOWN", "UPI", null, TransactionType.EXPENSE)
             val result3 = layer.categorize(input3)
             assertNull(result3)
         }
@@ -53,42 +53,42 @@ class LayersTest {
             // 1. Zomato legal parent entity
             val resEternal =
                 layer.categorize(
-                    CategorizationInput(46736L, "ETERNAL LIMITED", "CARD", null, TransactionType.Expense),
+                    CategorizationInput(46736L, "ETERNAL LIMITED", "CARD", null, TransactionType.EXPENSE),
                 )
             assertEquals("Food Delivery", resEternal?.categoryId)
 
             // 2. Swiggy legal parent entity
             val resBundl =
                 layer.categorize(
-                    CategorizationInput(71600L, "BUNDL TECHNOLOGIES PVT LT", "CARD", null, TransactionType.Expense),
+                    CategorizationInput(71600L, "BUNDL TECHNOLOGIES PVT LT", "CARD", null, TransactionType.EXPENSE),
                 )
             assertEquals("Food Delivery", resBundl?.categoryId)
 
             // 3. BigBasket legal parent entity
             val resInnovative =
                 layer.categorize(
-                    CategorizationInput(15230L, "INNOVATIVE RETAIL CONCEPT", "UPI", null, TransactionType.Expense),
+                    CategorizationInput(15230L, "INNOVATIVE RETAIL CONCEPT", "UPI", null, TransactionType.EXPENSE),
                 )
             assertEquals("Groceries", resInnovative?.categoryId)
 
             // 4. Third Wave Coffee legal parent entity
             val resHeisetasse =
                 layer.categorize(
-                    CategorizationInput(37500L, "HEISETASSE BEVERAGES PVT", "UPI", null, TransactionType.Expense),
+                    CategorizationInput(37500L, "HEISETASSE BEVERAGES PVT", "UPI", null, TransactionType.EXPENSE),
                 )
             assertEquals("Coffee", resHeisetasse?.categoryId)
 
             // 5. Office cafeteria
             val resSmartQ =
                 layer.categorize(
-                    CategorizationInput(5400L, "SmartQ", "UPI", null, TransactionType.Expense),
+                    CategorizationInput(5400L, "SmartQ", "UPI", null, TransactionType.EXPENSE),
                 )
             assertEquals("Food & Dining", resSmartQ?.categoryId)
 
             // 6. Investments
             val resIccl =
                 layer.categorize(
-                    CategorizationInput(2500000L, "IndianClearingCorporation", "UPI", null, TransactionType.Expense),
+                    CategorizationInput(2500000L, "IndianClearingCorporation", "UPI", null, TransactionType.EXPENSE),
                 )
             assertEquals("Investments", resIccl?.categoryId)
         }
@@ -97,7 +97,7 @@ class LayersTest {
     fun testHeuristicLayerMatchesChannel() =
         runBlocking {
             val layer = HeuristicLayer()
-            val input = CategorizationInput(200000L, null, "ATM", null, TransactionType.Expense)
+            val input = CategorizationInput(200000L, null, "ATM", null, TransactionType.EXPENSE)
             val result = layer.categorize(input)
             assertNotNull(result)
             assertEquals("Cash Withdrawal", result?.categoryId)
@@ -109,7 +109,7 @@ class LayersTest {
     fun testHeuristicLayerMatchesKeywords() =
         runBlocking {
             val layer = HeuristicLayer()
-            val input = CategorizationInput(100000L, "BAJAJ FINANCE EMI", "NACH", null, TransactionType.Expense)
+            val input = CategorizationInput(100000L, "BAJAJ FINANCE EMI", "NACH", null, TransactionType.EXPENSE)
             val result = layer.categorize(input)
             assertNotNull(result)
             assertEquals("Loans and EMI", result?.categoryId)
@@ -121,24 +121,24 @@ class LayersTest {
             val layer = HeuristicLayer()
 
             // 1. Meat / chicken butcher shops
-            val resChicken = layer.categorize(CategorizationInput(12000L, "RAM REDDY CHICKE", "UPI", null, TransactionType.Expense))
+            val resChicken = layer.categorize(CategorizationInput(12000L, "RAM REDDY CHICKE", "UPI", null, TransactionType.EXPENSE))
             assertEquals("Groceries", resChicken?.categoryId)
             assertEquals(0.80f, resChicken?.confidence ?: 0f, 0.01f)
 
             // 2. Saloon and personal care
-            val resSaloon = layer.categorize(CategorizationInput(25000L, "Nobul hair and beauty saloon", "UPI", null, TransactionType.Expense))
+            val resSaloon = layer.categorize(CategorizationInput(25000L, "Nobul hair and beauty saloon", "UPI", null, TransactionType.EXPENSE))
             assertEquals("Personal Care", resSaloon?.categoryId)
 
             // 3. Pharmacy and medicos
-            val resPharmacy = layer.categorize(CategorizationInput(34000L, "LIFE MEDICO", "UPI", null, TransactionType.Expense))
+            val resPharmacy = layer.categorize(CategorizationInput(34000L, "LIFE MEDICO", "UPI", null, TransactionType.EXPENSE))
             assertEquals("Pharmacy", resPharmacy?.categoryId)
 
             // 4. Stationery and education
-            val resStationery = layer.categorize(CategorizationInput(6700L, "Dithya stationary", "UPI", null, TransactionType.Expense))
+            val resStationery = layer.categorize(CategorizationInput(6700L, "Dithya stationary", "UPI", null, TransactionType.EXPENSE))
             assertEquals("Education", resStationery?.categoryId)
 
             // 5. Fuel and filling station
-            val resFuel = layer.categorize(CategorizationInput(85000L, "Sandhya Fuel Station", "UPI", null, TransactionType.Expense))
+            val resFuel = layer.categorize(CategorizationInput(85000L, "Sandhya Fuel Station", "UPI", null, TransactionType.EXPENSE))
             assertEquals("Fuel", resFuel?.categoryId)
         }
 
@@ -181,7 +181,7 @@ class LayersTest {
                         merchantRaw = "SATYAJYOTI PANDA",
                         channel = "UPI",
                         upiId = null,
-                        type = TransactionType.Expense,
+                        type = TransactionType.EXPENSE,
                     ),
                 )
             assertNotNull(resRent)
@@ -197,7 +197,7 @@ class LayersTest {
                         merchantRaw = "SATYAJYOTI PANDA",
                         channel = "UPI",
                         upiId = null,
-                        type = TransactionType.Expense,
+                        type = TransactionType.EXPENSE,
                     ),
                 )
             assertNotNull(resSplit)
@@ -211,7 +211,7 @@ class LayersTest {
                         merchantRaw = "SURESH REGATI",
                         channel = "UPI",
                         upiId = null,
-                        type = TransactionType.Expense,
+                        type = TransactionType.EXPENSE,
                     ),
                 )
             assertNotNull(resMerchant)
@@ -223,14 +223,14 @@ class LayersTest {
         runBlocking {
             val layer = HeuristicLayer()
             // "VI" inside "PROVISION" or "SERVICE" should NOT trigger Bills and Utilities
-            val input1 = CategorizationInput(50000L, "PROVISION STORE", "UPI", null, TransactionType.Expense)
+            val input1 = CategorizationInput(50000L, "PROVISION STORE", "UPI", null, TransactionType.EXPENSE)
             assertNull(layer.categorize(input1))
 
-            val input2 = CategorizationInput(50000L, "CAR SERVICE CENTER", "CARD", null, TransactionType.Expense)
+            val input2 = CategorizationInput(50000L, "CAR SERVICE CENTER", "CARD", null, TransactionType.EXPENSE)
             assertNull(layer.categorize(input2))
 
             // "EMI" inside "PREMIUM" should NOT trigger Loans and EMI
-            val input3 = CategorizationInput(50000L, "PREMIUM DRY FRUITS", "UPI", null, TransactionType.Expense)
+            val input3 = CategorizationInput(50000L, "PREMIUM DRY FRUITS", "UPI", null, TransactionType.EXPENSE)
             assertNull(layer.categorize(input3))
         }
 
@@ -238,7 +238,7 @@ class LayersTest {
     fun testFallbackLayerAlwaysReturnsUncategorised() =
         runBlocking {
             val layer = FallbackLayer()
-            val input = CategorizationInput(100L, "WEIRD MERCH", null, null, TransactionType.Expense)
+            val input = CategorizationInput(100L, "WEIRD MERCH", null, null, TransactionType.EXPENSE)
             val result = layer.categorize(input)
             assertEquals("Unknown Category", result.categoryId)
             assertEquals(CategorySource.Fallback, result.source)

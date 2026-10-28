@@ -19,7 +19,7 @@ class PaymentChannelChartTest {
         Transaction(
             id = id,
             accountId = 1L,
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             amount = amount,
             dateTime = 1792900000000L,
             channel = channel,

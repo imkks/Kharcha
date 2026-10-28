@@ -40,7 +40,7 @@ class DefaultTransactionRepositoryTest {
                     smsHash = "hash1",
                     amount = 50000L,
                     refNumber = "UPI123456",
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     dateTime = 1000L,
                 )
             val txn2 =
@@ -50,7 +50,7 @@ class DefaultTransactionRepositoryTest {
                     smsHash = "hash2",
                     amount = 50000L,
                     refNumber = "UPI123456",
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     dateTime = 2000L,
                 )
 
@@ -71,7 +71,7 @@ class DefaultTransactionRepositoryTest {
                     accountId = 1L,
                     amount = 25000L,
                     merchantNormalised = "Swiggy",
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     dateTime = 1000L,
                     channel = Channel.UPI,
                 )
@@ -81,7 +81,7 @@ class DefaultTransactionRepositoryTest {
                     accountId = 1L,
                     amount = 25000L,
                     merchantNormalised = "Swiggy",
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     dateTime = 3000L, // 2 seconds later
                     channel = Channel.UPI,
                 )
@@ -101,7 +101,7 @@ class DefaultTransactionRepositoryTest {
                     id = 1L,
                     accountId = 1L,
                     amount = 100000L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     dateTime = 1000L,
                     channel = Channel.UPI,
                 )
@@ -110,7 +110,7 @@ class DefaultTransactionRepositoryTest {
                     id = 2L,
                     accountId = 2L,
                     amount = 100000L,
-                    type = TransactionType.Income,
+                    type = TransactionType.INCOME,
                     dateTime = 2000L,
                     channel = Channel.UPI,
                 )
@@ -120,8 +120,10 @@ class DefaultTransactionRepositoryTest {
 
             val list = repository.getTransactions().first()
             assertEquals(2, list.size)
-            assertEquals(TransactionType.Transfer, list[0].type)
-            assertEquals(TransactionType.Transfer, list[1].type)
+            assertEquals(TransactionType.EXPENSE, list.find { it.id == 1L }?.type)
+            assertEquals(TransactionType.INCOME, list.find { it.id == 2L }?.type)
+            assertEquals("Transfer", list.find { it.id == 1L }?.categorySource)
+            assertEquals("Transfer", list.find { it.id == 2L }?.categorySource)
             assertEquals(2L, list.find { it.id == 1L }?.linkedTransactionId)
             assertEquals(1L, list.find { it.id == 2L }?.linkedTransactionId)
         }
@@ -134,7 +136,7 @@ class DefaultTransactionRepositoryTest {
                     id = 101L,
                     accountId = 10L,
                     amount = 500000L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     merchantNormalised = "Amazon",
                     categorySource = "Shopping",
                     dateTime = 1000L,
@@ -145,7 +147,7 @@ class DefaultTransactionRepositoryTest {
                     id = 102L,
                     accountId = 1L,
                     amount = 500000L,
-                    type = TransactionType.Transfer,
+                    type = TransactionType.EXPENSE,
                     categorySource = "Transfer",
                     dateTime = 2000L,
                     channel = Channel.UPI,
@@ -155,7 +157,7 @@ class DefaultTransactionRepositoryTest {
                     id = 103L,
                     accountId = 10L,
                     amount = 500000L,
-                    type = TransactionType.Transfer,
+                    type = TransactionType.INCOME,
                     categorySource = "Transfer",
                     dateTime = 2500L,
                     channel = Channel.CARD,
@@ -167,13 +169,13 @@ class DefaultTransactionRepositoryTest {
             val txns = repository.getTransactions().first()
             assertEquals(3, txns.size)
 
-            val totalExpenses = txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
-            assertEquals(500000L, totalExpenses)
+            val totalExpenses = txns.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+            assertEquals(1000000L, totalExpenses)
 
             val debitBill = txns.first { it.id == 102L }
             val creditBill = txns.first { it.id == 103L }
-            assertEquals(TransactionType.Transfer, debitBill.type)
-            assertEquals(TransactionType.Transfer, creditBill.type)
+            assertEquals(TransactionType.EXPENSE, debitBill.type)
+            assertEquals(TransactionType.INCOME, creditBill.type)
             assertEquals(103L, debitBill.linkedTransactionId)
             assertEquals(102L, creditBill.linkedTransactionId)
         }
@@ -189,7 +191,7 @@ class DefaultTransactionRepositoryTest {
                     amount = 50000L,
                     merchantNormalised = "Blue Tokai",
                     categorySource = "Other",
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     dateTime = 1000L,
                     isReviewed = false,
                 )
@@ -200,7 +202,7 @@ class DefaultTransactionRepositoryTest {
                     amount = 65000L,
                     merchantNormalised = "Blue Tokai",
                     categorySource = "Other",
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     dateTime = 2000L,
                     isReviewed = false,
                 )
@@ -233,7 +235,7 @@ class DefaultTransactionRepositoryTest {
                     id = 1L,
                     accountId = 1L,
                     amount = 251100L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     merchantNormalised = "Urban Company",
                     dateTime = 1000L,
                 )
@@ -242,7 +244,7 @@ class DefaultTransactionRepositoryTest {
                     id = 2L,
                     accountId = 1L,
                     amount = 251100L,
-                    type = TransactionType.Income,
+                    type = TransactionType.INCOME,
                     merchantNormalised = "Urban Company",
                     dateTime = 2000L,
                 )
@@ -259,7 +261,7 @@ class DefaultTransactionRepositoryTest {
 
             assertEquals(2L, linkedExpense.linkedTransactionId)
             assertEquals(1L, linkedRefund.linkedTransactionId)
-            assertEquals(TransactionType.Refund, linkedRefund.type)
+            assertEquals(TransactionType.INCOME, linkedRefund.type)
 
             repository.unlinkTransactions(1L)
             testScheduler.advanceUntilIdle()
@@ -277,7 +279,7 @@ class DefaultTransactionRepositoryTest {
                     id = 10L,
                     accountId = 1L,
                     amount = 45000L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     merchantNormalised = "Swiggy",
                     dateTime = 1000L,
                 )
@@ -286,7 +288,8 @@ class DefaultTransactionRepositoryTest {
                     id = 20L,
                     accountId = 1L,
                     amount = 45000L,
-                    type = TransactionType.Refund,
+                    type = TransactionType.INCOME,
+                    categorySource = "Refund",
                     merchantNormalised = "Swiggy",
                     dateTime = 1000L + (5L * 24 * 60 * 60 * 1000L), // 5 days later
                 )
@@ -307,7 +310,7 @@ class DefaultTransactionRepositoryTest {
                     id = 101L,
                     accountId = 1L,
                     amount = 32000L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     merchantNormalised = "Blue Tokai",
                     dateTime = 5000L,
                     latitude = 12.9716,

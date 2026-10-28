@@ -21,7 +21,7 @@ class TransactionsTabsTest {
             Transaction(
                 id = 1L,
                 amount = 450_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = 1_000L,
                 merchantRaw = "Swiggy",
@@ -29,7 +29,7 @@ class TransactionsTabsTest {
             Transaction(
                 id = 2L,
                 amount = 3_000_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.CARD,
                 dateTime = 2_000L,
                 merchantRaw = "Vijetha",
@@ -37,7 +37,7 @@ class TransactionsTabsTest {
             Transaction(
                 id = 3L,
                 amount = 1_500_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = 3_000L,
                 merchantRaw = "Swiggy",
@@ -45,7 +45,7 @@ class TransactionsTabsTest {
         )
 
         val ranked = txns
-            .filter { it.type == TransactionType.Expense && it.amount > 0 }
+            .filter { it.type == TransactionType.EXPENSE && it.amount > 0 }
             .groupBy { it.merchantRaw ?: "Unknown" }
             .map { (merchant, list) ->
                 Triple(merchant, list.sumOf { it.amount }, list.size)

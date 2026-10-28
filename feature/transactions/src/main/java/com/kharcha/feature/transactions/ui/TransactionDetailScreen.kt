@@ -136,6 +136,7 @@ fun TransactionDetailScreen(
     onUnlinkTransaction: ((id: Long) -> Unit)? = null,
 ) {
     var selectedType by remember { mutableStateOf(transaction.type) }
+    var isExcluded by remember { mutableStateOf(transaction.isExcluded) }
     var selectedCategory by remember { mutableStateOf(transaction.categorySource ?: "Other") }
     var noteText by remember { mutableStateOf(transaction.note ?: "") }
 
@@ -257,6 +258,7 @@ fun TransactionDetailScreen(
 
     val hasPendingChanges =
         selectedType != transaction.type ||
+            isExcluded != transaction.isExcluded ||
             selectedCategory != (transaction.categorySource ?: "Other") ||
             noteText != (transaction.note ?: "")
 
@@ -338,6 +340,7 @@ fun TransactionDetailScreen(
                                     val updated =
                                         transaction.copy(
                                             type = selectedType,
+                                            isExcluded = isExcluded,
                                             categorySource = selectedCategory,
                                             note = noteText.takeIf { it.isNotBlank() },
                                             isReviewed = true,
@@ -613,7 +616,7 @@ fun TransactionDetailScreen(
                             }
                         }
 
-                        val isCountedInTotals = selectedType.isCounted
+                        val isCountedInTotals = !isExcluded
                         val countLabel =
                             if (isCreditTxn) {
                                 stringResource(id = R.string.detail_account_income)
@@ -632,13 +635,7 @@ fun TransactionDetailScreen(
                             Switch(
                                 checked = isCountedInTotals,
                                 onCheckedChange = { countIt ->
-                                    selectedType =
-                                        when {
-                                            isCreditTxn ->
-                                                if (countIt) TransactionType.Income else TransactionType.Refund
-                                            else ->
-                                                if (countIt) TransactionType.Expense else TransactionType.Ignored
-                                        }
+                                    isExcluded = !countIt
                                     val msgRes =
                                         when {
                                             isCreditTxn ->
@@ -672,8 +669,8 @@ fun TransactionDetailScreen(
             // Linked Transfer / Card Bill Payment Card
             if (linkedTxn != null) {
                 val isRefundLink =
-                    selectedType == TransactionType.Refund ||
-                        linkedTxn.type == TransactionType.Refund ||
+                    selectedCategory.equals("Refund", ignoreCase = true) ||
+                        linkedTxn.categorySource.equals("Refund", ignoreCase = true) ||
                         TransactionClassifierHelper.isRefundNarrative(linkedTxn.note) ||
                         TransactionClassifierHelper.isRefundNarrative(transaction.note)
 
@@ -683,13 +680,17 @@ fun TransactionDetailScreen(
                             ?: linkedTxn.merchantRaw
                             ?: stringResource(id = R.string.detail_original_sms)
 
+                    val isTransfer =
+                        selectedCategory.equals("Transfer", ignoreCase = true) ||
+                            linkedTxn.categorySource.equals("Transfer", ignoreCase = true)
+
                     val cardTitle =
                         when {
-                            isRefundLink && selectedType == TransactionType.Expense ->
+                            isRefundLink && selectedType == TransactionType.EXPENSE ->
                                 "Linked Refund (+${MoneyFormatter.formatMinorUnits(linkedTxn.amount)})"
                             isRefundLink ->
                                 "Linked Expense (-${MoneyFormatter.formatMinorUnits(linkedTxn.amount)})"
-                            selectedType == TransactionType.Transfer -> {
+                            isTransfer -> {
                                 val isCard =
                                     accounts.find { it.id == transaction.accountId }?.type ==
                                         AccountType.CreditCard || transaction.channel == Channel.CARD
@@ -704,7 +705,7 @@ fun TransactionDetailScreen(
 
                     val cardSubtitle =
                         when {
-                            isRefundLink && selectedType == TransactionType.Expense -> {
+                            isRefundLink && selectedType == TransactionType.EXPENSE -> {
                                 val netMinor = maxOf(0L, transaction.amount - linkedTxn.amount)
                                 "Net Spend: ${MoneyFormatter.formatMinorUnits(netMinor)}"
                             }
@@ -788,7 +789,7 @@ fun TransactionDetailScreen(
                     }
                 }
             } else {
-                if (selectedType == TransactionType.Transfer) {
+                if (selectedCategory.equals("Transfer", ignoreCase = true)) {
                     val targetCard =
                         TransactionClassifierHelper.extractTargetCardLast4(transaction.note ?: "")
                     if (targetCard != null) {
@@ -1511,35 +1512,23 @@ fun TransactionDetailScreen(
                 isCredit = isCreditTxn,
                 onCategorySelected = { cat ->
                     selectedCategory = cat
-                    if (isCreditTxn) {
-                        selectedType =
-                            if (cat in INWARD_INCOME_CATEGORIES) {
-                                TransactionType.Income
-                            } else {
-                                TransactionType.Refund
-                            }
-                    } else {
-                        selectedType = TransactionType.Expense
-                    }
+                    selectedType =
+                        if (isCreditTxn) {
+                            TransactionType.INCOME
+                        } else {
+                            TransactionType.EXPENSE
+                        }
                     showCategorySheet = false
                 },
-                onCategorySelectedWithType = { cat, isCounted ->
+                onCategorySelectedWithType = { cat, isCountedSelection ->
                     selectedCategory = cat
-                    if (isCreditTxn) {
-                        selectedType =
-                            if (isCounted) {
-                                TransactionType.Income
-                            } else {
-                                TransactionType.Refund
-                            }
-                    } else {
-                        selectedType =
-                            if (isCounted) {
-                                TransactionType.Expense
-                            } else {
-                                TransactionType.Ignored
-                            }
-                    }
+                    selectedType =
+                        if (isCreditTxn) {
+                            TransactionType.INCOME
+                        } else {
+                            TransactionType.EXPENSE
+                        }
+                    isExcluded = !isCountedSelection
                     showCategorySheet = false
                 },
                 onDismiss = { showCategorySheet = false },
@@ -1754,6 +1743,7 @@ fun TransactionDetailScreen(
                             val updated =
                                 transaction.copy(
                                     type = selectedType,
+                                    isExcluded = isExcluded,
                                     categorySource = selectedCategory,
                                     note = noteText.takeIf { it.isNotBlank() },
                                     isReviewed = true,
@@ -1899,8 +1889,7 @@ fun TransactionDetailScreen(
     if (showLinkSheet) {
         val isTransfer =
             selectedCategory == "A/C Transfer" ||
-                selectedCategory == "Transfer" ||
-                selectedType == TransactionType.Transfer
+                selectedCategory == "Transfer"
         LinkTransactionSheet(
             targetTransaction = transaction,
             allTransactions = allTransactions,
@@ -1908,9 +1897,7 @@ fun TransactionDetailScreen(
             isCreditTarget = isCreditTxn,
             onLink = { candidate ->
                 val isRefund =
-                    !isTransfer && (selectedType == TransactionType.Refund ||
-                        candidate.type == TransactionType.Refund ||
-                        selectedCategory.equals("Refund", ignoreCase = true) ||
+                    !isTransfer && (selectedCategory.equals("Refund", ignoreCase = true) ||
                         candidate.categorySource.equals("Refund", ignoreCase = true) ||
                         TransactionClassifierHelper.isRefundNarrative(candidate.note) ||
                         TransactionClassifierHelper.isRefundNarrative(transaction.note))

@@ -31,7 +31,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 1L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 10_000_00L, // ₹10,000
                     dateTime = dateToMillis(2026, 10, 10),
                     categorySource = "Shopping",
@@ -62,7 +62,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 1L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 35_000_00L, // ₹35,000 (exceeds ₹30,000 budget)
                     dateTime = dateToMillis(2026, 10, 12),
                     categorySource = "Shopping",
@@ -88,7 +88,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 1L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 6_000_00L,
                     dateTime = dateToMillis(2026, 10, 5),
                     categorySource = "Food & Dining",
@@ -96,7 +96,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 2L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 4_000_00L,
                     dateTime = dateToMillis(2026, 10, 8),
                     categorySource = "Shopping",
@@ -124,7 +124,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 1L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 7_000_00L,
                     dateTime = dateToMillis(2026, 10, 5),
                     channel = Channel.UPI,
@@ -132,7 +132,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 2L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 3_000_00L,
                     dateTime = dateToMillis(2026, 10, 8),
                     channel = Channel.CARD,
@@ -154,7 +154,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 1L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 1_500_00L,
                     dateTime = dateToMillis(2026, 10, 2),
                     merchantNormalised = "Swiggy",
@@ -162,7 +162,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 2L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 2_500_00L,
                     dateTime = dateToMillis(2026, 10, 4),
                     merchantNormalised = "Swiggy",
@@ -170,7 +170,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 3L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 8_000_00L,
                     dateTime = dateToMillis(2026, 10, 6),
                     merchantNormalised = "Amazon",
@@ -211,21 +211,21 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 1L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 300_00L, // Level 1 (<= 500)
                     dateTime = dateToMillis(2026, 10, 15),
                 ),
                 Transaction(
                     id = 2L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 1_500_00L, // Level 2 (500-2000)
                     dateTime = dateToMillis(2026, 10, 14),
                 ),
                 Transaction(
                     id = 3L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 6_000_00L, // Level 4 (> 5000)
                     dateTime = dateToMillis(2026, 10, 13),
                 ),
@@ -260,7 +260,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 1L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 649_00L,
                     merchantNormalised = "Netflix",
                     dateTime = dateToMillis(2026, 9, 15),
@@ -268,7 +268,7 @@ class InsightsAnalyticsTest {
                 Transaction(
                     id = 2L,
                     accountId = 1L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 799_00L,
                     merchantNormalised = "Netflix",
                     dateTime = dateToMillis(2026, 10, 15), // 30 days interval -> Monthly

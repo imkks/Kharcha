@@ -173,13 +173,13 @@ fun AccountDetailScreen(
 
     val monthExpensePaise = remember(allMonthTransactions) {
         allMonthTransactions
-            .filter { it.type == TransactionType.Expense }
+            .filter { it.type == TransactionType.EXPENSE }
             .sumOf { it.amount }
     }
 
     val monthIncomePaise = remember(allMonthTransactions) {
         allMonthTransactions
-            .filter { it.type == TransactionType.Income }
+            .filter { it.type == TransactionType.INCOME }
             .sumOf { it.amount }
     }
 
@@ -392,7 +392,7 @@ fun AccountDetailScreen(
                                     horizontalArrangement = Arrangement.SpaceEvenly,
                                 ) {
                                     // Column 1: Income
-                                    val isIncomeSelected = currentFilter.types == setOf(TransactionType.Income)
+                                    val isIncomeSelected = currentFilter.types == setOf(TransactionType.INCOME)
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         modifier = Modifier
@@ -403,7 +403,7 @@ fun AccountDetailScreen(
                                                     if (isIncomeSelected) {
                                                         currentFilter.copy(types = emptySet())
                                                     } else {
-                                                        currentFilter.copy(types = setOf(TransactionType.Income))
+                                                        currentFilter.copy(types = setOf(TransactionType.INCOME))
                                                     }
                                             }
                                             .padding(4.dp),
@@ -531,7 +531,7 @@ fun AccountDetailScreen(
                 TransactionsSubTab.CATEGORIES -> {
                     val categorySlices = remember(monthTransactions) {
                         buildCategorySlices(
-                            monthTransactions.filter { it.type == TransactionType.Expense },
+                            monthTransactions.filter { it.type == TransactionType.EXPENSE },
                         )
                     }
                     LazyColumn(
@@ -613,7 +613,7 @@ fun AccountDetailScreen(
                 TransactionsSubTab.MERCHANTS -> {
                     val merchantList = remember(monthTransactions) {
                         monthTransactions
-                            .filter { it.type == TransactionType.Expense }
+                            .filter { it.type == TransactionType.EXPENSE }
                             .groupBy { it.merchantNormalised ?: it.merchantRaw ?: "Unknown" }
                             .map { (merchant, txns) ->
                                 merchant to txns.sumOf { it.amount }

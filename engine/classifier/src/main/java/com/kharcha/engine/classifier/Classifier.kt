@@ -18,9 +18,9 @@ class Classifier {
     ): Pair<TransactionType, Long?> {
         var type =
             if (transaction.direction == Direction.DEBIT) {
-                TransactionType.Expense
+                TransactionType.EXPENSE
             } else {
-                TransactionType.Income
+                TransactionType.INCOME
             }
 
         var linkedTxnId: Long? = null
@@ -40,25 +40,24 @@ class Classifier {
 
                     it.amount == transaction.amountMinor &&
                         (
-                            (transaction.direction == Direction.DEBIT && it.type == TransactionType.Income) ||
-                                (transaction.direction == Direction.CREDIT && it.type == TransactionType.Expense)
+                            (transaction.direction == Direction.DEBIT && it.type == TransactionType.INCOME) ||
+                                (transaction.direction == Direction.CREDIT && it.type == TransactionType.EXPENSE)
                         ) &&
                         it.accountId != accountId &&
                         abs(it.dateTime - txnDateTime) <= windowToUse
                 }
             if (matchingTransfer != null) {
-                return Pair(TransactionType.Transfer, matchingTransfer.id)
+                return Pair(type, matchingTransfer.id)
             }
 
             if (transaction.direction == Direction.CREDIT) {
                 val matchingRefund =
                     recentTransactions.find {
-                        it.type == TransactionType.Expense &&
+                        it.type == TransactionType.EXPENSE &&
                             it.accountId == accountId &&
                             it.amount >= transaction.amountMinor &&
                             (txnDateTime - it.dateTime) <= refundWindowMs &&
                             (txnDateTime - it.dateTime) >= 0 &&
-
                             (
                                 it.merchantRaw?.lowercase() == merchantRawLower ||
                                     it.merchantNormalised?.lowercase() == merchantRawLower
@@ -66,7 +65,7 @@ class Classifier {
                     }
 
                 if (matchingRefund != null) {
-                    return Pair(TransactionType.Refund, matchingRefund.id)
+                    return Pair(type, matchingRefund.id)
                 }
             }
         }
@@ -76,7 +75,7 @@ class Classifier {
 
         if (transaction.direction == Direction.CREDIT) {
             if (Regex("\\b(salary|payroll)\\b").containsMatchIn(merchantRawLower)) {
-                type = TransactionType.Income // Explicitly set, even though default is Income
+                type = TransactionType.INCOME // Explicitly set, even though default is Income
             }
         }
 

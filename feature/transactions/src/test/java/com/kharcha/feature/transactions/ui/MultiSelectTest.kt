@@ -13,7 +13,7 @@ class MultiSelectTest {
     private fun createTxn(
         id: Long,
         category: String = "Shopping",
-        type: TransactionType = TransactionType.Expense,
+        type: TransactionType = TransactionType.EXPENSE,
         isReviewed: Boolean = false,
     ): Transaction =
         Transaction(
@@ -71,38 +71,39 @@ class MultiSelectTest {
     @Test
     fun testBulkChangeTypeUpdatesType() {
         val txns = listOf(
-            createTxn(1L, type = TransactionType.Expense),
-            createTxn(2L, type = TransactionType.Expense),
+            createTxn(1L, type = TransactionType.EXPENSE),
+            createTxn(2L, type = TransactionType.EXPENSE),
         )
         val selectedIds = setOf(1L, 2L)
 
         val updated = txns.filter { selectedIds.contains(it.id) }.map {
-            it.copy(type = TransactionType.Transfer)
+            it.copy(type = TransactionType.INCOME)
         }
 
         assertEquals(2, updated.size)
-        assertTrue(updated.all { it.type == TransactionType.Transfer })
+        assertTrue(updated.all { it.type == TransactionType.INCOME })
     }
 
     @Test
     fun testBulkDeleteAndUndo() {
         val txns = listOf(
-            createTxn(1L, type = TransactionType.Expense, isReviewed = false),
-            createTxn(2L, type = TransactionType.Expense, isReviewed = false),
+            createTxn(1L, type = TransactionType.EXPENSE, isReviewed = false),
+            createTxn(2L, type = TransactionType.EXPENSE, isReviewed = false),
         )
         val selectedIds = setOf(1L, 2L)
         val selectedTxns = txns.filter { selectedIds.contains(it.id) }
 
         // Bulk delete
         val deleted = selectedTxns.map {
-            it.copy(type = TransactionType.Ignored, isReviewed = true)
+            it.copy(isExcluded = true, isReviewed = true)
         }
-        assertTrue(deleted.all { it.type == TransactionType.Ignored })
+        assertTrue(deleted.all { it.isExcluded })
         assertTrue(deleted.all { it.isReviewed })
 
         // Undo restores original
         val restored = selectedTxns
-        assertTrue(restored.all { it.type == TransactionType.Expense })
+        assertTrue(restored.all { it.type == TransactionType.EXPENSE })
         assertFalse(restored.any { it.isReviewed })
+        assertFalse(restored.any { it.isExcluded })
     }
 }

@@ -121,7 +121,7 @@ fun InsightsScreen(
 
     val expenses =
         remember(periodTxns) {
-            periodTxns.filter { it.type == TransactionType.Expense }
+            periodTxns.filter { it.type == TransactionType.EXPENSE }
         }
 
     val categoryShares =
@@ -141,7 +141,7 @@ fun InsightsScreen(
 
     val totalIncome =
         remember(periodTxns) {
-            periodTxns.filter { it.type == TransactionType.Income }.sumOf { it.amount }
+            periodTxns.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
         }
     val totalExpense =
         remember(expenses) {

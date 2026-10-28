@@ -124,13 +124,7 @@ class DefaultTransactionRepository(
                         (!primaryMerchant.isNullOrBlank() && (tNorm == primaryMerchant || tRaw == primaryMerchant))
 
                 if (matches) {
-                    val targetType =
-                        newType
-                            ?: if (newCategory.equals("Transfer", ignoreCase = true)) {
-                                TransactionType.Transfer
-                            } else {
-                                t.type
-                            }
+                    val targetType = newType ?: t.type
 
                     current[i] =
                         t.copy(
@@ -163,10 +157,10 @@ class DefaultTransactionRepository(
                 var t2 = current[i2].copy(linkedTransactionId = primaryId, updatedAt = now)
 
                 if (isRefund) {
-                    if (t1.type == TransactionType.Expense && t2.type != TransactionType.Expense) {
-                        t2 = t2.copy(type = TransactionType.Refund, categorySource = t1.categorySource)
-                    } else if (t2.type == TransactionType.Expense && t1.type != TransactionType.Expense) {
-                        t1 = t1.copy(type = TransactionType.Refund, categorySource = t2.categorySource)
+                    if (t1.type == TransactionType.EXPENSE && t2.type == TransactionType.INCOME) {
+                        t2 = t2.copy(categorySource = t1.categorySource ?: "Refund")
+                    } else if (t2.type == TransactionType.EXPENSE && t1.type == TransactionType.INCOME) {
+                        t1 = t1.copy(categorySource = t2.categorySource ?: "Refund")
                     }
                 }
 
@@ -319,14 +313,14 @@ class DefaultTransactionRepository(
     private fun reconcileTransfers(list: MutableList<Transaction>) {
         for (i in list.indices) {
             val t1 = list[i]
-            if (t1.type != TransactionType.Expense && t1.type != TransactionType.Transfer) continue
+            if (t1.type != TransactionType.EXPENSE) continue
             // Card spend is an expense, not a debit leg for a transfer/card bill payment
-            if (t1.channel == Channel.CARD && t1.type == TransactionType.Expense) continue
+            if (t1.channel == Channel.CARD && !t1.categorySource.equals("Transfer", ignoreCase = true)) continue
 
             for (j in list.indices) {
                 if (i == j) continue
                 val t2 = list[j]
-                if (t2.type != TransactionType.Income && t2.type != TransactionType.Transfer) continue
+                if (t2.type != TransactionType.INCOME) continue
                 if (t1.id == t2.linkedTransactionId && t2.id == t1.linkedTransactionId) continue
                 // Transfers must be between two different accounts
                 if (t1.accountId != 0L && t2.accountId != 0L && t1.accountId == t2.accountId) continue
@@ -342,14 +336,12 @@ class DefaultTransactionRepository(
                     if (kotlin.math.abs(t1.dateTime - t2.dateTime) <= window) {
                         list[i] =
                             t1.copy(
-                                type = TransactionType.Transfer,
                                 categorySource = "Transfer",
                                 linkedTransactionId = t2.id,
                                 isReviewed = true,
                             )
                         list[j] =
                             t2.copy(
-                                type = TransactionType.Transfer,
                                 categorySource = "Transfer",
                                 linkedTransactionId = t1.id,
                                 isReviewed = true,
@@ -364,14 +356,16 @@ class DefaultTransactionRepository(
         for (i in list.indices) {
             val tRefund = list[i]
             val isRefundCandidate =
-                tRefund.type == TransactionType.Refund ||
-                    TransactionClassifierHelper.isRefundNarrative(tRefund.note)
+                tRefund.type == TransactionType.INCOME &&
+                    (tRefund.categorySource.equals("Refund", ignoreCase = true) ||
+                        TransactionClassifierHelper.isRefundNarrative(tRefund.note) ||
+                        TransactionClassifierHelper.isRefundNarrative(null, tRefund.merchantRaw))
             if (!isRefundCandidate || tRefund.linkedTransactionId != null) continue
 
             for (j in list.indices) {
                 if (i == j) continue
                 val tExpense = list[j]
-                if (tExpense.type != TransactionType.Expense || tExpense.linkedTransactionId != null) continue
+                if (tExpense.type != TransactionType.EXPENSE || tExpense.linkedTransactionId != null) continue
 
                 val timeDiff = tRefund.dateTime - tExpense.dateTime
                 if (timeDiff in 0..(90L * 24 * 60 * 60 * 1000L)) {
@@ -383,7 +377,6 @@ class DefaultTransactionRepository(
                     if (sameMerchant && tRefund.amount <= tExpense.amount) {
                         list[i] =
                             tRefund.copy(
-                                type = TransactionType.Refund,
                                 categorySource = tExpense.categorySource ?: "Refund",
                                 linkedTransactionId = tExpense.id,
                                 isReviewed = true,
@@ -418,6 +411,7 @@ class DefaultTransactionRepository(
         obj.put("smsHash", txn.smsHash)
         obj.put("accountId", txn.accountId)
         obj.put("type", txn.type.name)
+        obj.put("isExcluded", txn.isExcluded)
         obj.put("amount", txn.amount)
         obj.put("currency", txn.currency)
         obj.put("dateTime", txn.dateTime)
@@ -444,14 +438,14 @@ class DefaultTransactionRepository(
 
     @Suppress("TooGenericExceptionCaught")
     private fun jsonToTransaction(json: JSONObject): Transaction {
-        val typeStr = json.optString("type", TransactionType.Expense.name)
+        val typeStr = json.optString("type", TransactionType.EXPENSE.name)
+        val isExcluded = json.optBoolean("isExcluded", typeStr.equals("Ignored", ignoreCase = true))
         val channelStr = if (json.has("channel") && !json.isNull("channel")) json.getString("channel") else null
 
         val txnType =
-            try {
-                TransactionType.valueOf(typeStr)
-            } catch (_: Exception) {
-                TransactionType.Expense
+            when (typeStr.uppercase()) {
+                "INCOME", "REFUND" -> TransactionType.INCOME
+                else -> TransactionType.EXPENSE
             }
 
         val parsedChannel =
@@ -540,6 +534,7 @@ class DefaultTransactionRepository(
                 } else {
                     null
                 },
+            isExcluded = isExcluded,
         )
     }
 

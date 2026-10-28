@@ -161,14 +161,14 @@ fun HomeScreen(
     val spentThisMonth =
         remember(currentMonthTransactions) {
             currentMonthTransactions
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.EXPENSE }
                 .sumOf { it.amount }
         }
 
     val incomeThisMonth =
         remember(currentMonthTransactions) {
             currentMonthTransactions
-                .filter { it.type == TransactionType.Income }
+                .filter { it.type == TransactionType.INCOME }
                 .sumOf { it.amount }
         }
 
@@ -201,7 +201,7 @@ fun HomeScreen(
         remember(currentMonthTransactions) {
             currentMonthTransactions
                 .filter {
-                    it.type == TransactionType.Expense &&
+                    it.type == TransactionType.EXPENSE &&
                         (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed)
                 }
                 .sumOf { it.amount }
@@ -211,7 +211,7 @@ fun HomeScreen(
         remember(currentMonthTransactions) {
             currentMonthTransactions
                 .filter {
-                    it.type == TransactionType.Expense &&
+                    it.type == TransactionType.EXPENSE &&
                         it.categorySource != "Unknown" &&
                         it.categorySource != "Other"
                 }
@@ -1277,7 +1277,7 @@ fun HomeTransactionRow(
     modifier: Modifier = Modifier,
 ) {
     val isPrivacy = LocalPrivacyMode.current
-    val isDebit = transaction.type == TransactionType.Expense
+    val isDebit = transaction.type == TransactionType.EXPENSE
     val arrowGlyph = if (isDebit) "↗" else "↙"
     val amountFormatted =
         if (isPrivacy) {

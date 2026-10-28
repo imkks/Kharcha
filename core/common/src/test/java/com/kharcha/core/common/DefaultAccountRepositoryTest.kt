@@ -338,7 +338,7 @@ class DefaultAccountRepositoryTest {
                 id = 1001L,
                 accountId = source.id,
                 amount = 10000L,
-                type = com.kharcha.core.model.TransactionType.Expense,
+                type = com.kharcha.core.model.TransactionType.EXPENSE,
                 dateTime = System.currentTimeMillis(),
             )
             txnRepo.insertTransaction(txn)

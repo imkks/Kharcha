@@ -95,11 +95,11 @@ fun calculateMonthlyComparisonData(
         val txnsInMonth = transactions.filter { it.dateTime in monthStart..monthEnd }
         val income =
             txnsInMonth
-                .filter { it.type == TransactionType.Income }
+                .filter { it.type == TransactionType.INCOME }
                 .sumOf { it.amount }
         val expense =
             txnsInMonth
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.EXPENSE }
                 .sumOf { it.amount }
 
         results.add(

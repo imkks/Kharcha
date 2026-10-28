@@ -196,6 +196,7 @@ fun TransactionRow(
                 amountMinor = transaction.amount,
                 type = transaction.type,
                 style = MaterialTheme.typography.titleMedium,
+                isExcluded = transaction.isExcluded,
             )
             if (relativeTime.isNotEmpty() || transaction.isReviewed) {
                 Spacer(modifier = Modifier.height(2.dp))

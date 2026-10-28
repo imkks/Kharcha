@@ -11,7 +11,7 @@ class DonutChartTest {
     private fun createTxn(
         id: Long,
         amount: Long,
-        type: TransactionType = TransactionType.Expense,
+        type: TransactionType = TransactionType.EXPENSE,
         category: String? = "Food",
     ): Transaction =
         Transaction(
@@ -34,8 +34,7 @@ class DonutChartTest {
     @Test
     fun buildCategorySlicesOnlyIncomeReturnsEmpty() {
         val txns = listOf(
-            createTxn(1L, 50000_00L, TransactionType.Income, "Salary"),
-            createTxn(2L, 10000_00L, TransactionType.Transfer, "Savings"),
+            createTxn(1L, 50000_00L, TransactionType.INCOME, "Salary"),
         )
         val slices = buildCategorySlices(txns)
         assertTrue(slices.isEmpty())

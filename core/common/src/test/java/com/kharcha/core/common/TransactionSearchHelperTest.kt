@@ -13,7 +13,7 @@ class TransactionSearchHelperTest {
         Transaction(
             id = 1L,
             accountId = 10L,
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             amount = 450_00L,
             dateTime = 1790447880000L,
             merchantRaw = "SWIGGY*ORDER123",

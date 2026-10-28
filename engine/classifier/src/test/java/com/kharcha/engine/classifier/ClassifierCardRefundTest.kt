@@ -33,13 +33,13 @@ class ClassifierCardRefundTest {
             Transaction(
                 id = 2L,
                 accountId = 2L,
-                type = TransactionType.Income,
+                type = TransactionType.INCOME,
                 amount = 2000000,
                 dateTime = 1100L,
             )
 
         val result = classifier.classify(debitTxn, accountId = 1L, recentTransactions = listOf(recentCreditTxn))
-        assertEquals(TransactionType.Transfer, result.first)
+        assertEquals(TransactionType.EXPENSE, result.first)
         assertEquals(2L, result.second)
     }
 
@@ -65,7 +65,7 @@ class ClassifierCardRefundTest {
             Transaction(
                 id = 2L,
                 accountId = 1L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 amount = 1000,
                 dateTime = 1000L,
                 merchantRaw = "Swiggy",
@@ -73,7 +73,7 @@ class ClassifierCardRefundTest {
             )
 
         val result = classifier.classify(creditTxn, accountId = 1L, recentTransactions = listOf(recentDebitTxn))
-        assertEquals(TransactionType.Refund, result.first)
+        assertEquals(TransactionType.INCOME, result.first)
         assertEquals(2L, result.second)
     }
 }

@@ -65,10 +65,10 @@ class AccountDetailTest {
         val allAccountIds = (setOf(primary.id) + linkedIds).toSet()
 
         val txns = listOf(
-            createTxn(id = 1L, accountId = 10L, type = TransactionType.Expense, amount = 1500_00L),
-            createTxn(id = 2L, accountId = 20L, type = TransactionType.Expense, amount = 2500_00L),
-            createTxn(id = 3L, accountId = 10L, type = TransactionType.Income, amount = 50000_00L),
-            createTxn(id = 4L, accountId = 30L, type = TransactionType.Expense, amount = 999_00L),
+            createTxn(id = 1L, accountId = 10L, type = TransactionType.EXPENSE, amount = 1500_00L),
+            createTxn(id = 2L, accountId = 20L, type = TransactionType.EXPENSE, amount = 2500_00L),
+            createTxn(id = 3L, accountId = 10L, type = TransactionType.INCOME, amount = 50000_00L),
+            createTxn(id = 4L, accountId = 30L, type = TransactionType.EXPENSE, amount = 999_00L),
         )
 
         val accountTxns = txns.filter { it.accountId in allAccountIds }
@@ -77,10 +77,10 @@ class AccountDetailTest {
         assertTrue(accountTxns.any { it.id == 2L })
         assertTrue(accountTxns.any { it.id == 3L })
 
-        val totalExpense = accountTxns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+        val totalExpense = accountTxns.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
         assertEquals(4000_00L, totalExpense)
 
-        val totalIncome = accountTxns.filter { it.type == TransactionType.Income }.sumOf { it.amount }
+        val totalIncome = accountTxns.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
         assertEquals(50000_00L, totalIncome)
     }
 
@@ -100,14 +100,14 @@ class AccountDetailTest {
                 createTxn(
                     id = 1L,
                     accountId = 10L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 1000_00L,
                     dateTime = oct2026Epoch,
                 ),
                 createTxn(
                     id = 2L,
                     accountId = 10L,
-                    type = TransactionType.Expense,
+                    type = TransactionType.EXPENSE,
                     amount = 2000_00L,
                     dateTime = sep2026Epoch,
                 ),

@@ -88,9 +88,9 @@ object InsightsAnalyticsHelper {
                 .toEpochMilli()
 
         val monthTxns = transactions.filter { it.dateTime in monthStart..monthEnd }
-        val expenses = monthTxns.filter { it.type == TransactionType.Expense }
+        val expenses = monthTxns.filter { it.type == TransactionType.EXPENSE }
         val totalSpent = expenses.sumOf { it.amount }
-        val totalIncome = monthTxns.filter { it.type == TransactionType.Income }.sumOf { it.amount }
+        val totalIncome = monthTxns.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
 
         val monthlyBudget =
             customMonthlyBudgetMinor
@@ -187,7 +187,7 @@ object InsightsAnalyticsHelper {
         referenceDate: LocalDate = LocalDate.now(),
         daysCount: Int = 35,
     ): List<DaySpendIntensity> {
-        val expenses = transactions.filter { it.type == TransactionType.Expense }
+        val expenses = transactions.filter { it.type == TransactionType.EXPENSE }
         val zone = ZoneId.systemDefault()
         val expenseByDate =
             expenses.groupBy {
@@ -219,7 +219,7 @@ object InsightsAnalyticsHelper {
     fun detectRecurringSubscriptions(
         transactions: List<Transaction>,
     ): List<SubscriptionItemUiModel> {
-        val expenses = transactions.filter { it.type == TransactionType.Expense }
+        val expenses = transactions.filter { it.type == TransactionType.EXPENSE }
         val zone = ZoneId.systemDefault()
 
         return expenses

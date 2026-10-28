@@ -100,7 +100,7 @@ fun WeeklySummaryScreen(
     val weekExpenseMinor =
         remember(thisWeekTransactions) {
             thisWeekTransactions
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.EXPENSE }
                 .sumOf { it.amount }
         }
 
@@ -120,7 +120,7 @@ fun WeeklySummaryScreen(
     val topMerchants =
         remember(thisWeekTransactions, weekExpenseMinor) {
             thisWeekTransactions
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.EXPENSE }
                 .groupBy { it.merchantNormalised ?: it.merchantRaw ?: "Others" }
                 .mapValues { entry -> entry.value.sumOf { it.amount } }
                 .toList()

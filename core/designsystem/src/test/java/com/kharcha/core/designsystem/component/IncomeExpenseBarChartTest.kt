@@ -53,25 +53,25 @@ class IncomeExpenseBarChartTest {
         val octTxn = createTxn(
             1L,
             5000_00L,
-            TransactionType.Expense,
+            TransactionType.EXPENSE,
             LocalDate.of(2026, 10, 10).atStartOfDay(zoneId).toInstant().toEpochMilli(),
         )
         val sepTxn1 = createTxn(
             2L,
             10000_00L,
-            TransactionType.Income,
+            TransactionType.INCOME,
             LocalDate.of(2026, 9, 5).atStartOfDay(zoneId).toInstant().toEpochMilli(),
         )
         val sepTxn2 = createTxn(
             3L,
             2000_00L,
-            TransactionType.Expense,
+            TransactionType.EXPENSE,
             LocalDate.of(2026, 9, 20).atStartOfDay(zoneId).toInstant().toEpochMilli(),
         )
         val oldTxn = createTxn(
             4L,
             1000_00L,
-            TransactionType.Expense,
+            TransactionType.EXPENSE,
             LocalDate.of(2025, 1, 1).atStartOfDay(zoneId).toInstant().toEpochMilli(),
         )
 

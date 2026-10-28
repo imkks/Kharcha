@@ -39,7 +39,7 @@ The end-to-end flow for every SMS, whether live or from the inbox import:
 4. NoiseFilter: rejects OTP, promo, reminder, failed and enquiry messages and writes an IgnoredMessage with a reason.
 5. Parser: template match first, then generic fallback, producing ParsedTxn with fields and a confidence.
 6. AccountResolver: finds or creates the Account from bank and last 4.
-7. Classifier: assigns TransactionType (Expense, Income, Transfer, Refund and so on) and links pairs.
+7. Classifier: assigns TransactionType (EXPENSE, INCOME) and links pairs.
 8. Categorizer: runs the layered pipeline and sets category, source and confidence.
 9. Repository saves the Transaction in a single database transaction.
 10. Notifier posts an optional notification and the UI updates through Room Flow.

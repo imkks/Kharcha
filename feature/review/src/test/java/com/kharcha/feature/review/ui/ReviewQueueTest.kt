@@ -20,7 +20,7 @@ class ReviewQueueTest {
         Transaction(
             id = id,
             accountId = 101L,
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             amount = amount,
             dateTime = 1729000000000L,
             merchantNormalised = merchant,
@@ -52,11 +52,11 @@ class ReviewQueueTest {
         val original = createTxn(id = 2L, isReviewed = false)
 
         val ignored = original.copy(
-            type = TransactionType.Ignored,
+            isExcluded = true,
             isReviewed = true,
         )
 
-        assertEquals(TransactionType.Ignored, ignored.type)
+        assertTrue(ignored.isExcluded)
         assertTrue(ignored.isReviewed)
     }
 
@@ -65,19 +65,12 @@ class ReviewQueueTest {
         val original = createTxn(id = 3L, isReviewed = false)
         val chosenCategory = "Transfer"
 
-        val type = if (chosenCategory.equals("Transfer", ignoreCase = true)) {
-            TransactionType.Transfer
-        } else {
-            original.type
-        }
-
         val updated = original.copy(
             categorySource = chosenCategory,
-            type = type,
             isReviewed = true,
         )
 
-        assertEquals(TransactionType.Transfer, updated.type)
+        assertEquals(TransactionType.EXPENSE, updated.type)
         assertEquals("Transfer", updated.categorySource)
         assertTrue(updated.isReviewed)
     }

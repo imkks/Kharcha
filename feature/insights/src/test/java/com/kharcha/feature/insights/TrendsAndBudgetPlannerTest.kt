@@ -49,21 +49,21 @@ class TrendsAndBudgetPlannerTest {
             Transaction(
                 id = 1L,
                 amount = 2500_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.UPI,
                 dateTime = octEpoch1,
             ),
             Transaction(
                 id = 2L,
                 amount = 50000_00L,
-                type = TransactionType.Income,
+                type = TransactionType.INCOME,
                 channel = Channel.NEFT,
                 dateTime = octEpoch2,
             ),
             Transaction(
                 id = 3L,
                 amount = 1200_00L,
-                type = TransactionType.Expense,
+                type = TransactionType.EXPENSE,
                 channel = Channel.CARD,
                 dateTime = sepEpoch,
             ),
@@ -73,8 +73,8 @@ class TrendsAndBudgetPlannerTest {
             YearMonth.from(Instant.ofEpochMilli(it.dateTime).atZone(zoneId)) == testMonth
         }
 
-        val totalSpends = monthTxns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
-        val totalIncome = monthTxns.filter { it.type == TransactionType.Income }.sumOf { it.amount }
+        val totalSpends = monthTxns.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        val totalIncome = monthTxns.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
 
         assertEquals(2500_00L, totalSpends)
         assertEquals(50000_00L, totalIncome)

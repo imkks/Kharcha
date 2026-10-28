@@ -13,32 +13,32 @@ class TransactionClassifierHelperTest {
             direction = Direction.DEBIT,
             body = "Rs 20,000 debited from A/c XX1234 towards Credit Card XX9876 payment",
         )
-        assertEquals(TransactionType.Transfer, type1)
+        assertEquals(TransactionType.EXPENSE, type1)
 
         val type2 = TransactionClassifierHelper.classifyType(
             direction = Direction.DEBIT,
             body = "Rs 5,000 debited for self transfer to SBI",
         )
-        assertEquals(TransactionType.Transfer, type2)
+        assertEquals(TransactionType.EXPENSE, type2)
 
         val autoDebitType = TransactionClassifierHelper.classifyType(
             direction = Direction.DEBIT,
             body = "Rs 15,000 debited from A/c XX1234 towards Auto Debit for HDFC Credit Card",
         )
-        assertEquals(TransactionType.Transfer, autoDebitType)
+        assertEquals(TransactionType.EXPENSE, autoDebitType)
 
         val cardBillReceivedType = TransactionClassifierHelper.classifyType(
             direction = Direction.CREDIT,
             body = "Payment of Rs 15,000 received towards your HDFC Bank Credit Card ending 9876",
         )
-        assertEquals(TransactionType.Refund, cardBillReceivedType)
+        assertEquals(TransactionType.INCOME, cardBillReceivedType)
 
         val credType = TransactionClassifierHelper.classifyType(
             direction = Direction.DEBIT,
             body = "Rs 15,000 debited from A/c XX1234 to VPA cred@axis",
             merchant = "CRED",
         )
-        assertEquals(TransactionType.Transfer, credType)
+        assertEquals(TransactionType.EXPENSE, credType)
     }
 
     @Test
@@ -48,7 +48,7 @@ class TransactionClassifierHelperTest {
             body = "Rs 1,299 spent on Credit Card XX9876 at AMAZON on 20-Oct",
             merchant = "AMAZON",
         )
-        assertEquals(TransactionType.Expense, cardSpend)
+        assertEquals(TransactionType.EXPENSE, cardSpend)
     }
 
     @Test
@@ -74,13 +74,13 @@ class TransactionClassifierHelperTest {
             direction = Direction.DEBIT,
             body = "Rs 500 debited from A/c XX1234 for Swiggy",
         )
-        assertEquals(TransactionType.Expense, debitType)
+        assertEquals(TransactionType.EXPENSE, debitType)
 
         val creditType = TransactionClassifierHelper.classifyType(
             direction = Direction.CREDIT,
             body = "Rs 50,000 credited to A/c XX1234 salary",
         )
-        assertEquals(TransactionType.Income, creditType)
+        assertEquals(TransactionType.INCOME, creditType)
     }
 
     @Test
@@ -117,20 +117,20 @@ class TransactionClassifierHelperTest {
             body = urbanCompanySms,
             merchant = "Urban Company",
         )
-        assertEquals(TransactionType.Refund, refundType1)
+        assertEquals(TransactionType.INCOME, refundType1)
 
         val refundType2 = TransactionClassifierHelper.classifyType(
             direction = Direction.CREDIT,
             body = "Refund of Rs. 450.00 from Swiggy has been credited to your account",
             merchant = "Swiggy",
         )
-        assertEquals(TransactionType.Refund, refundType2)
+        assertEquals(TransactionType.INCOME, refundType2)
 
         val reversalType = TransactionClassifierHelper.classifyType(
             direction = Direction.CREDIT,
             body = "Transaction reversal of Rs 500 credited to a/c **1234",
         )
-        assertEquals(TransactionType.Refund, reversalType)
+        assertEquals(TransactionType.INCOME, reversalType)
 
         assertEquals(false, TransactionClassifierHelper.isRefundNarrative(null))
         assertEquals(false, TransactionClassifierHelper.isTransferNarrative(null))
@@ -149,7 +149,7 @@ class TransactionClassifierHelperTest {
             amountMinor = 53_000_00L,
             channel = Channel.UPI,
         )
-        assertEquals(TransactionType.Transfer, upiTransferType)
+        assertEquals(TransactionType.EXPENSE, upiTransferType)
 
         val mfType = TransactionClassifierHelper.classifyType(
             direction = Direction.DEBIT,
@@ -158,7 +158,7 @@ class TransactionClassifierHelperTest {
             amountMinor = 80_000_00L,
             channel = Channel.UPI,
         )
-        assertEquals(TransactionType.Transfer, mfType)
+        assertEquals(TransactionType.EXPENSE, mfType)
 
         val googleStoreSpend = TransactionClassifierHelper.classifyType(
             direction = Direction.DEBIT,
@@ -167,7 +167,7 @@ class TransactionClassifierHelperTest {
             amountMinor = 12_999_00L,
             channel = Channel.CARD,
         )
-        assertEquals(TransactionType.Expense, googleStoreSpend)
+        assertEquals(TransactionType.EXPENSE, googleStoreSpend)
     }
 
     @Test
@@ -252,9 +252,9 @@ class TransactionClassifierHelperTest {
             body = ccBillPaymentBody,
             merchant = "IDFC FIRST Bank",
         )
-        assertEquals(TransactionType.Refund, ccBillType)
+        assertEquals(TransactionType.INCOME, ccBillType)
 
-        // Zepto Refund message: category Refund & type Refund
+        // Zepto Refund message: category Refund & type Income
         val zeptoBody = "Zepto Marketplace Priv refund of Rs 189.00 credited to ICICI Bank Credit Card XX3006 on 22-MAY-26."
         val zeptoCat = TransactionClassifierHelper.guessCategory(
             merchant = "Zepto Marketplace Priv",
@@ -267,7 +267,7 @@ class TransactionClassifierHelperTest {
             body = zeptoBody,
             merchant = "Zepto Marketplace Priv",
         )
-        assertEquals(TransactionType.Refund, zeptoType)
+        assertEquals(TransactionType.INCOME, zeptoType)
         val zeptoCleanedName = TransactionClassifierHelper.cleanMerchantDisplay(
             raw = "Zepto Marketplace Priv",
             bank = "ICICI",
@@ -275,7 +275,7 @@ class TransactionClassifierHelperTest {
         )
         assertEquals("Zepto Marketplace", zeptoCleanedName)
 
-        // HDFC VPA credit alert: category A/C Transfer & type Refund (non-income credit)
+        // HDFC VPA credit alert: category A/C Transfer & type Income
         val hdfcAlertBody = "Credit Alert! Rs.2511.00 credited to HDFC Bank A/c XX1999 on 21-10-26 from VPA *pany@ptybl (UPI 185726917017)"
         val alertCat = TransactionClassifierHelper.guessCategory(
             merchant = "pany@ptybl",
@@ -288,6 +288,6 @@ class TransactionClassifierHelperTest {
             body = hdfcAlertBody,
             merchant = "pany@ptybl",
         )
-        assertEquals(TransactionType.Refund, alertType)
+        assertEquals(TransactionType.INCOME, alertType)
     }
 }

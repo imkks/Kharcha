@@ -30,7 +30,7 @@ class ClassifierTest {
             )
 
         val result = classifier.classify(txn, accountId = 1L)
-        assertEquals(TransactionType.Expense, result.first)
+        assertEquals(TransactionType.EXPENSE, result.first)
     }
 
     @Test
@@ -52,7 +52,7 @@ class ClassifierTest {
             )
 
         val result = classifier.classify(txn, accountId = 1L)
-        assertEquals(TransactionType.Income, result.first)
+        assertEquals(TransactionType.INCOME, result.first)
     }
 
     @Test
@@ -77,13 +77,13 @@ class ClassifierTest {
             Transaction(
                 id = 2L,
                 accountId = 2L,
-                type = TransactionType.Income,
+                type = TransactionType.INCOME,
                 amount = 5000,
                 dateTime = 1100L,
             )
 
         val result = classifier.classify(debitTxn, accountId = 1L, recentTransactions = listOf(recentIncomeTxn))
-        assertEquals(TransactionType.Transfer, result.first)
+        assertEquals(TransactionType.EXPENSE, result.first)
         assertEquals(2L, result.second)
     }
 }

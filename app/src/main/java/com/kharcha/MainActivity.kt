@@ -239,7 +239,7 @@ fun MainAppShell(
                     onDeleteTransaction = { toDelete ->
                         scope.launch {
                             transactionRepository.updateTransaction(
-                                toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
+                                toDelete.copy(isExcluded = true, isReviewed = true),
                             )
                         }
                     },
@@ -286,7 +286,7 @@ fun MainAppShell(
                     onWeeklySummaryClick = { showWeeklySummaryScreen = true },
                     onIncomeClick = {
                         filterCategoryForTransactions = null
-                        transactionsFilter = TransactionFilter(types = setOf(TransactionType.Income))
+                        transactionsFilter = TransactionFilter(types = setOf(TransactionType.INCOME))
                         transactionsYearMonth = YearMonth.now()
                         transactionsIsAllMonthsSelected = false
                         transactionsSubTab = TransactionsSubTab.TRANSACTIONS
@@ -424,7 +424,7 @@ fun MainAppShell(
                 onDelete = { toDelete ->
                     scope.launch {
                         transactionRepository.updateTransaction(
-                            toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
+                            toDelete.copy(isExcluded = true, isReviewed = true),
                         )
                         snackbarHostState.showSnackbar("Transaction deleted")
                     }
@@ -495,12 +495,7 @@ fun MainAppShell(
         ReviewQueueScreen(
             unreviewedTransactions = unreviewed,
             onCategorize = { txn, category, propagate ->
-                val type =
-                    if (category.equals("Transfer", ignoreCase = true)) {
-                        TransactionType.Transfer
-                    } else {
-                        txn.type
-                    }
+                val type = txn.type
                 scope.launch {
                     if (propagate) {
                         val count =
@@ -524,7 +519,7 @@ fun MainAppShell(
             onIgnore = { txn ->
                 scope.launch {
                     transactionRepository.updateTransaction(
-                        txn.copy(type = TransactionType.Ignored, isReviewed = true),
+                        txn.copy(isExcluded = true, isReviewed = true),
                     )
                 }
             },

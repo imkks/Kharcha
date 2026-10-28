@@ -25,7 +25,7 @@ class TransactionFilterMatcherTest {
         Transaction(
             id = 1L,
             accountId = 100L,
-            type = TransactionType.Expense,
+            type = TransactionType.EXPENSE,
             amount = 450_00L,
             dateTime = todayEpoch,
             merchantNormalised = "Swiggy",
@@ -42,8 +42,8 @@ class TransactionFilterMatcherTest {
 
     @Test
     fun testTypeFilter() {
-        val expenseFilter = TransactionFilter(types = setOf(TransactionType.Expense))
-        val incomeFilter = TransactionFilter(types = setOf(TransactionType.Income))
+        val expenseFilter = TransactionFilter(types = setOf(TransactionType.EXPENSE))
+        val incomeFilter = TransactionFilter(types = setOf(TransactionType.INCOME))
 
         assertTrue(TransactionFilterMatcher.matches(baseTxn, expenseFilter, zoneId, fixedToday))
         assertFalse(TransactionFilterMatcher.matches(baseTxn, incomeFilter, zoneId, fixedToday))

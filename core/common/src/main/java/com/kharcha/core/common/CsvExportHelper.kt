@@ -1,6 +1,8 @@
 package com.kharcha.core.common
 
 import com.kharcha.core.model.Transaction
+import com.kharcha.core.model.isCounted
+import com.kharcha.core.model.isTransfer
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -29,6 +31,7 @@ object CsvExportHelper {
                 "merchant_normalised",
                 "bank_name",
                 "account_last4",
+                "account_id",
                 "ref_number",
                 "upi_id",
                 "balance_after_paise",
@@ -36,6 +39,10 @@ object CsvExportHelper {
                 "sender",
                 "parser_template",
                 "parse_confidence",
+                "is_transfer",
+                "is_counted",
+                "linked_txn_id",
+                "pipeline_steps",
                 "is_reviewed",
                 "raw_sms_body",
             ).joinToString(","),
@@ -52,6 +59,7 @@ object CsvExportHelper {
             val last4 = t.accountLast4 ?: inferAccountLast4FromNote(t.note)
             val sender = t.sender ?: inferSenderFromHash(t.smsHash)
             val template = t.templateId ?: "unknown"
+            val pipelineSteps = buildPipelineSteps(t)
 
             val row =
                 listOf(
@@ -68,6 +76,7 @@ object CsvExportHelper {
                     escapeCsv(t.merchantNormalised ?: ""),
                     escapeCsv(bank),
                     escapeCsv(last4),
+                    t.accountId.toString(),
                     escapeCsv(t.refNumber ?: ""),
                     escapeCsv(t.upiId ?: ""),
                     t.balanceAfter?.toString() ?: "",
@@ -75,12 +84,28 @@ object CsvExportHelper {
                     escapeCsv(sender),
                     escapeCsv(template),
                     t.parseConfidence?.toString() ?: "",
+                    t.isTransfer.toString(),
+                    t.isCounted.toString(),
+                    t.linkedTransactionId?.toString() ?: "",
+                    escapeCsv(pipelineSteps),
                     t.isReviewed.toString(),
                     escapeCsv(t.note ?: ""),
                 )
             sb.append(row.joinToString(",")).append("\n")
         }
         return sb.toString()
+    }
+
+    private fun buildPipelineSteps(t: Transaction): String {
+        val parser = t.templateId ?: t.bankName ?: "unknown"
+        val channel = t.channel?.name ?: "UNKNOWN"
+        val type = t.type.name
+        val cat = t.categorySource ?: "Other"
+        val isTransfer = t.isTransfer
+        val isCounted = t.isCounted
+        val linked = t.linkedTransactionId?.let { "LinkedTo($it)" } ?: "Unlinked"
+
+        return "Parser($parser) -> Channel($channel) -> Type($type) -> Category($cat) -> Transfer($isTransfer) -> Reconciled($linked) -> CountedInTotal($isCounted)"
     }
 
     fun generateLlmBatchExportJson(transactions: List<Transaction>): String {

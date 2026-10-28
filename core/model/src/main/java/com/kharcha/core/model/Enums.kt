@@ -44,6 +44,12 @@ val TransactionType.isCounted: Boolean
 val TransactionType.isCredit: Boolean
     get() = this == TransactionType.Income || this == TransactionType.Refund
 
+val Transaction.isTransfer: Boolean
+    get() = categorySource.equals("Transfer", ignoreCase = true) ||
+        categorySource.equals("A/C Transfer", ignoreCase = true) ||
+        merchantNormalised.equals("Transfer", ignoreCase = true) ||
+        type == TransactionType.Transfer
+
 val Transaction.isCounted: Boolean
-    get() = type.isCounted
+    get() = type.isCounted && !isTransfer
 

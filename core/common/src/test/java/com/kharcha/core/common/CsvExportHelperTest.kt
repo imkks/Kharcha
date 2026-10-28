@@ -43,6 +43,11 @@ class CsvExportHelperTest {
         assertTrue(lines[0].contains("parser_template"))
         assertTrue(lines[0].contains("bank_name"))
         assertTrue(lines[0].contains("account_last4"))
+        assertTrue(lines[0].contains("account_id"))
+        assertTrue(lines[0].contains("is_transfer"))
+        assertTrue(lines[0].contains("is_counted"))
+        assertTrue(lines[0].contains("linked_txn_id"))
+        assertTrue(lines[0].contains("pipeline_steps"))
         assertTrue(lines[0].contains("sender"))
         assertTrue(lines[0].contains("balance_after_inr"))
 

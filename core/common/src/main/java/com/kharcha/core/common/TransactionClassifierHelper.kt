@@ -177,8 +177,8 @@ object TransactionClassifierHelper {
     fun isTransferNarrative(
         body: String? = null,
         merchant: String? = null,
-        amountMinor: Long = 0L,
-        channel: Channel? = null,
+        @Suppress("UnusedParameter") amountMinor: Long = 0L,
+        @Suppress("UnusedParameter") channel: Channel? = null,
     ): Boolean {
         if (body.isNullOrBlank() && merchant.isNullOrBlank()) return false
         val b = body?.lowercase() ?: ""
@@ -189,7 +189,6 @@ object TransactionClassifierHelper {
             b.contains("self transfer") || b.contains("transfer to self") ||
                 b.contains("own account") || b.contains("own a/c") ||
                 b.contains("transfer between accounts") ||
-                b.contains("upi funds transfer") ||
                 m.contains("self transfer") || m.equals("transfer", ignoreCase = true)
 
         // 2. Inter-account transfer pattern (e.g. "debited from a/c *1999 ... to a/c **0034")
@@ -212,25 +211,8 @@ object TransactionClassifierHelper {
         // 5. Tax Challan payment
         val isTaxChallan = b.contains("challan payment")
 
-        // 6. High-value transfer threshold (default >= Rs 20,000 for non-card debits)
-        val isHighValueTransfer = amountMinor >= 20_000_00L &&
-            (channel == Channel.UPI || channel == Channel.NEFT ||
-                channel == Channel.IMPS || channel == Channel.OTHER) &&
-            !isRetailMerchant(m)
-
         return isSelf || isInterAccount || isInvestment || isCardBill || isGeneralAutoDebit ||
-            isTaxChallan || isHighValueTransfer
-    }
-
-    private fun isRetailMerchant(m: String): Boolean {
-        val retailKeywords =
-            listOf(
-                "amazon", "flipkart", "myntra", "swiggy", "zomato", "blinkit", "zepto",
-                "decathlon", "air india", "indigo", "makemytrip", "cleartrip", "bookmyshow",
-                "netflix", "apple", "google store", "uber", "ola", "apollo", "vijetha",
-                "urban company", "urbanclap",
-            )
-        return retailKeywords.any { m.contains(it) }
+            isTaxChallan
     }
 
     fun isRefundNarrative(body: String? = null, merchant: String? = null): Boolean {
@@ -255,39 +237,14 @@ object TransactionClassifierHelper {
 
     fun classifyType(
         direction: Direction,
-        body: String,
-        merchant: String? = null,
-        amountMinor: Long = 0L,
-        channel: Channel? = null,
+        @Suppress("UnusedParameter") body: String? = null,
+        @Suppress("UnusedParameter") merchant: String? = null,
+        @Suppress("UnusedParameter") amountMinor: Long = 0L,
+        @Suppress("UnusedParameter") channel: Channel? = null,
     ): TransactionType {
-        val b = body.lowercase()
-        val m = merchant?.lowercase() ?: ""
-        if (direction == Direction.CREDIT) {
-            if (isRefundNarrative(body, merchant)) {
-                return TransactionType.Refund
-            }
-            if (isCreditCardBillPayment(body, merchant)) {
-                return TransactionType.Refund
-            }
-            if (isTransferNarrative(body, merchant, amountMinor, channel)) {
-                return TransactionType.Refund
-            }
-            val isKnownNonIncome =
-                b.contains("upi") || b.contains("credit alert") ||
-                    b.contains("reversal") || b.contains("cashback") || b.contains("reward") ||
-                    b.contains("vpa") || m.contains("@")
-            if (isKnownNonIncome && !isSalaryOrIncome(b, m)) {
-                return TransactionType.Refund
-            }
-            return TransactionType.Income
-        } else {
-            if (isTransferNarrative(body, merchant, amountMinor, channel)) {
-                return TransactionType.Transfer
-            }
-            if (isRefundNarrative(body, merchant)) {
-                return TransactionType.Refund
-            }
-            return TransactionType.Expense
+        return when (direction) {
+            Direction.CREDIT -> TransactionType.Income
+            Direction.DEBIT -> TransactionType.Expense
         }
     }
 

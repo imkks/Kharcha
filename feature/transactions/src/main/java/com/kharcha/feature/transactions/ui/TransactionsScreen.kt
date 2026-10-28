@@ -971,7 +971,6 @@ fun TransactionsScreen(
                     listOf(
                         TransactionType.Expense,
                         TransactionType.Income,
-                        TransactionType.Transfer,
                     ).forEach { type ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

@@ -83,7 +83,7 @@ class ClassifierTest {
             )
 
         val result = classifier.classify(debitTxn, accountId = 1L, recentTransactions = listOf(recentIncomeTxn))
-        assertEquals(TransactionType.Transfer, result.first)
+        assertEquals(TransactionType.Expense, result.first)
         assertEquals(2L, result.second)
     }
 }

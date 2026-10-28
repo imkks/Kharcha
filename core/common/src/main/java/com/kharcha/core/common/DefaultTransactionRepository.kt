@@ -124,13 +124,7 @@ class DefaultTransactionRepository(
                         (!primaryMerchant.isNullOrBlank() && (tNorm == primaryMerchant || tRaw == primaryMerchant))
 
                 if (matches) {
-                    val targetType =
-                        newType
-                            ?: if (newCategory.equals("Transfer", ignoreCase = true)) {
-                                TransactionType.Transfer
-                            } else {
-                                t.type
-                            }
+                    val targetType = newType ?: t.type
 
                     current[i] =
                         t.copy(
@@ -260,17 +254,30 @@ class DefaultTransactionRepository(
         }
     }
 
-    private fun isNearDuplicate(existing: Transaction, txn: Transaction): Boolean {
+    private fun isExactSmsDuplicate(existing: Transaction, txn: Transaction): Boolean {
         if (existing.amount != txn.amount || existing.type != txn.type) return false
+        if (existing.accountId != 0L && txn.accountId != 0L && existing.accountId != txn.accountId) return false
+        if (!existing.bankName.isNullOrBlank() && !txn.bankName.isNullOrBlank() &&
+            !existing.bankName.equals(txn.bankName, ignoreCase = true)
+        ) return false
+        if (!existing.accountLast4.isNullOrBlank() && !txn.accountLast4.isNullOrBlank() &&
+            existing.accountLast4 != txn.accountLast4
+        ) return false
+
         val timeDiff = kotlin.math.abs(existing.dateTime - txn.dateTime)
-        if (timeDiff > 180_000L) return false // 3 minutes window
+        if (timeDiff > 180_000L) return false
+
         val sameMerchant =
             (!existing.merchantNormalised.isNullOrBlank() &&
                 existing.merchantNormalised.equals(txn.merchantNormalised, ignoreCase = true)) ||
                 (!existing.merchantRaw.isNullOrBlank() &&
                     existing.merchantRaw.equals(txn.merchantRaw, ignoreCase = true))
-        val sameChannel = existing.channel != null && existing.channel == txn.channel
-        return sameMerchant || sameChannel
+        val sameRef =
+            !existing.refNumber.isNullOrBlank() && !txn.refNumber.isNullOrBlank() &&
+                existing.refNumber == txn.refNumber
+        val sameNote = !existing.note.isNullOrBlank() && existing.note == txn.note
+
+        return sameMerchant || sameRef || sameNote
     }
 
     private fun deduplicateList(transactions: List<Transaction>): List<Transaction> {
@@ -283,7 +290,21 @@ class DefaultTransactionRepository(
             val idxById = seenIds[txn.id]
             val idxByHash = txn.smsHash?.let { seenHashes[it] }
             val ref = txn.refNumber?.trim()
-            val idxByRef = if (!ref.isNullOrEmpty()) seenRefs[ref] else null
+            val bankAccountKey =
+                if (txn.accountId != 0L) {
+                    txn.accountId.toString()
+                } else if (!txn.bankName.isNullOrBlank() || !txn.accountLast4.isNullOrBlank()) {
+                    "${txn.bankName}_${txn.accountLast4}"
+                } else {
+                    ""
+                }
+            val refKey =
+                if (!ref.isNullOrEmpty() && ref.length >= 4 && ref.any { it.isDigit() }) {
+                    "${txn.type}_${bankAccountKey}_$ref"
+                } else {
+                    null
+                }
+            val idxByRef = if (refKey != null) seenRefs[refKey] else null
             val matchIdx = idxById ?: idxByHash ?: idxByRef
 
             if (matchIdx != null) {
@@ -304,13 +325,13 @@ class DefaultTransactionRepository(
                 continue
             }
 
-            val hasNear = result.any { isNearDuplicate(it, txn) }
-            if (!hasNear) {
+            val isDuplicate = result.any { isExactSmsDuplicate(it, txn) }
+            if (!isDuplicate) {
                 val newIdx = result.size
                 result.add(txn)
                 seenIds[txn.id] = newIdx
                 txn.smsHash?.let { seenHashes[it] = newIdx }
-                if (!ref.isNullOrEmpty()) seenRefs[ref] = newIdx
+                if (refKey != null) seenRefs[refKey] = newIdx
             }
         }
         return result
@@ -342,14 +363,14 @@ class DefaultTransactionRepository(
                     if (kotlin.math.abs(t1.dateTime - t2.dateTime) <= window) {
                         list[i] =
                             t1.copy(
-                                type = TransactionType.Transfer,
+                                type = TransactionType.Expense,
                                 categorySource = "Transfer",
                                 linkedTransactionId = t2.id,
                                 isReviewed = true,
                             )
                         list[j] =
                             t2.copy(
-                                type = TransactionType.Transfer,
+                                type = TransactionType.Income,
                                 categorySource = "Transfer",
                                 linkedTransactionId = t1.id,
                                 isReviewed = true,
@@ -447,11 +468,38 @@ class DefaultTransactionRepository(
         val typeStr = json.optString("type", TransactionType.Expense.name)
         val channelStr = if (json.has("channel") && !json.isNull("channel")) json.getString("channel") else null
 
-        val txnType =
+        val rawType =
             try {
                 TransactionType.valueOf(typeStr)
             } catch (_: Exception) {
                 TransactionType.Expense
+            }
+
+        val noteLower = (if (json.has("note") && !json.isNull("note")) json.getString("note") else "").lowercase()
+        val txnType =
+            when (rawType) {
+                TransactionType.Transfer -> {
+                    if (noteLower.contains("credited") || noteLower.contains("received") || noteLower.contains("deposited")) {
+                        TransactionType.Income
+                    } else {
+                        TransactionType.Expense
+                    }
+                }
+                TransactionType.Refund -> TransactionType.Income
+                else -> rawType
+            }
+
+        val categoryFromDisk =
+            if (json.has("categorySource") && !json.isNull("categorySource")) {
+                json.getString("categorySource")
+            } else {
+                null
+            }
+        val resolvedCategory =
+            if (rawType == TransactionType.Transfer) {
+                categoryFromDisk ?: "Transfer"
+            } else {
+                categoryFromDisk
             }
 
         val parsedChannel =
@@ -494,12 +542,7 @@ class DefaultTransactionRepository(
             balanceAfter =
                 if (json.has("balanceAfter") && !json.isNull("balanceAfter")) json.getLong("balanceAfter") else null,
             note = if (json.has("note") && !json.isNull("note")) json.getString("note") else null,
-            categorySource =
-                if (json.has("categorySource") && !json.isNull("categorySource")) {
-                    json.getString("categorySource")
-                } else {
-                    null
-                },
+            categorySource = resolvedCategory,
             isReviewed = json.optBoolean("isReviewed", false),
             linkedTransactionId =
                 if (json.has("linkedTransactionId") && !json.isNull("linkedTransactionId")) {

@@ -144,7 +144,6 @@ class OnboardingViewModel
                 var foundCount = 0
                 val seenHashes = mutableSetOf<String>()
                 val seenBodyKeys = mutableSetOf<String>()
-                val seenRefs = mutableSetOf<String>()
                 val userRules = DefaultUserPreferences(context).getMerchantCategoryRules()
 
                 while (true) {
@@ -178,10 +177,6 @@ class OnboardingViewModel
                         val parseResult = parser.parse(sms)
                         if (parseResult is ParseResult.Success) {
                             val parsedTxn = parseResult.txn
-                            val ref = parsedTxn.refNumber?.trim()
-                            if (!ref.isNullOrEmpty() && !seenRefs.add(ref)) {
-                                continue
-                            }
 
                             foundCount++
                             val isCredit = parsedTxn.direction == Direction.CREDIT
@@ -194,9 +189,11 @@ class OnboardingViewModel
                                 )
                             val type =
                                 TransactionClassifierHelper.classifyType(
-                                    parsedTxn.direction,
-                                    sms.body,
-                                    normMerchant,
+                                    direction = parsedTxn.direction,
+                                    body = sms.body,
+                                    merchant = normMerchant,
+                                    amountMinor = parsedTxn.amountMinor,
+                                    channel = parsedTxn.channel,
                                 )
                             val isTransfer = type == TransactionType.Transfer
                             val normLower = normMerchant.lowercase().trim()

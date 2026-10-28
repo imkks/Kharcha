@@ -4,6 +4,7 @@ import android.content.Context
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first
@@ -120,8 +121,10 @@ class DefaultTransactionRepositoryTest {
 
             val list = repository.getTransactions().first()
             assertEquals(2, list.size)
-            assertEquals(TransactionType.Transfer, list[0].type)
-            assertEquals(TransactionType.Transfer, list[1].type)
+            assertEquals(TransactionType.Income, list[0].type)
+            assertEquals("Transfer", list[0].categorySource)
+            assertEquals(TransactionType.Expense, list[1].type)
+            assertEquals("Transfer", list[1].categorySource)
             assertEquals(2L, list.find { it.id == 1L }?.linkedTransactionId)
             assertEquals(1L, list.find { it.id == 2L }?.linkedTransactionId)
         }
@@ -145,7 +148,7 @@ class DefaultTransactionRepositoryTest {
                     id = 102L,
                     accountId = 1L,
                     amount = 500000L,
-                    type = TransactionType.Transfer,
+                    type = TransactionType.Expense,
                     categorySource = "Transfer",
                     dateTime = 2000L,
                     channel = Channel.UPI,
@@ -155,7 +158,7 @@ class DefaultTransactionRepositoryTest {
                     id = 103L,
                     accountId = 10L,
                     amount = 500000L,
-                    type = TransactionType.Transfer,
+                    type = TransactionType.Income,
                     categorySource = "Transfer",
                     dateTime = 2500L,
                     channel = Channel.CARD,
@@ -167,15 +170,103 @@ class DefaultTransactionRepositoryTest {
             val txns = repository.getTransactions().first()
             assertEquals(3, txns.size)
 
-            val totalExpenses = txns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
-            assertEquals(500000L, totalExpenses)
+            val totalCountedExpenses = txns.filter { it.isCounted }.sumOf { it.amount }
+            assertEquals(500000L, totalCountedExpenses)
 
             val debitBill = txns.first { it.id == 102L }
             val creditBill = txns.first { it.id == 103L }
-            assertEquals(TransactionType.Transfer, debitBill.type)
-            assertEquals(TransactionType.Transfer, creditBill.type)
+            assertEquals(TransactionType.Expense, debitBill.type)
+            assertEquals("Transfer", debitBill.categorySource)
+            assertEquals(TransactionType.Income, creditBill.type)
+            assertEquals("Transfer", creditBill.categorySource)
             assertEquals(103L, debitBill.linkedTransactionId)
             assertEquals(102L, creditBill.linkedTransactionId)
+        }
+
+    @Test
+    fun selfTransferWithSameUpiRefNumberPreservesBothLegs() =
+        runTest(testDispatcher) {
+            val iciciDebit =
+                Transaction(
+                    id = 19446L,
+                    accountId = 1L,
+                    bankName = "ICICI",
+                    amount = 8000000L,
+                    type = TransactionType.Expense,
+                    refNumber = "218683710640",
+                    dateTime = 1792657500000L,
+                    channel = Channel.UPI,
+                )
+            val hdfcCredit =
+                Transaction(
+                    id = 19447L,
+                    accountId = 2L,
+                    bankName = "HDFC",
+                    amount = 8000000L,
+                    type = TransactionType.Income,
+                    refNumber = "218683710640",
+                    dateTime = 1792657655440L,
+                    channel = Channel.UPI,
+                )
+
+            repository.insertTransactions(listOf(iciciDebit, hdfcCredit))
+            testScheduler.advanceUntilIdle()
+
+            val txns = repository.getTransactions().first()
+            assertEquals(2, txns.size)
+            val debit = txns.first { it.id == 19446L }
+            val credit = txns.first { it.id == 19447L }
+            assertEquals(TransactionType.Expense, debit.type)
+            assertEquals("Transfer", debit.categorySource)
+            assertEquals(TransactionType.Income, credit.type)
+            assertEquals("Transfer", credit.categorySource)
+            assertEquals(credit.id, debit.linkedTransactionId)
+            assertEquals(debit.id, credit.linkedTransactionId)
+        }
+
+    @Test
+    fun differentBankSameAmountWithinThreeMinutesNotNearDuplicate() =
+        runTest(testDispatcher) {
+            val hdfcDebit =
+                Transaction(
+                    id = 19446L,
+                    accountId = 1L,
+                    bankName = "HDFC",
+                    accountLast4 = "1999",
+                    amount = 8000000L,
+                    type = TransactionType.Expense,
+                    merchantRaw = "MUTUAL FUNDS NCL",
+                    merchantNormalised = "Mutual Funds Ncl",
+                    refNumber = "131687401648",
+                    dateTime = 1792657503428L, // 13:55:03
+                    channel = Channel.UPI,
+                )
+            val iciciDebit =
+                Transaction(
+                    id = 19447L,
+                    accountId = 2L,
+                    bankName = "ICICI",
+                    accountLast4 = "321",
+                    amount = 8000000L,
+                    type = TransactionType.Expense,
+                    merchantRaw = "KRISHNA KUMAR S",
+                    merchantNormalised = "Krishna Kumar S",
+                    refNumber = "218683710640",
+                    dateTime = 1792657655440L, // 13:57:35 (~152s later)
+                    channel = Channel.UPI,
+                )
+
+            repository.insertTransactions(listOf(hdfcDebit, iciciDebit))
+            testScheduler.advanceUntilIdle()
+
+            val txns = repository.getTransactions().first()
+            assertEquals(2, txns.size)
+            val hdfc = txns.first { it.id == 19446L }
+            val icici = txns.first { it.id == 19447L }
+            assertEquals("HDFC", hdfc.bankName)
+            assertEquals("ICICI", icici.bankName)
+            assertEquals(8000000L, hdfc.amount)
+            assertEquals(8000000L, icici.amount)
         }
 
     @Test

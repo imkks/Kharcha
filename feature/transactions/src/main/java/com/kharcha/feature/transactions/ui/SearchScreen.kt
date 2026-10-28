@@ -329,8 +329,13 @@ fun SearchTransactionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isTransfer = transaction.type == TransactionType.Transfer
     val isDebit = transaction.type == TransactionType.Expense
-    val arrowGlyph = if (isDebit) "↗" else "↙"
+    val arrowGlyph = when {
+        isTransfer -> "⇄"
+        isDebit -> "↗"
+        else -> "↙"
+    }
     val merchant = transaction.merchantNormalised ?: transaction.merchantRaw ?: "Unknown Merchant"
     val category = transaction.categorySource ?: "Others"
     val relativeDate = DateTimeFormatterHelper.formatRelativeTime(transaction.dateTime)
@@ -342,7 +347,7 @@ fun SearchTransactionRow(
             .clickable { onClick() }
             .then(
                 if (!isCounted) {
-                    Modifier.alpha(0.72f)
+                    Modifier.alpha(0.68f)
                 } else {
                     Modifier
                 },
@@ -375,12 +380,11 @@ fun SearchTransactionRow(
                 text = "$arrowGlyph ${MoneyFormatter.formatMinorUnits(transaction.amount)}",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color =
-                    if (isDebit) {
-                        MaterialTheme.financialColors.textPrimary
-                    } else {
-                        MaterialTheme.financialColors.limeAccent
-                    },
+                color = when {
+                    isTransfer -> MaterialTheme.financialColors.transfer
+                    isDebit -> MaterialTheme.financialColors.textPrimary
+                    else -> MaterialTheme.financialColors.limeAccent
+                },
             )
             Text(
                 text = relativeDate,

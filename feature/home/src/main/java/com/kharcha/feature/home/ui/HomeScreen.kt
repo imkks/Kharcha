@@ -1277,8 +1277,13 @@ fun HomeTransactionRow(
     modifier: Modifier = Modifier,
 ) {
     val isPrivacy = LocalPrivacyMode.current
+    val isTransfer = transaction.type == TransactionType.Transfer
     val isDebit = transaction.type == TransactionType.Expense
-    val arrowGlyph = if (isDebit) "↗" else "↙"
+    val arrowGlyph = when {
+        isTransfer -> "⇄"
+        isDebit -> "↗"
+        else -> "↙"
+    }
     val amountFormatted =
         if (isPrivacy) {
             "₹ ••••••"
@@ -1306,7 +1311,7 @@ fun HomeTransactionRow(
             .clickable { onClick() }
             .then(
                 if (!isCounted) {
-                    Modifier.alpha(0.72f)
+                    Modifier.alpha(0.68f)
                 } else {
                     Modifier
                 },
@@ -1323,14 +1328,39 @@ fun HomeTransactionRow(
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = merchantName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.financialColors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = merchantName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.financialColors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (!isCounted) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                    ) {
+                        Text(
+                            text = if (isTransfer) {
+                                stringResource(id = DesignR.string.add_txn_type_transfer)
+                            } else {
+                                stringResource(id = DesignR.string.row_not_counted)
+                            },
+                            style =
+                                MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = category,
@@ -1347,12 +1377,11 @@ fun HomeTransactionRow(
                     text = "$arrowGlyph $amountFormatted",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color =
-                        if (isDebit) {
-                            MaterialTheme.financialColors.textPrimary
-                        } else {
-                            MaterialTheme.financialColors.limeAccent
-                        },
+                    color = when {
+                        isTransfer -> MaterialTheme.financialColors.transfer
+                        isDebit -> MaterialTheme.financialColors.textPrimary
+                        else -> MaterialTheme.financialColors.limeAccent
+                    },
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))

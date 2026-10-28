@@ -96,7 +96,7 @@ fun TransactionRow(
             )
             .then(
                 if (!isCounted) {
-                    Modifier.alpha(0.72f)
+                    Modifier.alpha(0.68f)
                 } else {
                     Modifier
                 },
@@ -155,7 +155,11 @@ fun TransactionRow(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
                         ) {
                             Text(
-                                text = stringResource(id = R.string.row_not_counted),
+                                text = if (transaction.type == TransactionType.Transfer) {
+                                    stringResource(id = R.string.add_txn_type_transfer)
+                                } else {
+                                    stringResource(id = R.string.row_not_counted)
+                                },
                                 style =
                                     MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 10.sp,

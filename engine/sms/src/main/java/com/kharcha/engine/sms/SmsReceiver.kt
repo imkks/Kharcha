@@ -134,6 +134,10 @@ class SmsReceiver : BroadcastReceiver() {
                                 latitude = capturedLocation?.latitude,
                                 longitude = capturedLocation?.longitude,
                                 locationLabel = capturedLocation?.label,
+                                templateId = parsed.templateId ?: "generic_fallback",
+                                accountLast4 = parsed.accountLast4,
+                                bankName = parsed.bankName,
+                                sender = sender,
                             )
                         repo.insertTransaction(txn)
                     }

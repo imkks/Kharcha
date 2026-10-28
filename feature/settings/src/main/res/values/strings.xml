@@ -112,4 +112,10 @@
     <string name="settings_exclude_spends_toast">Excluded from total spends</string>
     <string name="settings_sub_accounts_linked_format">%1$d sub-accounts linked</string>
     <string name="settings_link_more_cards">+ Link more cards</string>
+    <string name="duplicate_accounts_title">Possible duplicate accounts</string>
+    <string name="duplicate_accounts_message">Differences in bank SMS formats or earlier parsing may have created duplicate accounts with three and four digits. If %1$s and %2$s are the same account, merge them? Transactions will move to the four-digit account, its balance will be kept, and future SMS will use it automatically.</string>
+    <string name="duplicate_accounts_merge">Merge and remember</string>
+    <string name="duplicate_accounts_keep">Keep separate</string>
+    <string name="duplicate_accounts_banner_title">Duplicate accounts detected</string>
+    <string name="duplicate_accounts_banner_desc">Found %1$s and %2$s. Merge to combine transactions and automatically recognize future SMS.</string>
 </resources>

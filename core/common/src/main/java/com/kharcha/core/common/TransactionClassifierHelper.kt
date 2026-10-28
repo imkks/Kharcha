@@ -364,6 +364,28 @@ object TransactionClassifierHelper {
     }
 
     private fun guessExpenseCategory(m: String): String {
+        if (m.contains("petrol") || m.contains("fuel") || m.contains("hpcl") ||
+            m.contains("bpcl") || m.contains("iocl") || m.contains("pump")
+        ) {
+            return "Fuel"
+        }
+        if (m.contains("seva") || m.contains("donation") || m.contains("foundation") || m.contains("charity")) {
+            return "Donation"
+        }
+        if (m.contains("atm") || m.contains("cash wdl") || m.contains("cash withdrawal")) {
+            return "Other"
+        }
+
+        val mapped = SharedCategoryMapping.getCategory(m)
+        if (mapped != "Others") {
+            return when (mapped) {
+                "Credit Card Payment" -> if (m.contains("credit card") || m.contains("card")) "Bill Payment" else "Bills & Utilities"
+                "Transportation" -> "Travel"
+                "Healthcare" -> "Health"
+                else -> mapped
+            }
+        }
+
         return when {
             m.contains("swiggy") || m.contains("zomato") || m.contains("mcdonald") ||
                 m.contains("kfc") || m.contains("domino") || m.contains("pizza") ||
@@ -382,9 +404,6 @@ object TransactionClassifierHelper {
                 m.contains("ajio") || m.contains("meesho") || m.contains("tata cliq") ||
                 m.contains("retail") || m.contains("store") || m.contains("decathlon") -> "Shopping"
 
-            m.contains("petrol") || m.contains("fuel") || m.contains("hpcl") ||
-                m.contains("bpcl") || m.contains("iocl") || m.contains("pump") -> "Fuel"
-
             m.contains("uber") || m.contains("ola") || m.contains("rapido") ||
                 m.contains("metro") || m.contains("irctc") || m.contains("railway") ||
                 m.contains("telangana state road") || m.contains("tsrtc") ||
@@ -397,9 +416,6 @@ object TransactionClassifierHelper {
                 m.contains("waterwala") || m.contains("auto debit") || m.contains("bill payment") ||
                 m.contains("mygate") -> "Bills & Utilities"
 
-            m.contains("seva") || m.contains("donation") || m.contains("foundation") ||
-                m.contains("charity") -> "Donation"
-
             m.contains("netflix") || m.contains("spotify") || m.contains("prime") ||
                 m.contains("hotstar") || m.contains("bookmyshow") || m.contains("cinema") ||
                 m.contains("pvr") || m.contains("inox") -> "Entertainment"
@@ -411,8 +427,7 @@ object TransactionClassifierHelper {
             m.contains("zerodha") || m.contains("groww") || m.contains("mutual") ||
                 m.contains("sip") || m.contains("indmoney") || m.contains("upstox") -> "Investments"
 
-            m.contains("atm") || m.contains("cash wdl") || m.contains("cash withdrawal") ||
-                m.contains("other") || m.contains("misc") -> "Other"
+            m.contains("other") || m.contains("misc") -> "Other"
 
             else -> "Unknown Category"
         }

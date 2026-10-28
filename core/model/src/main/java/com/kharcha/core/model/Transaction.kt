@@ -27,4 +27,8 @@ data class Transaction(
     val locationLabel: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+    val templateId: String? = null,
+    val accountLast4: String? = null,
+    val bankName: String? = null,
+    val sender: String? = null,
 )

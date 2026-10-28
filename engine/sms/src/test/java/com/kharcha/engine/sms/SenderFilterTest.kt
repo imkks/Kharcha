@@ -16,6 +16,8 @@ class SenderFilterTest {
         assertTrue(SenderFilter().isFinancialSender("XX-HDFCBK"))
         assertTrue(SenderFilter().isFinancialSender("VM-SBIUPI"))
         assertTrue(SenderFilter().isFinancialSender("AX-ICICIB"))
+        assertTrue(SenderFilter().isFinancialSender("AD-ICICIT-S"))
+        assertTrue(SenderFilter().isFinancialSender("AD-IDFCFB-S"))
         assertTrue(SenderFilter().isFinancialSender("AD-KOTAKB"))
     }
 

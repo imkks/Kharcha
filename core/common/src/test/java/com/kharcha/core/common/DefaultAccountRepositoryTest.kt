@@ -27,6 +27,12 @@ class DefaultAccountRepositoryTest {
         tempDir = File(System.getProperty("java.io.tmpdir"), "account_repo_test_${System.currentTimeMillis()}")
         tempDir.mkdirs()
         context = mockk()
+        val prefs: android.content.SharedPreferences = mockk(relaxed = true)
+        val editor: android.content.SharedPreferences.Editor = mockk(relaxed = true)
+        every { editor.putStringSet(any(), any()) } returns editor
+        every { editor.commit() } returns true
+        every { prefs.edit() } returns editor
+        every { context.getSharedPreferences(any(), any()) } returns prefs
         every { context.filesDir } returns tempDir
         every { context.applicationContext } returns context
         repository = DefaultAccountRepository(context, testDispatcher)
@@ -296,5 +302,58 @@ class DefaultAccountRepositoryTest {
             assertEquals(first.id, third.id)
             assertEquals("4321", third.last4)
             assertEquals(1, repository.getAccountsSync().size)
+        }
+
+    @Test
+    fun mergeAccounts_reassignsTransactionsAndLinks() =
+        runTest(testDispatcher) {
+            val source =
+                repository.resolveOrCreateAccount(
+                    bankName = "HDFC",
+                    last4 = "1111",
+                    channel = Channel.UPI,
+                    smsBody = "HDFC Bank A/c XX1111 debited for Rs 100",
+                )
+            val target =
+                repository.resolveOrCreateAccount(
+                    bankName = "HDFC",
+                    last4 = "2222",
+                    channel = Channel.IMPS,
+                    smsBody = "HDFC Bank A/c XX2222 debited for Rs 200",
+                )
+            val card =
+                repository.resolveOrCreateAccount(
+                    bankName = "HDFC",
+                    last4 = "9988",
+                    channel = Channel.CARD,
+                    smsBody = "Spent on HDFC Bank Card ending 9988",
+                )
+
+            // Link card to source
+            repository.linkSubAccounts(source.id, setOf(card.id))
+            assertEquals(source.id, repository.getAccountById(card.id)?.linkedPrimaryAccountId)
+
+            val txnRepo = DefaultTransactionRepository(context, testDispatcher)
+            val txn = com.kharcha.core.model.Transaction(
+                id = 1001L,
+                accountId = source.id,
+                amount = 10000L,
+                type = com.kharcha.core.model.TransactionType.Expense,
+                dateTime = System.currentTimeMillis(),
+            )
+            txnRepo.insertTransaction(txn)
+
+            val success = repository.mergeAccounts(source.id, target.id, txnRepo)
+            assertEquals(true, success)
+
+            // Source account deleted
+            assertEquals(null, repository.getAccountById(source.id))
+            // Target account remains
+            assertEquals(target.id, repository.getAccountById(target.id)?.id)
+            // Card re-linked to target
+            assertEquals(target.id, repository.getAccountById(card.id)?.linkedPrimaryAccountId)
+            // Transaction moved to target
+            val updatedTxn = txnRepo.getTransactionsSync().find { it.id == 1001L }
+            assertEquals(target.id, updatedTxn?.accountId)
         }
 }

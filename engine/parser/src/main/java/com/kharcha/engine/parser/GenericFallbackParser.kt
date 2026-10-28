@@ -284,7 +284,7 @@ class GenericFallbackParser {
             refNumber = refNumber,
             upiId = upiId,
             confidence = confidence,
-            templateId = null,
+            templateId = "generic_fallback",
         )
     }
 

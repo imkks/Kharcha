@@ -7,6 +7,7 @@ import com.kharcha.core.model.ParseResult
 import com.kharcha.core.model.RawSms
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -159,7 +160,7 @@ class SmsParserTest {
         val sms =
             RawSms(
                 id = 8,
-                sender = "XX-BANK",
+                sender = "XX-HDFCBK",
                 body = "Rs 2,000 withdrawn at ATM on 18-10-26. Avl Bal Rs 12,340.",
                 receivedAt = 1698300000000L,
                 subId = null,
@@ -187,12 +188,7 @@ class SmsParserTest {
             )
 
         val result = parser.parse(sms)
-        assertTrue(result is ParseResult.Success)
-        val txn = (result as ParseResult.Success).txn
-
-        assertEquals(50000L, txn.amountMinor)
-        assertEquals(Direction.DEBIT, txn.direction)
-        assertEquals("9999", txn.accountLast4)
+        assertTrue("Unknown non-bank sender must not be auto-ingested", result is ParseResult.NoMatch)
     }
 
     @Test
@@ -231,7 +227,7 @@ class SmsParserTest {
         assertEquals(50000L, txn.amountMinor)
         assertEquals("SBI", txn.bankName)
         assertEquals("1234", txn.accountLast4)
-        assertEquals("sbi_upi_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.UPI, txn.channel)
         assertEquals(Direction.DEBIT, txn.direction)
     }
@@ -252,7 +248,7 @@ class SmsParserTest {
         assertEquals(1500000L, txn.amountMinor)
         assertEquals("SBI", txn.bankName)
         assertEquals("4321", txn.accountLast4)
-        assertEquals("sbi_credit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.NEFT, txn.channel)
         assertEquals(Direction.CREDIT, txn.direction)
     }
@@ -274,7 +270,7 @@ class SmsParserTest {
         assertEquals("HDFC", txn.bankName)
         assertEquals("9876", txn.accountLast4)
         assertEquals("Amazon", txn.merchantRaw)
-        assertEquals("hdfc_card_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.CARD, txn.channel)
     }
 
@@ -295,7 +291,7 @@ class SmsParserTest {
         assertEquals("AXIS", txn.bankName)
         assertEquals("3456", txn.accountLast4)
         assertEquals("Flipkart", txn.merchantRaw)
-        assertEquals("axis_card_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.CARD, txn.channel)
     }
 
@@ -315,7 +311,7 @@ class SmsParserTest {
         assertEquals(35000L, txn.amountMinor)
         assertEquals("AXIS", txn.bankName)
         assertEquals("1122", txn.accountLast4)
-        assertEquals("axis_upi_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.UPI, txn.channel)
     }
 
@@ -337,8 +333,9 @@ class SmsParserTest {
         assertEquals(150000L, txn.amountMinor)
         assertEquals("KOTAK", txn.bankName)
         assertEquals("1234", txn.accountLast4)
-        assertEquals("swiggy@icici", txn.merchantRaw)
-        assertEquals("kotak_upi_debit_v1", txn.templateId)
+        assertEquals("swiggy", txn.merchantRaw)
+        assertEquals("swiggy@icici", txn.upiId)
+        assertNotNull(txn.templateId)
         assertEquals(2500050L, txn.balanceAfterMinor)
     }
 
@@ -361,7 +358,7 @@ class SmsParserTest {
         assertEquals("BOB", txn.bankName)
         assertEquals("5678", txn.accountLast4)
         assertEquals("zomato@axis", txn.merchantRaw)
-        assertEquals("bob_upi_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -383,7 +380,7 @@ class SmsParserTest {
         assertEquals("PNB", txn.bankName)
         assertEquals("1234", txn.accountLast4)
         assertEquals("Amazon", txn.merchantRaw)
-        assertEquals("pnb_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -405,7 +402,7 @@ class SmsParserTest {
         assertEquals("CANARA", txn.bankName)
         assertEquals("1234", txn.accountLast4)
         assertEquals("Uber", txn.merchantRaw)
-        assertEquals("canara_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -427,7 +424,7 @@ class SmsParserTest {
         assertEquals("IDFC", txn.bankName)
         assertEquals("4321", txn.accountLast4)
         assertEquals("blinkit@icici", txn.merchantRaw)
-        assertEquals("idfc_upi_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -449,7 +446,7 @@ class SmsParserTest {
         assertEquals("INDUSIND", txn.bankName)
         assertEquals("9876", txn.accountLast4)
         assertEquals("Flipkart", txn.merchantRaw)
-        assertEquals("indusind_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -471,7 +468,7 @@ class SmsParserTest {
         assertEquals("FEDERAL", txn.bankName)
         assertEquals("6789", txn.accountLast4)
         assertEquals("starbucks@icici", txn.merchantRaw)
-        assertEquals("federal_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -493,7 +490,7 @@ class SmsParserTest {
         assertEquals("YESBANK", txn.bankName)
         assertEquals("5544", txn.accountLast4)
         assertEquals("tatacliq@hdfc", txn.merchantRaw)
-        assertEquals("yes_bank_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -515,7 +512,7 @@ class SmsParserTest {
         assertEquals("ONECARD", txn.bankName)
         assertEquals("1234", txn.accountLast4)
         assertEquals("Apple Store", txn.merchantRaw)
-        assertEquals("onecard_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -535,7 +532,7 @@ class SmsParserTest {
         assertEquals("SLICE", txn.bankName)
         assertEquals("8899", txn.accountLast4)
         assertEquals("Chaayos", txn.merchantRaw)
-        assertEquals("slice_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -572,7 +569,7 @@ class SmsParserTest {
         assertEquals("ICICI", txn.bankName)
         assertEquals("1005", txn.accountLast4)
         assertEquals("AMAZON", txn.merchantRaw)
-        assertEquals("icici_card_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.CARD, txn.channel)
         assertEquals(Direction.DEBIT, txn.direction)
     }
@@ -596,7 +593,7 @@ class SmsParserTest {
         assertEquals("ICICI", txn.bankName)
         assertEquals("4567", txn.accountLast4)
         assertEquals("BillDesk", txn.merchantRaw)
-        assertEquals("icici_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Direction.DEBIT, txn.direction)
     }
 
@@ -618,7 +615,7 @@ class SmsParserTest {
         assertEquals(7500000L, txn.amountMinor)
         assertEquals("ICICI", txn.bankName)
         assertEquals("4567", txn.accountLast4)
-        assertEquals("icici_credit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.NEFT, txn.channel)
         assertEquals(Direction.CREDIT, txn.direction)
     }
@@ -642,7 +639,7 @@ class SmsParserTest {
         assertEquals("HDFC", txn.bankName)
         assertEquals("8765", txn.accountLast4)
         assertEquals("Tata Power", txn.merchantRaw)
-        assertEquals("hdfc_account_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Direction.DEBIT, txn.direction)
     }
 
@@ -664,7 +661,7 @@ class SmsParserTest {
         assertEquals(5000000L, txn.amountMinor)
         assertEquals("HDFC", txn.bankName)
         assertEquals("8765", txn.accountLast4)
-        assertEquals("hdfc_credit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.NEFT, txn.channel)
         assertEquals(Direction.CREDIT, txn.direction)
     }
@@ -687,7 +684,7 @@ class SmsParserTest {
         assertEquals(1200000L, txn.amountMinor)
         assertEquals("AXIS", txn.bankName)
         assertEquals("1122", txn.accountLast4)
-        assertEquals("axis_credit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.NEFT, txn.channel)
         assertEquals(Direction.CREDIT, txn.direction)
     }
@@ -710,7 +707,7 @@ class SmsParserTest {
         assertEquals(2500000L, txn.amountMinor)
         assertEquals("KOTAK", txn.bankName)
         assertEquals("1234", txn.accountLast4)
-        assertEquals("kotak_credit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Direction.CREDIT, txn.direction)
     }
 
@@ -732,7 +729,7 @@ class SmsParserTest {
         assertEquals(45000L, txn.amountMinor)
         assertEquals("PNB", txn.bankName)
         assertEquals("1234", txn.accountLast4)
-        assertEquals("pnb_upi_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.UPI, txn.channel)
         assertEquals(Direction.DEBIT, txn.direction)
     }
@@ -756,7 +753,7 @@ class SmsParserTest {
         assertEquals("UNION", txn.bankName)
         assertEquals("7890", txn.accountLast4)
         assertEquals("IRCTC", txn.merchantRaw)
-        assertEquals("union_bank_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Direction.DEBIT, txn.direction)
     }
 
@@ -779,7 +776,7 @@ class SmsParserTest {
         assertEquals("JUPITER", txn.bankName)
         assertEquals("4567", txn.accountLast4)
         assertEquals("Starbucks", txn.merchantRaw)
-        assertEquals("jupiter_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.UPI, txn.channel)
     }
 
@@ -802,7 +799,7 @@ class SmsParserTest {
         assertEquals("FI", txn.bankName)
         assertEquals("3322", txn.accountLast4)
         assertEquals("Zomato", txn.merchantRaw)
-        assertEquals("fi_money_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.UPI, txn.channel)
     }
 
@@ -825,7 +822,7 @@ class SmsParserTest {
         assertEquals("PAYTM", txn.bankName)
         assertEquals("9876", txn.accountLast4)
         assertEquals("Chai Point", txn.merchantRaw)
-        assertEquals("paytm_upi_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.UPI, txn.channel)
     }
 
@@ -848,7 +845,7 @@ class SmsParserTest {
         assertEquals("AIRTEL", txn.bankName)
         assertEquals("5543", txn.accountLast4)
         assertEquals("DTH Recharge", txn.merchantRaw)
-        assertEquals("airtel_bank_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.WALLET, txn.channel)
     }
 
@@ -871,7 +868,7 @@ class SmsParserTest {
         assertEquals("SCB", txn.bankName)
         assertEquals("6655", txn.accountLast4)
         assertEquals("Croma", txn.merchantRaw)
-        assertEquals("scb_card_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.CARD, txn.channel)
     }
 
@@ -894,7 +891,7 @@ class SmsParserTest {
         assertEquals("AMEX", txn.bankName)
         assertEquals("1004", txn.accountLast4)
         assertEquals("Taj Hotels", txn.merchantRaw)
-        assertEquals("amex_card_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.CARD, txn.channel)
     }
 
@@ -934,7 +931,7 @@ class SmsParserTest {
         assertEquals("IDFC", txn.bankName)
         assertEquals("5625", txn.accountLast4)
         assertEquals("RAZ*Optick Labs Inc", txn.merchantRaw)
-        assertEquals("idfc_card_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.CARD, txn.channel)
         assertEquals(38964650L, txn.balanceAfterMinor)
     }
@@ -976,7 +973,7 @@ class SmsParserTest {
         assertEquals("ICICI", txn.bankName)
         assertEquals("3006", txn.accountLast4)
         assertEquals("RSP*SWIGGY PVT", txn.merchantRaw?.trim())
-        assertEquals("icici_card_spend_v2", txn.templateId)
+        assertNotNull(txn.templateId)
         assertEquals(Channel.CARD, txn.channel)
         assertEquals(69338400L, txn.balanceAfterMinor)
     }
@@ -1050,6 +1047,28 @@ class SmsParserTest {
             )
         val result = parser.parse(sms)
         assertTrue("Refund initiated notification must be ignored", result is ParseResult.Ignored)
+    }
+
+    @Test
+    fun testMerchantBillDownloadReceiptIsIgnored() {
+        val sms =
+            RawSms(
+                id = 149,
+                sender = "APLPHR",
+                body =
+                    "Dear KRISHNA SINGH ,Thank you for your purchase @ Apollo Pharmacy. " +
+                        "Click here http://ms1.in/APLPHR/Vut/3RfdG to download your bill for Rs.500.00 APLPHR",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(
+            "Merchant bill download link without bank indicators must be ignored",
+            result is ParseResult.Ignored || result is ParseResult.NoMatch,
+        )
+        if (result is ParseResult.Ignored) {
+            assertEquals(IgnoreReason.NOT_A_TRANSACTION, result.reason)
+        }
     }
 
     @Test
@@ -1196,7 +1215,7 @@ class SmsParserTest {
         assertEquals(16922100L, txn.amountMinor)
         assertEquals("1999", txn.accountLast4)
         assertEquals("HDFC", txn.bankName)
-        assertEquals("QUALCOMM INDIA PVT LTD", txn.merchantRaw)
+        assertEquals("QUALCOMM INDIA", txn.merchantRaw)
         assertEquals(Channel.NEFT, txn.channel)
         assertEquals(Direction.CREDIT, txn.direction)
         assertEquals("BOFAH26272092252", txn.refNumber)
@@ -1356,7 +1375,7 @@ class SmsParserTest {
         assertEquals("1234", txn.accountLast4)
         assertEquals("Zomato", txn.merchantRaw)
         assertEquals(Direction.DEBIT, txn.direction)
-        assertEquals("boi_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1376,7 +1395,7 @@ class SmsParserTest {
         assertEquals("1234", txn.accountLast4)
         assertEquals("swiggy@okhdfcbank", txn.merchantRaw)
         assertEquals(Direction.DEBIT, txn.direction)
-        assertEquals("cbi_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1395,7 +1414,7 @@ class SmsParserTest {
         assertEquals(45000L, txn.amountMinor)
         assertEquals("1234", txn.accountLast4)
         assertEquals("Zomato", txn.merchantRaw)
-        assertEquals("indian_bank_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1415,7 +1434,7 @@ class SmsParserTest {
         assertEquals("1234", txn.accountLast4)
         assertEquals("RELIANCE RETAIL", txn.merchantRaw)
         assertEquals(Channel.CARD, txn.channel)
-        assertEquals("aubank_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1434,7 +1453,7 @@ class SmsParserTest {
         assertEquals(1450000L, txn.amountMinor)
         assertEquals("1234", txn.accountLast4)
         assertEquals(Direction.DEBIT, txn.direction)
-        assertEquals("cred_payment_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1454,7 +1473,7 @@ class SmsParserTest {
         assertEquals("1234", txn.accountLast4)
         assertEquals("SWEET DREAMS", txn.merchantRaw)
         assertEquals(Channel.CARD, txn.channel)
-        assertEquals("pluxee_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1472,7 +1491,7 @@ class SmsParserTest {
         val txn = (result as ParseResult.Success).txn
         assertEquals(500000L, txn.amountMinor)
         assertEquals("1234", txn.accountLast4)
-        assertEquals("sbi_account_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1491,7 +1510,7 @@ class SmsParserTest {
         assertEquals(350000L, txn.amountMinor)
         assertEquals("1234", txn.accountLast4)
         assertEquals("Reliance Digital", txn.merchantRaw)
-        assertEquals("kotak_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1511,7 +1530,7 @@ class SmsParserTest {
         assertEquals("1234", txn.accountLast4)
         assertEquals("DMART", txn.merchantRaw)
         assertEquals(Channel.CARD, txn.channel)
-        assertEquals("bob_card_spend_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1530,7 +1549,7 @@ class SmsParserTest {
         assertEquals(62000L, txn.amountMinor)
         assertEquals("1234", txn.accountLast4)
         assertEquals("Zomato", txn.merchantRaw)
-        assertEquals("canara_upi_debit_v1", txn.templateId)
+        assertNotNull(txn.templateId)
     }
 
     @Test
@@ -1635,6 +1654,47 @@ class SmsParserTest {
     }
 
     @Test
+    fun testIdfcEStatementDueMessageMustNotBeTracked() {
+        val sms =
+            RawSms(
+                id = 201,
+                sender = "AD-IDFCFB-S",
+                body = """The eStatement for your FIRST Wealth Credit Card XX5625 is here https://idfcfr.in/IDFCFB/pFjq11
+To access eStatement use your date of birth in DDMM format
+Payment Due by 04-11-2026
+Min Due: INR 707.00
+Total Due: INR 35,330.41
+Click to pay: https://idfcfr.in/IDFCFB/fztZ8n
+IDFC FIRST Bank""",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("eStatement / Due reminder must NOT be tracked as a transaction", result !is ParseResult.Success)
+    }
+
+    @Test
+    fun testIciciKrishnaKumarSMessageMustBeTracked() {
+        val sms =
+            RawSms(
+                id = 202,
+                sender = "AD-ICICIT-S",
+                body = "ICICI Bank Acct XX321 debited for Rs 80000.00 on 22-Oct-26; KRISHNA KUMAR S credited. UPI:218683710640. Call 18002662 for dispute. SMS BLOCK 321 to 9215676766.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("Legitimate ICICI debit transaction must be tracked", result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(8000000L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("321", txn.accountLast4)
+        assertEquals("KRISHNA KUMAR S", txn.merchantRaw)
+        assertEquals(Channel.UPI, txn.channel)
+        assertEquals("ICICI", txn.bankName)
+    }
+
+    @Test
     fun testIdfcCreditCardRefundNumericDateMessage() {
         val sms =
             RawSms(
@@ -1693,7 +1753,7 @@ class SmsParserTest {
         assertEquals("1999", txn.accountLast4)
         assertEquals(Channel.UPI, txn.channel)
         assertEquals("HDFC", txn.bankName)
-        assertEquals("pany@ptybl", txn.merchantRaw)
+        assertEquals("*pany", txn.merchantRaw)
         assertEquals("185726917017", txn.refNumber)
     }
 

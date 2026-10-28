@@ -130,6 +130,10 @@ class ImportWorker
                                                 note = sms.body.trim(),
                                                 parseConfidence = parsed.confidence,
                                                 isReviewed = true,
+                                                templateId = parsed.templateId ?: "generic_fallback",
+                                                accountLast4 = parsed.accountLast4,
+                                                bankName = parsed.bankName,
+                                                sender = sms.sender,
                                             )
                                         DefaultTransactionRepository.getInstance(applicationContext)
                                             .insertTransaction(txn)

@@ -158,7 +158,8 @@ class IDFCFirstBankParser : BaseIndianBankParser() {
         // Must contain transaction keywords - IDFC specific patterns
         val transactionKeywords = listOf(
             "debit", "debited", "credited", "withdrawn", "deposited",
-            "spent", "received", "transferred", "paid", "payment", "interest"
+            "spent", "received", "transferred", "paid", "payment", "interest",
+            "refund", "refunded"
         )
 
         return transactionKeywords.any { lowerMessage.contains(it) }
@@ -169,6 +170,9 @@ class IDFCFirstBankParser : BaseIndianBankParser() {
         return when {
             lowerMessage.contains("thank you for payment") ||
                 (lowerMessage.contains("payment of") && lowerMessage.contains("credit card")) -> TransactionType.INCOME
+            lowerMessage.contains("refunded to") ||
+                lowerMessage.contains("refund to") ||
+                (lowerMessage.contains("refund") && lowerMessage.contains("credit card")) -> TransactionType.INCOME
             lowerMessage.contains("debit") -> TransactionType.EXPENSE
             lowerMessage.contains("debited") -> TransactionType.EXPENSE
             lowerMessage.contains("spent") -> TransactionType.EXPENSE  // Credit card transactions
@@ -268,9 +272,9 @@ class IDFCFirstBankParser : BaseIndianBankParser() {
 
     override fun extractAccountLast4(message: String): String? {
         super.extractAccountLast4(message)?.let { return it }
-        // Pattern 1: Credit Card ending XX1234
+        // Pattern 1: Credit Card ending XX1234 or Credit Card XX1234
         val cardEndingPattern = Regex(
-            """Credit\s+Card\s+ending\s+([X\d]+)""",
+            """Credit\s+Card\s+(?:ending\s+)?([X\d]+)""",
             RegexOption.IGNORE_CASE
         )
         cardEndingPattern.find(message)?.let { match ->

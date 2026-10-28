@@ -160,7 +160,7 @@ class SmsParserTest {
         val sms =
             RawSms(
                 id = 8,
-                sender = "XX-BANK",
+                sender = "XX-HDFCBK",
                 body = "Rs 2,000 withdrawn at ATM on 18-10-26. Avl Bal Rs 12,340.",
                 receivedAt = 1698300000000L,
                 subId = null,
@@ -188,12 +188,7 @@ class SmsParserTest {
             )
 
         val result = parser.parse(sms)
-        assertTrue(result is ParseResult.Success)
-        val txn = (result as ParseResult.Success).txn
-
-        assertEquals(50000L, txn.amountMinor)
-        assertEquals(Direction.DEBIT, txn.direction)
-        assertEquals("9999", txn.accountLast4)
+        assertTrue("Unknown non-bank sender must not be auto-ingested", result is ParseResult.NoMatch)
     }
 
     @Test
@@ -1052,6 +1047,28 @@ class SmsParserTest {
             )
         val result = parser.parse(sms)
         assertTrue("Refund initiated notification must be ignored", result is ParseResult.Ignored)
+    }
+
+    @Test
+    fun testMerchantBillDownloadReceiptIsIgnored() {
+        val sms =
+            RawSms(
+                id = 149,
+                sender = "APLPHR",
+                body =
+                    "Dear KRISHNA SINGH ,Thank you for your purchase @ Apollo Pharmacy. " +
+                        "Click here http://ms1.in/APLPHR/Vut/3RfdG to download your bill for Rs.500.00 APLPHR",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(
+            "Merchant bill download link without bank indicators must be ignored",
+            result is ParseResult.Ignored || result is ParseResult.NoMatch,
+        )
+        if (result is ParseResult.Ignored) {
+            assertEquals(IgnoreReason.NOT_A_TRANSACTION, result.reason)
+        }
     }
 
     @Test

@@ -6,7 +6,6 @@ import com.kharcha.core.model.ParseResult
 import com.kharcha.core.model.ParsedTxn
 import com.kharcha.core.model.RawSms
 import com.kharcha.core.model.SmsParser
-import com.pennywiseai.parser.core.GenericTransactionExtractor
 import com.pennywiseai.parser.core.TransactionType
 import com.pennywiseai.parser.core.bank.BankParserFactory
 import java.math.BigDecimal
@@ -19,7 +18,7 @@ class SmsParserImpl(
 
     private val upiRegex = Regex("""\b([a-zA-Z0-9.\-_]+@[a-zA-Z0-9]+)\b""")
     private val balanceOrLimitRegex = Regex(
-        """(?i)\b(?:bal|balance|avl\s*bal|available\s*balance|avl\s*limit|available\s*limit|limit)[-:\s]+(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.\d{1,2})?)""",
+        """(?i)\b(?:bal|balance|avl\s*bal|available\s*balance|avl\s*limit|available\s*limit|limit)\b\s*(?:is)?[-:\s]*(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.\d{1,2})?)""",
     )
     private val fallbackMerchantRegex = Regex(
         """(?i)\b(?:to\s+vpa|to|at|for|towards)\s+([A-Za-z0-9\s._*-]+?)(?:\s+(?:on\b|at\b|ref\b|upi\b|avl\b|bal\b|\d{1,2}[-/])|$)""",
@@ -158,70 +157,6 @@ class SmsParserImpl(
                     refNumber = parsed.reference,
                     upiId = upiId,
                     confidence = 1.0f,
-                    templateId = normalizedBank,
-                ),
-            )
-        }
-
-        // 3. PennyWise GenericTransactionExtractor Suggestion Fallback
-        val suggestion = GenericTransactionExtractor.extract(sms.sender, sms.body, sms.receivedAt)
-        if (suggestion != null && suggestion.confidence >= GenericTransactionExtractor.SUGGEST_AT) {
-            val sTxn = suggestion.transaction
-            val amountMinor = (sTxn.amount * BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).toLong()
-            var balanceMinor = sTxn.balance?.let {
-                (it * BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).toLong()
-            } ?: sTxn.creditLimit?.let {
-                (it * BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).toLong()
-            }
-
-            if (balanceMinor == null) {
-                balanceOrLimitRegex.find(sms.body)?.let { m ->
-                    val str = m.groupValues[1].replace(",", "")
-                    try {
-                        balanceMinor = (BigDecimal(str) * BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).toLong()
-                    } catch (_: NumberFormatException) {
-                        // ignore
-                    }
-                }
-            }
-
-            val direction = if (sTxn.type == TransactionType.INCOME) Direction.CREDIT else Direction.DEBIT
-
-            val bLower = sms.body.lowercase()
-            val isCard = sTxn.isFromCard || bLower.contains("card")
-            val isAtm = bLower.contains("atm") || (bLower.contains("withdrawn") && !bLower.contains("transfer"))
-            val isNeft = bLower.contains("neft")
-            val isImps = bLower.contains("imps")
-            val isUpi = !isCard && (bLower.contains("upi") || bLower.contains("vpa") || sms.sender.contains("upi", ignoreCase = true))
-
-            val channel = when {
-                isCard -> Channel.CARD
-                isAtm -> Channel.ATM
-                isNeft -> Channel.NEFT
-                isImps -> Channel.IMPS
-                isUpi -> Channel.UPI
-                else -> Channel.OTHER
-            }
-
-            val upiId = upiRegex.find(sms.body)?.value
-            val merchantRaw = sTxn.merchant?.takeIf { it.isNotBlank() } ?: upiId
-
-            val normalizedBank = normalizeBankName(sTxn.bankName)
-
-            return ParseResult.Success(
-                ParsedTxn(
-                    amountMinor = amountMinor,
-                    currency = sTxn.currency,
-                    direction = direction,
-                    dateTime = sms.receivedAt,
-                    accountLast4 = sTxn.accountLast4,
-                    bankName = normalizedBank,
-                    merchantRaw = merchantRaw,
-                    channel = channel,
-                    balanceAfterMinor = balanceMinor,
-                    refNumber = sTxn.reference,
-                    upiId = upiId,
-                    confidence = suggestion.confidence / 100.0f,
                     templateId = normalizedBank,
                 ),
             )

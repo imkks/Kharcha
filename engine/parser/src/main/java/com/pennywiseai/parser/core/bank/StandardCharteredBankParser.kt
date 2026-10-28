@@ -22,11 +22,12 @@ class StandardCharteredBankParser : BankParser() {
     override fun canHandle(sender: String): Boolean {
         val upperSender = sender.uppercase()
         return upperSender.contains("SCBANK") ||
+                upperSender.contains("SCBLNK") ||
                 upperSender.contains("STANCHART") ||
                 upperSender.contains("STANDARDCHARTERED") ||
                 upperSender.contains("STANDARD CHARTERED") ||
                 upperSender == "9220" ||
-                upperSender.matches(Regex("""^[A-Z]{2}-SCBANK-[A-Z]$"""))
+                upperSender.matches(Regex("""^[A-Z]{2}-SCB.*$"""))
     }
 
     override fun parse(smsBody: String, sender: String, timestamp: Long): ParsedTransaction? {

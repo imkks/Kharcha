@@ -248,7 +248,7 @@ class HDFCBankParser : BaseIndianBankParser() {
         }
 
         // Pattern 4: "spent on Card XX1234 at merchant on date"
-        if (message.contains("spent on Card", ignoreCase = true)) {
+        if (Regex("""spent on\s+(?:hdfc\s+bank\s+)?(?:credit\s+)?card""", RegexOption.IGNORE_CASE).containsMatchIn(message)) {
             CompiledPatterns.HDFC.SPENT_PATTERN.find(message)?.let { match ->
                 return cleanMerchantName(match.groupValues[1].trim())
             }
@@ -345,7 +345,13 @@ class HDFCBankParser : BaseIndianBankParser() {
             lowerMessage.contains("deposited in") -> TransactionType.INCOME
 
             // Legacy pattern for older format that explicitly says "spent on card"
-            lowerMessage.contains("spent on card") && !lowerMessage.contains("block dc") -> TransactionType.CREDIT
+            (lowerMessage.contains("spent on card") ||
+                lowerMessage.contains("spent on credit card") ||
+                Regex("""spent on\s+(?:hdfc\s+bank\s+)?(?:credit\s+)?card""", RegexOption.IGNORE_CASE).containsMatchIn(lowerMessage)) &&
+                !lowerMessage.contains("block dc") -> TransactionType.CREDIT
+
+            // Cardmember bill payment confirmation (incoming credit to the card)
+            lowerMessage.contains("cardmember") && lowerMessage.contains("received towards") -> TransactionType.INCOME
 
             // Credit card bill payments (these are regular expenses from bank account)
             lowerMessage.contains("payment") && lowerMessage.contains("credit card") -> TransactionType.EXPENSE
@@ -362,6 +368,7 @@ class HDFCBankParser : BaseIndianBankParser() {
             // Standard expense keywords
             lowerMessage.contains("debited") -> TransactionType.EXPENSE
             lowerMessage.contains("withdrawn") && !lowerMessage.contains("block cc") -> TransactionType.EXPENSE
+            lowerMessage.contains("transferred") -> TransactionType.EXPENSE
             lowerMessage.contains("spent") && !lowerMessage.contains("card") -> TransactionType.EXPENSE
             lowerMessage.contains("charged") -> TransactionType.EXPENSE
             lowerMessage.contains("paid") -> TransactionType.EXPENSE
@@ -557,8 +564,8 @@ class HDFCBankParser : BaseIndianBankParser() {
         }
 
 
-        // Skip credit card payment confirmations
-        if (lowerMessage.contains("received towards your credit card")) {
+        // Skip credit card payment confirmations (unless cardmember payment notification)
+        if (lowerMessage.contains("received towards your credit card") && !lowerMessage.contains("cardmember")) {
             return false
         }
 

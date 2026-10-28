@@ -100,10 +100,17 @@ object NoiseFilter {
                 "advance\\s+amount\\s+paid.*adjusted\\s+in\\s+upcoming|" +
                 "adjusted\\s+in\\s+upcoming\\s+monthly\\s+bills)\\b",
         )
+    private val merchantInvoiceRegex =
+        Regex("""(?i)\b(?:download|view)\s+(?:your\s+)?(?:bill|invoice|receipt|e-bill)\b""")
 
     fun filter(sms: RawSms): ParseResult.Ignored? {
         val body = sms.body
         val bodyLower = body.lowercase()
+
+        // Merchant invoice / receipt download links (Apollo Pharmacy, etc.)
+        if (merchantInvoiceRegex.containsMatchIn(body)) {
+            return ParseResult.Ignored(IgnoreReason.NOT_A_TRANSACTION)
+        }
 
         // Service activation / Broadband / Wi-Fi onboarding notice
         if (serviceWelcomeRegex.containsMatchIn(body)) {

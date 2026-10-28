@@ -53,6 +53,7 @@ object BankParserFactory {
         CityUnionBankParser(),
         IndianOverseasBankParser(),
         AirtelPaymentsBankParser(),
+        PaytmBankParser(),
         IndusIndBankParser(),
         AMEXBankParser(),
         OneCardParser(),

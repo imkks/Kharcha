@@ -148,6 +148,7 @@ class YesBankParser : BaseIndianBankParser() {
             lowerMessage.contains("spent") -> TransactionType.EXPENSE
             lowerMessage.contains("charged") -> TransactionType.EXPENSE
             lowerMessage.contains("paid") -> TransactionType.EXPENSE
+            lowerMessage.contains("sent") -> TransactionType.EXPENSE
 
             lowerMessage.contains("credited") -> TransactionType.INCOME
             lowerMessage.contains("deposited") -> TransactionType.INCOME
@@ -184,7 +185,8 @@ class YesBankParser : BaseIndianBankParser() {
             "credited",
             "withdrawn",
             "deposited",
-            "avl lmt"  // Available limit indicates a transaction
+            "avl lmt",  // Available limit indicates a transaction
+            "sent"
         )
 
         // If any Yes Bank specific pattern is found, it's likely a transaction

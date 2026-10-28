@@ -278,6 +278,15 @@ class ICICIBankParser : BaseIndianBankParser() {
             if (isValidMerchantName(merchant)) return merchant
         }
 
+        // Pattern for "at <merchant> on <date>" or "on <date> at <merchant>"
+        if (message.contains("Card", ignoreCase = true) && message.contains(" at ", ignoreCase = true)) {
+            Regex("""\bat\s+([A-Za-z0-9\s._&-]+?)(?:\.|\s+Available|\s+Avl|$)""", RegexOption.IGNORE_CASE)
+                .find(message)?.let { match ->
+                    val candidate = cleanMerchantName(match.groupValues[1].trim())
+                    if (isValidMerchantName(candidate)) return candidate
+                }
+        }
+
         // Pattern 0: NEFT/RTGS transfer to beneficiary - use "NEFT Transfer" as merchant
         // These are outgoing transfers where we don't know the beneficiary name
         if (message.contains("credited to the beneficiary", ignoreCase = true) ||
@@ -650,7 +659,9 @@ class ICICIBankParser : BaseIndianBankParser() {
             "autopay",
             "your account has been",
             "inr", // For "INR xxx spent" pattern
-            "spent using" // For card transactions
+            "spent using", // For card transactions
+            "has been used",
+            "used for"
         )
 
         // If any ICICI-specific pattern is found, it's likely a transaction
@@ -680,10 +691,10 @@ class ICICIBankParser : BaseIndianBankParser() {
             return TransactionType.INCOME
         }
 
-        // Credit card transactions - both "ICICI Bank Credit Card" and "ICICI Bank Card" with spent
+        // Credit card transactions - both "ICICI Bank Credit Card" and "ICICI Bank Card" with spent/used
         if ((lowerMessage.contains("icici bank credit card") ||
-                    (lowerMessage.contains("icici bank card") && lowerMessage.contains("spent"))) &&
-            (lowerMessage.contains("spent") || lowerMessage.contains("debited"))
+                    (lowerMessage.contains("icici bank card") && (lowerMessage.contains("spent") || lowerMessage.contains("used")))) &&
+            (lowerMessage.contains("spent") || lowerMessage.contains("debited") || lowerMessage.contains("used"))
         ) {
             return TransactionType.CREDIT
         }

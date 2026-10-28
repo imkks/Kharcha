@@ -39,7 +39,7 @@ class ClassifierCardRefundTest {
             )
 
         val result = classifier.classify(debitTxn, accountId = 1L, recentTransactions = listOf(recentCreditTxn))
-        assertEquals(TransactionType.Transfer, result.first)
+        assertEquals(TransactionType.Expense, result.first)
         assertEquals(2L, result.second)
     }
 
@@ -73,7 +73,7 @@ class ClassifierCardRefundTest {
             )
 
         val result = classifier.classify(creditTxn, accountId = 1L, recentTransactions = listOf(recentDebitTxn))
-        assertEquals(TransactionType.Refund, result.first)
+        assertEquals(TransactionType.Income, result.first)
         assertEquals(2L, result.second)
     }
 }

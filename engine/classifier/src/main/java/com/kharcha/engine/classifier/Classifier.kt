@@ -47,7 +47,9 @@ class Classifier {
                         abs(it.dateTime - txnDateTime) <= windowToUse
                 }
             if (matchingTransfer != null) {
-                return Pair(TransactionType.Transfer, matchingTransfer.id)
+                val finalType =
+                    if (transaction.direction == Direction.DEBIT) TransactionType.Expense else TransactionType.Income
+                return Pair(finalType, matchingTransfer.id)
             }
 
             if (transaction.direction == Direction.CREDIT) {
@@ -66,7 +68,7 @@ class Classifier {
                     }
 
                 if (matchingRefund != null) {
-                    return Pair(TransactionType.Refund, matchingRefund.id)
+                    return Pair(TransactionType.Income, matchingRefund.id)
                 }
             }
         }

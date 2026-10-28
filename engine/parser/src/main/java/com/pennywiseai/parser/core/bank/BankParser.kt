@@ -403,11 +403,21 @@ abstract class BankParser {
     protected open fun extractReference(message: String): String? {
         for (pattern in CompiledPatterns.Reference.ALL_PATTERNS) {
             pattern.find(message)?.let { match ->
-                return match.groupValues[1].trim()
+                val ref = match.groupValues[1].trim()
+                if (isValidReference(ref)) {
+                    return ref
+                }
             }
         }
 
         return null
+    }
+
+    private fun isValidReference(ref: String): Boolean {
+        if (ref.length < 4) return false
+        if (!ref.any { it.isDigit() }) return false
+        val invalidWords = setOf("BLOCK", "DISPUTE", "CALL", "MISSED", "KNOW", "MORE")
+        return !invalidWords.contains(ref.uppercase())
     }
 
     /**

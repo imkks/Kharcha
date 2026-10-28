@@ -1817,6 +1817,7 @@ IDFC FIRST Bank""",
         assertEquals(Channel.CARD, txn.channel)
         assertEquals("ICICI", txn.bankName)
         assertEquals("GOOGLE STORE", txn.merchantRaw)
+        org.junit.Assert.assertNull(txn.refNumber)
     }
 
     @Test
@@ -1858,5 +1859,6 @@ IDFC FIRST Bank""",
         assertEquals(Channel.CARD, txn.channel)
         assertEquals("ICICI", txn.bankName)
         assertEquals("GOOGLE STORE", txn.merchantRaw)
+        org.junit.Assert.assertNull(txn.refNumber)
     }
 }

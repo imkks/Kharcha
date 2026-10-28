@@ -194,9 +194,11 @@ class OnboardingViewModel
                                 )
                             val type =
                                 TransactionClassifierHelper.classifyType(
-                                    parsedTxn.direction,
-                                    sms.body,
-                                    normMerchant,
+                                    direction = parsedTxn.direction,
+                                    body = sms.body,
+                                    merchant = normMerchant,
+                                    amountMinor = parsedTxn.amountMinor,
+                                    channel = parsedTxn.channel,
                                 )
                             val isTransfer = type == TransactionType.Transfer
                             val normLower = normMerchant.lowercase().trim()

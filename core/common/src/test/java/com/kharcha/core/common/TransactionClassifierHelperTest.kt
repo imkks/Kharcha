@@ -168,6 +168,15 @@ class TransactionClassifierHelperTest {
             channel = Channel.CARD,
         )
         assertEquals(TransactionType.Expense, googleStoreSpend)
+
+        val largeUpiDebit = TransactionClassifierHelper.classifyType(
+            direction = Direction.DEBIT,
+            body = "ICICI Bank Acct XX321 debited for Rs 80000.00 on 22-Oct-26; KRISHNA KUMAR S credited. UPI:218683710640. Call 18002662 for dispute. SMS BLOCK 321 to 9215676766.",
+            merchant = "Krishna Kumar S",
+            amountMinor = 80_000_00L,
+            channel = Channel.UPI,
+        )
+        assertEquals(TransactionType.Expense, largeUpiDebit)
     }
 
     @Test

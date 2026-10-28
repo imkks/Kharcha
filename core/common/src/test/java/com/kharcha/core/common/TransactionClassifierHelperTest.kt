@@ -232,6 +232,13 @@ class TransactionClassifierHelperTest {
         assertEquals("Other", TransactionClassifierHelper.guessCategory("SBI ATM", isCredit = false))
         assertEquals("Other", TransactionClassifierHelper.guessCategory("Cash Withdrawal", isCredit = false))
 
+        // PennyWise merchant categorization integration checks
+        assertEquals("Food & Dining", TransactionClassifierHelper.guessCategory("Haldiram Sweets", isCredit = false))
+        assertEquals("Food & Dining", TransactionClassifierHelper.guessCategory("Subway Restaurant", isCredit = false))
+        assertEquals("Health", TransactionClassifierHelper.guessCategory("Apollo Pharmacy", isCredit = false))
+        assertEquals("Entertainment", TransactionClassifierHelper.guessCategory("BookMyShow Media", isCredit = false))
+        assertEquals("Investments", TransactionClassifierHelper.guessCategory("Groww Investments", isCredit = false))
+
         // Credit Card Bill Payment inward message: category Bill Payment & type Refund (non-income credit)
         val ccBillPaymentBody = "Thank you for payment of INR 10,641.62 towards your FIRST Wealth Credit Card XX5625 on 05 Jun 2026. IDFC FIRST Bank"
         val ccBillCat = TransactionClassifierHelper.guessCategory(

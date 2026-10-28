@@ -248,6 +248,10 @@ class OnboardingViewModel
                                     note = sms.body.trim(),
                                     parseConfidence = parsedTxn.confidence,
                                     isReviewed = isReviewed,
+                                    templateId = parsedTxn.templateId ?: "generic_fallback",
+                                    accountLast4 = parsedTxn.accountLast4,
+                                    bankName = parsedTxn.bankName,
+                                    sender = sms.sender,
                                 )
                             batchTxns.add(txn)
                         }

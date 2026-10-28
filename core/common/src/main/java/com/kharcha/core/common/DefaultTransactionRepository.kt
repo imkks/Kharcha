@@ -26,7 +26,7 @@ class DefaultTransactionRepository(
                     context.filesDir
                 } catch (_: Exception) {
                     null
-                } ?: File(System.getProperty("java.io.tmpdir", "."))
+                } ?: File(System.getProperty("java.io.tmpdir") ?: ".")
             return File(dir, "transactions.json")
         }
 
@@ -255,22 +255,42 @@ class DefaultTransactionRepository(
 
     private fun deduplicateList(transactions: List<Transaction>): List<Transaction> {
         val result = mutableListOf<Transaction>()
-        val seenIds = mutableSetOf<Long>()
-        val seenHashes = mutableSetOf<String>()
-        val seenRefs = mutableSetOf<String>()
+        val seenIds = mutableMapOf<Long, Int>()
+        val seenHashes = mutableMapOf<String, Int>()
+        val seenRefs = mutableMapOf<String, Int>()
 
         for (txn in transactions) {
-            val hasId = seenIds.contains(txn.id)
-            val hasHash = txn.smsHash != null && seenHashes.contains(txn.smsHash)
+            val idxById = seenIds[txn.id]
+            val idxByHash = txn.smsHash?.let { seenHashes[it] }
             val ref = txn.refNumber?.trim()
-            val hasRef = !ref.isNullOrEmpty() && seenRefs.contains(ref)
-            val hasNear = result.any { isNearDuplicate(it, txn) }
+            val idxByRef = if (!ref.isNullOrEmpty()) seenRefs[ref] else null
+            val matchIdx = idxById ?: idxByHash ?: idxByRef
 
-            if (!hasId && !hasHash && !hasRef && !hasNear) {
+            if (matchIdx != null) {
+                val existing = result[matchIdx]
+                if ((existing.templateId == null && txn.templateId != null) ||
+                    (existing.bankName == null && txn.bankName != null) ||
+                    (existing.accountLast4 == null && txn.accountLast4 != null) ||
+                    (existing.sender == null && txn.sender != null)
+                ) {
+                    result[matchIdx] =
+                        existing.copy(
+                            templateId = existing.templateId ?: txn.templateId,
+                            bankName = existing.bankName ?: txn.bankName,
+                            accountLast4 = existing.accountLast4 ?: txn.accountLast4,
+                            sender = existing.sender ?: txn.sender,
+                        )
+                }
+                continue
+            }
+
+            val hasNear = result.any { isNearDuplicate(it, txn) }
+            if (!hasNear) {
+                val newIdx = result.size
                 result.add(txn)
-                seenIds.add(txn.id)
-                txn.smsHash?.let { seenHashes.add(it) }
-                if (!ref.isNullOrEmpty()) seenRefs.add(ref)
+                seenIds[txn.id] = newIdx
+                txn.smsHash?.let { seenHashes[it] = newIdx }
+                if (!ref.isNullOrEmpty()) seenRefs[ref] = newIdx
             }
         }
         return result
@@ -395,6 +415,10 @@ class DefaultTransactionRepository(
         txn.latitude?.let { obj.put("latitude", it) }
         txn.longitude?.let { obj.put("longitude", it) }
         txn.locationLabel?.let { obj.put("locationLabel", it) }
+        txn.templateId?.let { obj.put("templateId", it) }
+        txn.accountLast4?.let { obj.put("accountLast4", it) }
+        txn.bankName?.let { obj.put("bankName", it) }
+        txn.sender?.let { obj.put("sender", it) }
         return obj
     }
 
@@ -472,6 +496,30 @@ class DefaultTransactionRepository(
                     null
                 },
             parseConfidence = parseConf,
+            templateId =
+                if (json.has("templateId") && !json.isNull("templateId")) {
+                    json.getString("templateId")
+                } else {
+                    null
+                },
+            accountLast4 =
+                if (json.has("accountLast4") && !json.isNull("accountLast4")) {
+                    json.getString("accountLast4")
+                } else {
+                    null
+                },
+            bankName =
+                if (json.has("bankName") && !json.isNull("bankName")) {
+                    json.getString("bankName")
+                } else {
+                    null
+                },
+            sender =
+                if (json.has("sender") && !json.isNull("sender")) {
+                    json.getString("sender")
+                } else {
+                    null
+                },
         )
     }
 

@@ -27,6 +27,10 @@ class CsvExportHelperTest {
                     note = "INR 18596.70 spent on your card \"ending\" 5625 at RAZ*Optick Labs, Inc",
                     isReviewed = true,
                     parseConfidence = 0.95f,
+                    templateId = "hdfc_card_spend_v1",
+                    accountLast4 = "5625",
+                    bankName = "HDFC",
+                    sender = "VM-HDFCBK",
                 ),
             )
 
@@ -36,6 +40,11 @@ class CsvExportHelperTest {
 
         // Header check
         assertTrue(lines[0].startsWith("id,date,epoch_ms,amount_paise,amount_inr,type,channel,category"))
+        assertTrue(lines[0].contains("parser_template"))
+        assertTrue(lines[0].contains("bank_name"))
+        assertTrue(lines[0].contains("account_last4"))
+        assertTrue(lines[0].contains("sender"))
+        assertTrue(lines[0].contains("balance_after_inr"))
 
         // Row values check
         val row = lines[1]
@@ -45,6 +54,10 @@ class CsvExportHelperTest {
         assertTrue(row.contains("Expense"))
         assertTrue(row.contains("CARD"))
         assertTrue(row.contains("Shopping"))
+        assertTrue(row.contains("hdfc_card_spend_v1"))
+        assertTrue(row.contains("HDFC"))
+        assertTrue(row.contains("5625"))
+        assertTrue(row.contains("VM-HDFCBK"))
         // Escaped fields containing comma
         assertTrue(row.contains("\"RAZ*Optick Labs, Inc\""))
         // Escaped quotes in raw note

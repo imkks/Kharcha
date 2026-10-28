@@ -225,6 +225,51 @@ class DefaultTransactionRepositoryTest {
         }
 
     @Test
+    fun differentBankSameAmountWithinThreeMinutesNotNearDuplicate() =
+        runTest(testDispatcher) {
+            val hdfcDebit =
+                Transaction(
+                    id = 19446L,
+                    accountId = 1L,
+                    bankName = "HDFC",
+                    accountLast4 = "1999",
+                    amount = 8000000L,
+                    type = TransactionType.Expense,
+                    merchantRaw = "MUTUAL FUNDS NCL",
+                    merchantNormalised = "Mutual Funds Ncl",
+                    refNumber = "131687401648",
+                    dateTime = 1792657503428L, // 13:55:03
+                    channel = Channel.UPI,
+                )
+            val iciciDebit =
+                Transaction(
+                    id = 19447L,
+                    accountId = 2L,
+                    bankName = "ICICI",
+                    accountLast4 = "321",
+                    amount = 8000000L,
+                    type = TransactionType.Expense,
+                    merchantRaw = "KRISHNA KUMAR S",
+                    merchantNormalised = "Krishna Kumar S",
+                    refNumber = "218683710640",
+                    dateTime = 1792657655440L, // 13:57:35 (~152s later)
+                    channel = Channel.UPI,
+                )
+
+            repository.insertTransactions(listOf(hdfcDebit, iciciDebit))
+            testScheduler.advanceUntilIdle()
+
+            val txns = repository.getTransactions().first()
+            assertEquals(2, txns.size)
+            val hdfc = txns.first { it.id == 19446L }
+            val icici = txns.first { it.id == 19447L }
+            assertEquals("HDFC", hdfc.bankName)
+            assertEquals("ICICI", icici.bankName)
+            assertEquals(8000000L, hdfc.amount)
+            assertEquals(8000000L, icici.amount)
+        }
+
+    @Test
     fun propagatesCategoryToAllMerchantTransactionsAndSavesRule() =
         runTest(testDispatcher) {
             val prefs: UserPreferences = mockk(relaxed = true)

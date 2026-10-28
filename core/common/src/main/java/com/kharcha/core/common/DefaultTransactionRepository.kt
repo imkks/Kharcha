@@ -258,13 +258,33 @@ class DefaultTransactionRepository(
         if (existing.amount != txn.amount || existing.type != txn.type) return false
         val timeDiff = kotlin.math.abs(existing.dateTime - txn.dateTime)
         if (timeDiff > 180_000L) return false // 3 minutes window
+
+        // Cannot be duplicates if from different accounts or different banks
+        if (existing.accountId != 0L && txn.accountId != 0L && existing.accountId != txn.accountId) {
+            return false
+        }
+        if (!existing.bankName.isNullOrBlank() && !txn.bankName.isNullOrBlank() &&
+            !existing.bankName.equals(txn.bankName, ignoreCase = true)
+        ) {
+            return false
+        }
+        if (!existing.accountLast4.isNullOrBlank() && !txn.accountLast4.isNullOrBlank() &&
+            existing.accountLast4 != txn.accountLast4
+        ) {
+            return false
+        }
+
         val sameMerchant =
             (!existing.merchantNormalised.isNullOrBlank() &&
                 existing.merchantNormalised.equals(txn.merchantNormalised, ignoreCase = true)) ||
                 (!existing.merchantRaw.isNullOrBlank() &&
                     existing.merchantRaw.equals(txn.merchantRaw, ignoreCase = true))
-        val sameChannel = existing.channel != null && existing.channel == txn.channel
-        return sameMerchant || sameChannel
+        val sameRef =
+            !existing.refNumber.isNullOrBlank() && !txn.refNumber.isNullOrBlank() &&
+                existing.refNumber == txn.refNumber
+        val sameNote = !existing.note.isNullOrBlank() && existing.note == txn.note
+
+        return sameMerchant || sameRef || sameNote
     }
 
     private fun deduplicateList(transactions: List<Transaction>): List<Transaction> {

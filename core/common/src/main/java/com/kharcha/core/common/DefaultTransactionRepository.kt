@@ -254,25 +254,18 @@ class DefaultTransactionRepository(
         }
     }
 
-    private fun isNearDuplicate(existing: Transaction, txn: Transaction): Boolean {
+    private fun isExactSmsDuplicate(existing: Transaction, txn: Transaction): Boolean {
         if (existing.amount != txn.amount || existing.type != txn.type) return false
-        val timeDiff = kotlin.math.abs(existing.dateTime - txn.dateTime)
-        if (timeDiff > 180_000L) return false // 3 minutes window
-
-        // Cannot be duplicates if from different accounts or different banks
-        if (existing.accountId != 0L && txn.accountId != 0L && existing.accountId != txn.accountId) {
-            return false
-        }
+        if (existing.accountId != 0L && txn.accountId != 0L && existing.accountId != txn.accountId) return false
         if (!existing.bankName.isNullOrBlank() && !txn.bankName.isNullOrBlank() &&
             !existing.bankName.equals(txn.bankName, ignoreCase = true)
-        ) {
-            return false
-        }
+        ) return false
         if (!existing.accountLast4.isNullOrBlank() && !txn.accountLast4.isNullOrBlank() &&
             existing.accountLast4 != txn.accountLast4
-        ) {
-            return false
-        }
+        ) return false
+
+        val timeDiff = kotlin.math.abs(existing.dateTime - txn.dateTime)
+        if (timeDiff > 180_000L) return false
 
         val sameMerchant =
             (!existing.merchantNormalised.isNullOrBlank() &&
@@ -297,9 +290,17 @@ class DefaultTransactionRepository(
             val idxById = seenIds[txn.id]
             val idxByHash = txn.smsHash?.let { seenHashes[it] }
             val ref = txn.refNumber?.trim()
+            val bankAccountKey =
+                if (txn.accountId != 0L) {
+                    txn.accountId.toString()
+                } else if (!txn.bankName.isNullOrBlank() || !txn.accountLast4.isNullOrBlank()) {
+                    "${txn.bankName}_${txn.accountLast4}"
+                } else {
+                    ""
+                }
             val refKey =
                 if (!ref.isNullOrEmpty() && ref.length >= 4 && ref.any { it.isDigit() }) {
-                    "${txn.type}_${txn.accountId}_$ref"
+                    "${txn.type}_${bankAccountKey}_$ref"
                 } else {
                     null
                 }
@@ -324,8 +325,8 @@ class DefaultTransactionRepository(
                 continue
             }
 
-            val hasNear = result.any { isNearDuplicate(it, txn) }
-            if (!hasNear) {
+            val isDuplicate = result.any { isExactSmsDuplicate(it, txn) }
+            if (!isDuplicate) {
                 val newIdx = result.size
                 result.add(txn)
                 seenIds[txn.id] = newIdx

@@ -203,8 +203,16 @@ object BankParserFactory {
      * first non-null parse(). This un-shadows parsers that share a sender ID — each
      * parser gates its own parse() by message content and returns null otherwise.
      */
-    fun parse(smsBody: String, sender: String, timestamp: Long): ParsedTransaction? =
-        getParsers(sender).firstNotNullOfOrNull { it.parse(smsBody, sender, timestamp) }
+    fun parse(smsBody: String, sender: String, timestamp: Long): ParsedTransaction? {
+        val direct = getParsers(sender).firstNotNullOfOrNull { it.parse(smsBody, sender, timestamp) }
+        if (direct != null) return direct
+
+        // Content-aware fallback: if sender header uses unknown DLT variants or missed routing,
+        // dispatch to parsers matching bank identifiers in the SMS body.
+        val bodyUpper = smsBody.uppercase()
+        val candidateParsers = parsers.filter { it.canHandle(bodyUpper) }
+        return candidateParsers.firstNotNullOfOrNull { it.parse(smsBody, sender, timestamp) }
+    }
 
     /**
      * Returns the bank parser for the given bank name.

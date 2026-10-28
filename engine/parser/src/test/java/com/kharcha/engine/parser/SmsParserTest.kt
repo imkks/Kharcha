@@ -1838,4 +1838,25 @@ IDFC FIRST Bank""",
         assertEquals(Channel.CARD, txn.channel)
         assertEquals("ICICI", txn.bankName)
     }
+
+    @Test
+    fun testIciciCardSpendWithEmiOffer() {
+        val sms =
+            RawSms(
+                id = 87,
+                sender = "AD-ICICIT-S",
+                body = "Rs 12,999.00 spent on ICICI Bank Card XX3006 on 04-Oct-26 at GOOGLE STORE. Avl Lmt: Rs 6,96,812.00. To dispute, call 18002662/SMS BLOCK 3006 to 9215676766. To convert this txn to EMI give a missed call on 9924667667. Know more about EMI conversion at https://icici.co/ICICIT/cc4asx",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("Expected Success but got $result", result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1299900L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("3006", txn.accountLast4)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("ICICI", txn.bankName)
+        assertEquals("GOOGLE STORE", txn.merchantRaw)
+    }
 }

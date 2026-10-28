@@ -1861,4 +1861,26 @@ IDFC FIRST Bank""",
         assertEquals("GOOGLE STORE", txn.merchantRaw)
         org.junit.Assert.assertNull(txn.refNumber)
     }
+
+    @Test
+    fun testIciciBankDebit80000() {
+        val sms =
+            RawSms(
+                id = 88,
+                sender = "AD-ICICIT-S",
+                body = "ICICI Bank Acct XX321 debited for Rs 80000.00 on 22-Oct-26; KRISHNA KUMAR S credited. UPI:218683710640. Call 18002662 for dispute. SMS BLOCK 321 to 9215676766.",
+                receivedAt = 1792657655000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("Expected Success but got $result", result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(8000000L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("321", txn.accountLast4)
+        assertEquals(Channel.UPI, txn.channel)
+        assertEquals("ICICI", txn.bankName)
+        assertEquals("KRISHNA KUMAR S", txn.merchantRaw)
+        assertEquals("218683710640", txn.refNumber)
+    }
 }

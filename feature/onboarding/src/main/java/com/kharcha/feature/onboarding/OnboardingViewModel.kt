@@ -144,7 +144,6 @@ class OnboardingViewModel
                 var foundCount = 0
                 val seenHashes = mutableSetOf<String>()
                 val seenBodyKeys = mutableSetOf<String>()
-                val seenRefs = mutableSetOf<String>()
                 val userRules = DefaultUserPreferences(context).getMerchantCategoryRules()
 
                 while (true) {
@@ -178,10 +177,6 @@ class OnboardingViewModel
                         val parseResult = parser.parse(sms)
                         if (parseResult is ParseResult.Success) {
                             val parsedTxn = parseResult.txn
-                            val ref = parsedTxn.refNumber?.trim()
-                            if (!ref.isNullOrEmpty() && !seenRefs.add(ref)) {
-                                continue
-                            }
 
                             foundCount++
                             val isCredit = parsedTxn.direction == Direction.CREDIT

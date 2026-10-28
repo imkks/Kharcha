@@ -14,18 +14,10 @@ class PNBBankParser : BaseIndianBankParser() {
     override fun getBankName() = "Punjab National Bank"
 
     override fun canHandle(sender: String): Boolean {
-        val normalizedSender = sender.uppercase()
-        return normalizedSender.contains("PUNJAB NATIONAL BANK") || // RCS sender (any case)
-                normalizedSender.contains("PNBBNK") ||
-                normalizedSender.contains("PUNBN") ||
-                normalizedSender.contains("PNBSMS") || // Matches V?-PNBSMS-S
-                normalizedSender.matches(Regex("^[A-Z]{2}-PNBBNK-S$")) ||
-                normalizedSender.matches(Regex("^[A-Z]{2}-PNB-S$")) ||
-                normalizedSender.matches(Regex("^[A-Z]{2}-PNBBNK$")) ||
-                normalizedSender.matches(Regex("^[A-Z]{2}-PNB$")) ||
-                normalizedSender.matches(Regex("^(?:[A-Z]{2}-)?PNBCCD(?:-[ST])?$")) || // Credit card alerts
-                normalizedSender == "PNBBNK" ||
-                normalizedSender == "PNB"
+        val s = sender.uppercase()
+        return s.contains("PUNJAB NATIONAL BANK") ||
+            s.contains("PNB") ||
+            s.contains("PUNBN")
     }
 
     override fun parse(smsBody: String, sender: String, timestamp: Long): ParsedTransaction? {

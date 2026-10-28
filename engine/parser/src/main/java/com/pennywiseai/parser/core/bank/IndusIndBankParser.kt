@@ -18,19 +18,7 @@ class IndusIndBankParser : BaseIndianBankParser() {
 
     override fun canHandle(sender: String): Boolean {
         val s = sender.uppercase()
-
-        // Common short/long forms
-        if (s == "INDUSB" || s == "INDUSIND" || s.contains("INDUSIND BANK") || s.contains("INDBNK")) return true
-
-        // DLT/route patterns frequently used in India
-        // Allow -S, -T, or no suffix (e.g., VM-INDUSB, VM-INDUSB-S, VM-INDUSB-T)
-        if (s.matches(Regex("^[A-Z]{2}-INDUSB(?:-[A-Z])?$"))) return true
-        if (s.matches(Regex("^[A-Z]{2}-INDUSIND(?:-[A-Z])?$"))) return true
-
-        // Some routes omit the trailing suffix or vary the middle part
-        if (s.matches(Regex("^[A-Z]{2}-INDUS(?:[A-Z]{2,})?-[A-Z]$"))) return true
-
-        return false
+        return s.contains("INDUS") || s.contains("INDBNK")
     }
 
     override fun extractTransactionType(message: String): TransactionType? {

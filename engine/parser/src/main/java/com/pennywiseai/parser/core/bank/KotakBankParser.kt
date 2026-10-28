@@ -14,19 +14,8 @@ class KotakBankParser : BankParser() {
 
     override fun getBankName() = "Kotak Bank"
 
-    override fun canHandle(sender: String): Boolean {
-        val normalizedSender = sender.uppercase()
-
-        // DLT patterns for Kotak Bank — covers KOTAKB, KOTAKD, and similar variants
-        if (normalizedSender.matches(Regex("^[A-Z]{2}-KOTAK[A-Z]-[ST]$"))) {
-            return true
-        }
-
-        // RCS senders arrive with a decoded display name (e.g. "Kotak",
-        // "Kotak Mahindra Bank", "Kotak811") instead of the DLT header, so match
-        // any sender that contains the brand token.
-        return normalizedSender.contains("KOTAK")
-    }
+    override fun canHandle(sender: String): Boolean =
+        sender.contains("KOTAK", ignoreCase = true)
 
     override fun extractMerchant(message: String, sender: String): String? {
         // ATM: "Rs.1900.00 withdrawn via Kotak Debit Card XX01111 on 15/10/2026 at S1BN000000001." —

@@ -16,12 +16,8 @@ class YesBankParser : BaseIndianBankParser() {
     override fun getBankName() = "Yes Bank"
 
     override fun canHandle(sender: String): Boolean {
-        val normalizedSender = sender.uppercase()
-        // DLT patterns for Yes Bank (XX-YESBNK-S format)
-        return normalizedSender.matches(Regex("^[A-Z]{2}-YESBNK-S$")) ||
-                normalizedSender.matches(Regex("^[A-Z]{2}-YESBNK$")) ||
-                normalizedSender == "YESBNK" ||
-                normalizedSender == "YESBANK"
+        val s = sender.uppercase()
+        return s.contains("YESBNK") || s.contains("YESBANK") || s.contains("YES BANK")
     }
 
     override fun extractAmount(message: String): BigDecimal? {

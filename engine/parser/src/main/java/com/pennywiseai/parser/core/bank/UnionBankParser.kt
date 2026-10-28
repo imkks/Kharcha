@@ -18,19 +18,11 @@ class UnionBankParser : BaseIndianBankParser() {
     override fun getBankName() = "Union Bank of India"
 
     override fun canHandle(sender: String): Boolean {
-        val normalizedSender = sender.uppercase()
-        return normalizedSender.contains("UNIONB") ||
-                normalizedSender.contains("UNIONBANK") ||
-                normalizedSender.contains("UBOI") ||
-                normalizedSender.contains("UBISMS") ||
-                normalizedSender.contains("UBI") ||
-                // DLT patterns for transactions (-S, -T suffix)
-                normalizedSender.matches(Regex("^[A-Z]{2}-UNIONB-[ST]$")) ||
-                // Other DLT patterns
-                normalizedSender.matches(Regex("^[A-Z]{2}-UNIONB-[TPG]$")) ||
-                // Legacy patterns
-                normalizedSender.matches(Regex("^[A-Z]{2}-UNIONB$")) ||
-                normalizedSender.matches(Regex("^[A-Z]{2}-UNIONBANK$"))
+        val s = sender.uppercase()
+        return s.contains("UNIONB") ||
+            s.contains("UNIONBANK") ||
+            s.contains("UBOI") ||
+            s.contains("UBI")
     }
 
     override fun isTransactionMessage(message: String): Boolean {

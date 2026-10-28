@@ -18,23 +18,8 @@ class HDFCBankParser : BaseIndianBankParser() {
 
     override fun getBankName() = "HDFC Bank"
 
-    override fun canHandle(sender: String): Boolean {
-        val upperSender = sender.uppercase()
-
-        // Common HDFC sender IDs
-        val hdfcSenders = setOf(
-            "HDFCBK",
-            "HDFCBANK",
-            "HDFC",
-            "HDFCB"
-        )
-
-        // Direct match
-        if (upperSender in hdfcSenders) return true
-
-        // DLT patterns
-        return CompiledPatterns.HDFC.DLT_PATTERNS.any { it.matches(upperSender) }
-    }
+    override fun canHandle(sender: String): Boolean =
+        sender.contains("HDFC", ignoreCase = true)
 
     override fun extractMerchant(message: String, sender: String): String? {
         // Reversal/refund format: "... By AMAZON        000 On 2026-08-21:..." —

@@ -1603,12 +1603,7 @@ class SmsParserTest {
                 subId = null,
             )
         val result = parser.parse(sms)
-        assertTrue(result is ParseResult.Success)
-        val txn = (result as ParseResult.Success).txn
-        assertEquals(1131100L, txn.amountMinor)
-        assertEquals(Direction.DEBIT, txn.direction)
-        assertEquals("2321", txn.accountLast4)
-        assertEquals("ICICI", txn.bankName)
+        assertTrue("Credit card bill payment confirmation should be skipped", result is ParseResult.NoMatch)
     }
 
     @Test
@@ -1831,13 +1826,7 @@ IDFC FIRST Bank""",
                 subId = null,
             )
         val result = parser.parse(sms)
-        assertTrue(result is ParseResult.Success)
-        val txn = (result as ParseResult.Success).txn
-        assertEquals(1131100L, txn.amountMinor)
-        assertEquals(Direction.CREDIT, txn.direction)
-        assertEquals("1268", txn.accountLast4)
-        assertEquals(Channel.CARD, txn.channel)
-        assertEquals("ICICI", txn.bankName)
+        assertTrue("Credit card bill payment confirmation should be skipped", result is ParseResult.NoMatch)
     }
 
     @Test

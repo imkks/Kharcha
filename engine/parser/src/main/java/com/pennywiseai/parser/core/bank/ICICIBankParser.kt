@@ -632,7 +632,12 @@ class ICICIBankParser : BaseIndianBankParser() {
 
         // Skip credit card bill payment confirmations - these are transfers between own accounts
         // Example: "Payment of Rs 26,266.00 has been received on your ICICI Bank Credit Card XX9006..."
-        if (lowerMessage.contains("has been received on your icici bank credit card")) {
+        // Example: "Dear Customer, thank you for your payment of INR 11,311.00 towards ICICI Bank Credit Card Account XX1268..."
+        if (lowerMessage.contains("has been received on your icici bank credit card") ||
+            ((lowerMessage.contains("thank you for payment") || lowerMessage.contains("thank you for your payment") ||
+                lowerMessage.contains("received towards")) &&
+                lowerMessage.contains("credit card"))
+        ) {
             return false // This is a credit card bill payment, not a transaction
         }
 

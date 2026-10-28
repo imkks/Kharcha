@@ -17,6 +17,7 @@ import java.io.File
 class DefaultAccountRepository(
     private val context: Context,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    val mergeStore: BankAccountMergeStore = BankAccountMergeStore(context),
 ) : AccountRepository {
     private val _accounts = MutableStateFlow<List<Account>>(emptyList())
     private val file: File
@@ -89,7 +90,7 @@ class DefaultAccountRepository(
                     else -> null
                 }
 
-            val resolvedLast4 =
+            val resolvedLast4Raw =
                 when {
                     type == AccountType.CreditCard && targetCardLast4 != null -> targetCardLast4
                     type == AccountType.Savings && sourceAccountLast4 != null -> sourceAccountLast4
@@ -106,6 +107,12 @@ class DefaultAccountRepository(
                     smsBody != null -> extractLast4FromText(smsBody, type)
                     else -> null
                 }
+
+            val resolvedLast4 = if (resolvedLast4Raw != null && resolvedBank != null && type != AccountType.CreditCard) {
+                mergeStore.resolveSuffix(resolvedBank, "INR", resolvedLast4Raw)
+            } else {
+                resolvedLast4Raw
+            }
 
             val name =
                 when (type) {
@@ -327,6 +334,43 @@ class DefaultAccountRepository(
             }
             _accounts.value = currentList
             saveToDisk(currentList)
+        }
+    }
+
+    override suspend fun mergeAccounts(
+        sourceAccountId: Long,
+        targetAccountId: Long,
+        transactionRepository: TransactionRepository?,
+    ): Boolean {
+        if (sourceAccountId == targetAccountId) return false
+        return withContext(ioDispatcher) {
+            val currentList = _accounts.value.toMutableList()
+            val source = currentList.find { it.id == sourceAccountId } ?: return@withContext false
+            val target = currentList.find { it.id == targetAccountId } ?: return@withContext false
+
+            // Reassign transactions from source to target
+            transactionRepository?.reassignAccountTransactions(
+                fromAccountId = sourceAccountId,
+                toAccountId = targetAccountId,
+            )
+
+            // Re-link any cards or sub-accounts that were linked to source
+            for (i in currentList.indices) {
+                val acc = currentList[i]
+                if (acc.linkedPrimaryAccountId == sourceAccountId) {
+                    currentList[i] = acc.copy(linkedPrimaryAccountId = targetAccountId)
+                }
+            }
+
+            // Remember in BankAccountMergeStore if short/full pair
+            mergeStore.onMerge(source, target)
+
+            // Remove source account from list
+            currentList.removeAll { it.id == sourceAccountId }
+
+            _accounts.value = currentList
+            saveToDisk(currentList)
+            true
         }
     }
 

@@ -83,6 +83,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.AccountAutoLinker
+import com.kharcha.core.common.BankAccountMergeStore
 import com.kharcha.core.common.CsvExportHelper
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.UserPreferences
@@ -108,6 +109,7 @@ fun MoreScreen(
     accounts: List<Account> = emptyList(),
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((primaryAccountId: Long, redundantAccountIds: Set<Long>) -> Unit)? = null,
+    onMergeDuplicateAccounts: ((sourceAccountId: Long, targetAccountId: Long) -> Unit)? = null,
     onApplyMerchantRuleToTransactions: ((merchant: String, category: String) -> Unit)? = null,
     onWeeklySummaryClick: () -> Unit = {},
     onReportSmsClick: () -> Unit = {},
@@ -173,6 +175,7 @@ fun MoreScreen(
             accounts = accounts,
             onAccountClick = onAccountClick,
             onSaveAccount = onSaveAccount,
+            onMergeDuplicateAccounts = onMergeDuplicateAccounts,
             onAddAccountClick = { showAddAccountDialog = true },
             onBack = { showManageAccountsPage = false },
             modifier = modifier,
@@ -1966,10 +1969,28 @@ private fun ManageAccountsScreenView(
     accounts: List<Account>,
     onAccountClick: (Account) -> Unit,
     onSaveAccount: (Account) -> Unit,
+    onMergeDuplicateAccounts: ((sourceAccountId: Long, targetAccountId: Long) -> Unit)? = null,
     onAddAccountClick: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var duplicateToMerge by remember { mutableStateOf<Pair<Account, Account>?>(null) }
+    val duplicateCandidates = remember(accounts) {
+        BankAccountMergeStore.duplicatePairs(accounts)
+    }
+
+    if (duplicateToMerge != null) {
+        val (source, target) = duplicateToMerge!!
+        DuplicateAccountDialog(
+            source = source,
+            target = target,
+            onMerge = {
+                onMergeDuplicateAccounts?.invoke(source.id, target.id)
+                duplicateToMerge = null
+            },
+            onDismiss = { duplicateToMerge = null },
+        )
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -2039,6 +2060,61 @@ private fun ManageAccountsScreenView(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.financialColors.textSecondary,
                         )
+                    }
+                }
+            }
+
+            if (duplicateCandidates.isNotEmpty()) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (pair in duplicateCandidates) {
+                            val source = pair.first
+                            val target = pair.second
+                            val sourceName = "${source.bankName ?: source.name} ••${source.last4 ?: ""}"
+                            val targetName = "${target.bankName ?: target.name} ••${target.last4 ?: ""}"
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { duplicateToMerge = source to target },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.financialColors.limeAccent.copy(alpha = 0.1f),
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.financialColors.limeAccent.copy(alpha = 0.4f)),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(id = R.string.duplicate_accounts_banner_title),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.financialColors.limeAccent,
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = stringResource(
+                                                id = R.string.duplicate_accounts_banner_desc,
+                                                sourceName,
+                                                targetName,
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.financialColors.textSecondary,
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(id = R.string.duplicate_accounts_merge),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.financialColors.limeAccent,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

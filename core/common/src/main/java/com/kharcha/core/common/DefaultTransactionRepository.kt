@@ -215,6 +215,26 @@ class DefaultTransactionRepository(
         }
     }
 
+    override suspend fun reassignAccountTransactions(fromAccountId: Long, toAccountId: Long) {
+        if (fromAccountId == toAccountId) return
+        withContext(ioDispatcher) {
+            val current = _transactions.value
+            var changed = false
+            val updated = current.map { txn ->
+                if (txn.accountId == fromAccountId) {
+                    changed = true
+                    txn.copy(accountId = toAccountId)
+                } else {
+                    txn
+                }
+            }
+            if (changed) {
+                _transactions.value = updated
+                saveToDisk(updated)
+            }
+        }
+    }
+
     @Suppress("TooGenericExceptionCaught")
     private fun loadFromDisk() {
         try {

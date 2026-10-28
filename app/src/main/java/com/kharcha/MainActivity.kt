@@ -318,6 +318,14 @@ fun MainAppShell(
                             snackbarHostState.showSnackbar("Accounts linked and grouped successfully")
                         }
                     },
+                    onMergeDuplicateAccounts = { sourceId, targetId ->
+                        scope.launch {
+                            val success = accountRepository.mergeAccounts(sourceId, targetId, transactionRepository)
+                            if (success) {
+                                snackbarHostState.showSnackbar("Accounts merged successfully")
+                            }
+                        }
+                    },
                     onReportSmsClick = { showReportSmsScreen = true },
                     onApplyMerchantRuleToTransactions = { merchant, category ->
                         scope.launch {
@@ -623,6 +631,7 @@ fun BoxDestinationContent(
     onDuesClick: () -> Unit = {},
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((Long, Set<Long>) -> Unit)? = null,
+    onMergeDuplicateAccounts: ((Long, Long) -> Unit)? = null,
     onReportSmsClick: () -> Unit = {},
     onApplyMerchantRuleToTransactions: ((String, String) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -711,6 +720,7 @@ fun BoxDestinationContent(
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 onSaveAccount = onSaveAccount,
                 onMergeAccounts = onMergeAccounts,
+                onMergeDuplicateAccounts = onMergeDuplicateAccounts,
                 onApplyMerchantRuleToTransactions = onApplyMerchantRuleToTransactions,
                 onWeeklySummaryClick = onWeeklySummaryClick,
                 onReportSmsClick = onReportSmsClick,

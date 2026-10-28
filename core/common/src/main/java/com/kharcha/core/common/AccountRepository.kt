@@ -23,4 +23,9 @@ interface AccountRepository {
         explicitlyUnlinkedIds: Set<Long> = emptySet(),
     )
     suspend fun linkSubAccounts(primaryAccountId: Long, linkedSubAccountIds: Set<Long>)
+    suspend fun mergeAccounts(
+        sourceAccountId: Long,
+        targetAccountId: Long,
+        transactionRepository: TransactionRepository? = null,
+    ): Boolean
 }

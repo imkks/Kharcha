@@ -190,4 +190,43 @@ class HomeScreenCalculationTest {
         assertEquals(1, counts["Food"])
         assertEquals(1, counts["Rent"])
     }
+
+    @Test
+    fun testAccountsAndCreditCardsSeparation() {
+        val accounts =
+            listOf(
+                com.kharcha.core.model.Account(
+                    id = 1L,
+                    name = "HDFC ••1999",
+                    bankName = "HDFC",
+                    last4 = "1999",
+                    type = com.kharcha.core.model.AccountType.Savings,
+                ),
+                com.kharcha.core.model.Account(
+                    id = 2L,
+                    name = "HDFC Card ••8302",
+                    bankName = "HDFC",
+                    last4 = "8302",
+                    type = com.kharcha.core.model.AccountType.CreditCard,
+                    linkedPrimaryAccountId = 1L,
+                ),
+                com.kharcha.core.model.Account(
+                    id = 3L,
+                    name = "Amazon Pay",
+                    bankName = "Amazon",
+                    last4 = null,
+                    type = com.kharcha.core.model.AccountType.Wallet,
+                ),
+            )
+
+        val primaryAccounts = accounts.filter { it.type != com.kharcha.core.model.AccountType.CreditCard }
+        val creditCardAccounts = accounts.filter { it.type == com.kharcha.core.model.AccountType.CreditCard }
+
+        assertEquals(2, primaryAccounts.size)
+        assertEquals(listOf(1L, 3L), primaryAccounts.map { it.id })
+
+        assertEquals(1, creditCardAccounts.size)
+        assertEquals(listOf(2L), creditCardAccounts.map { it.id })
+        assertEquals(1L, creditCardAccounts.first().linkedPrimaryAccountId)
+    }
 }

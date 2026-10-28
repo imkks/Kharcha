@@ -243,4 +243,22 @@ class DefaultAccountRepositoryTest {
             assertEquals("1999", account.last4)
             assertEquals("HDFC ••1999", account.name)
         }
+
+    @Test
+    fun resolvesRupayCreditCardUpiAsCreditCard() =
+        runTest(testDispatcher) {
+            val body = "INR 500 debited from Credit Card ending 8302 on 24-Oct-26 for UPI/4291823..."
+            val account =
+                repository.resolveOrCreateAccount(
+                    bankName = "HDFC",
+                    last4 = "8302",
+                    channel = Channel.UPI,
+                    smsBody = body,
+                )
+
+            assertEquals(AccountType.CreditCard, account.type)
+            assertEquals("HDFC", account.bankName)
+            assertEquals("8302", account.last4)
+            assertEquals("HDFC Card ••8302", account.name)
+        }
 }

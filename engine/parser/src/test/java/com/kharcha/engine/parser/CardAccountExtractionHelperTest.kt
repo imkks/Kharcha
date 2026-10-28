@@ -21,6 +21,40 @@ class CardAccountExtractionHelperTest {
     }
 
     @Test
+    fun testExtractBankAccountAndCardLast4_distinguishesAccountFromCard() {
+        // Bank account via UPI
+        val hdfcUpi = "HDFC Bank:Rs. 53000.00 debited from a/c *1999 on 04/10/26 to a/c **0034 (UPI Ref No. 615324150359)"
+        assertEquals("1999", CardAccountExtractionHelper.extractBankAccountLast4(hdfcUpi))
+        assertEquals(CardAccountExtractionHelper.AccountKind.BANK_ACCOUNT, CardAccountExtractionHelper.detectAccountKind(hdfcUpi))
+
+        // Credit Card payment
+        val idfcCard = "Thank you for payment of INR 10,641.62 towards your FIRST Wealth Credit Card XX5625 on 05 Jun 2026. IDFC FIRST Bank"
+        assertEquals("5625", CardAccountExtractionHelper.extractCardLast4(idfcCard))
+        assertEquals(CardAccountExtractionHelper.AccountKind.CARD, CardAccountExtractionHelper.detectAccountKind(idfcCard))
+
+        // Auto debit from account to card
+        val iciciAutoDebit = "Dear Customer, thank you for your payment of INR 11,311.00 towards ICICI Bank Credit Card Account XX1268 through Auto Debit from Account XX2321 on 04-Oct-26"
+        assertEquals("2321", CardAccountExtractionHelper.extractBankAccountLast4(iciciAutoDebit))
+        assertEquals("1268", CardAccountExtractionHelper.extractCardLast4(iciciAutoDebit))
+        assertEquals(CardAccountExtractionHelper.AccountKind.BANK_ACCOUNT, CardAccountExtractionHelper.detectAccountKind(iciciAutoDebit))
+
+        // Cardmember payment received
+        val hdfcCardMember = "DEAR HDFCBANK CARDMEMBER, PAYMENT OF Rs. 595.00 RECEIVED TOWARDS YOUR CREDIT CARD ENDING WITH 8302 ON 2-6-2025.YOUR AVAILABLE LIMIT IS RS. 154621.36"
+        assertEquals("8302", CardAccountExtractionHelper.extractCardLast4(hdfcCardMember))
+        assertEquals(CardAccountExtractionHelper.AccountKind.CARD, CardAccountExtractionHelper.detectAccountKind(hdfcCardMember))
+
+        // Bank account debited for credit card bill via UPI
+        val iciciBillUpi = "ICICI Bank Acct XX321 debited for Rs 96808.63 on 05-Aug-26; Credit Card Bil credited. UPI:621717806116. Call 18002662 for dispute. SMS BLOCK 321 to 9215676766."
+        assertEquals("321", CardAccountExtractionHelper.extractBankAccountLast4(iciciBillUpi))
+        assertEquals(CardAccountExtractionHelper.AccountKind.BANK_ACCOUNT, CardAccountExtractionHelper.detectAccountKind(iciciBillUpi))
+
+        // RuPay Credit Card on UPI
+        val rupayUpi = "INR 500 debited from Credit Card ending 8302 on 24-Oct-26 for UPI/4291823..."
+        assertEquals("8302", CardAccountExtractionHelper.extractCardLast4(rupayUpi))
+        assertEquals(CardAccountExtractionHelper.AccountKind.CARD, CardAccountExtractionHelper.detectAccountKind(rupayUpi))
+    }
+
+    @Test
     fun testCleanCandidateMerchant_splitsCardAndMerchant() {
         var cardExtracted: String? = null
         val cleaned = CardAccountExtractionHelper.cleanCandidateMerchant("HDFC Bank Card 8302 At ASSPL") {

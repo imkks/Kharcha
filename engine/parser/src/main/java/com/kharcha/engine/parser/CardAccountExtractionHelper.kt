@@ -72,6 +72,92 @@ object CardAccountExtractionHelper {
         }
     }
 
+    enum class AccountKind {
+        CARD,
+        BANK_ACCOUNT,
+        UNKNOWN,
+    }
+
+    /**
+     * Extracts bank account digits specifically associated with account terms (e.g. "a/c *1999", "Account XX2321", "Acct XX321").
+     */
+    fun extractBankAccountLast4(text: String?): String? {
+        if (text.isNullOrBlank()) return null
+        val patterns =
+            listOf(
+                Regex("""(?i)(?:from|through|via|in|debited\s+from|deposited\s+in)\s+(?:[a-zA-Z]+\s+){0,3}(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
+                Regex("""(?i)\b(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b\s*(?:has\s+been|is|was)?\s*debited"""),
+                Regex("""(?i)\b(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
+                Regex("""(?i)debited\s+from\s+(?:a/c|acc|acct|account)?\s*[*xX.\s\-]*([0-9]{3,4})\b"""),
+            )
+        for (pattern in patterns) {
+            val match = pattern.find(text)
+            if (match != null) return match.groupValues[1]
+        }
+        return null
+    }
+
+    /**
+     * Extracts card digits specifically associated with card terms (e.g. "Credit Card XX5625", "Card ending 8302", "Credit Card Account XX1268").
+     */
+    fun extractCardLast4(text: String?): String? {
+        if (text.isNullOrBlank()) return null
+        val patterns =
+            listOf(
+                Regex("""(?i)(?:credit\s*card|debit\s*card|card|cc)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
+                Regex("""(?i)(?:towards|for|to|of|on|using|from)\s+(?:your\s+)?(?:[a-zA-Z]+\s+){0,3}(?:credit\s*card|card|cc)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
+                Regex("""(?i)\b(?:cardmember|card)\b.*?\b(?:ending(?:\s+with|\s+in)?|ending\s+with|ending)\s*[*xX.\s\-]*([0-9]{3,4})\b"""),
+            )
+        for (pattern in patterns) {
+            val match = pattern.find(text)
+            if (match != null) return match.groupValues[1]
+        }
+        return null
+    }
+
+    /**
+     * Detects whether the primary account used in the transaction is a card or a bank account.
+     */
+    fun detectAccountKind(body: String?, channel: Channel? = null): AccountKind {
+        if (body.isNullOrBlank()) return if (channel == Channel.CARD) AccountKind.CARD else AccountKind.UNKNOWN
+        val b = body.lowercase()
+
+        val bankAccLast4 = extractBankAccountLast4(body)
+        val cardLast4 = extractCardLast4(body)
+
+        val isExplicitBankDebit =
+            b.contains("debited from a/c") || b.contains("debited from account") ||
+                b.contains("through auto debit from account") || b.contains("auto debit from account") ||
+                (b.contains("acct ") && b.contains("debited")) ||
+                (b.contains("deposited in") && b.contains("a/c"))
+
+        if (isExplicitBankDebit && bankAccLast4 != null) {
+            return AccountKind.BANK_ACCOUNT
+        }
+
+        val hasCardKeywords =
+            b.contains("credit card") || b.contains("card ending") ||
+                b.contains("cardmember") || b.contains("spent on card") ||
+                (b.contains("paid using") && b.contains("card")) ||
+                b.contains("debited from credit card") || b.contains("debited from card") ||
+                b.contains("available limit") || b.contains("credit limit") ||
+                (b.contains("card") && cardLast4 != null)
+
+        if (hasCardKeywords && cardLast4 != null) {
+            return AccountKind.CARD
+        }
+
+        if (channel == Channel.CARD) {
+            return AccountKind.CARD
+        }
+
+        if (bankAccLast4 != null || b.contains("a/c") || b.contains("account")) {
+            return AccountKind.BANK_ACCOUNT
+        }
+
+        return AccountKind.UNKNOWN
+    }
+
     private val NEFT_NARRATIVE_REGEX =
         Regex(
             """(?i)\b(?:for\s+|by\s+)?(?:NEFT|RTGS|IMPS)(?:\s+(?:Cr|Credit))?[-/: ]+([A-Za-z0-9.\-_/&* ]+?)(?:(?:\.|\s+)Avl|\s+bal|\s+balance|\s+ref|[.,;]|$)""",

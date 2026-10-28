@@ -119,14 +119,17 @@ class GenericFallbackParser {
                 else -> Channel.OTHER
             }
 
-        val sourceAccountLast4 = if (isAutoDebitFromAccount) {
-            Regex("""(?i)(?:from|through)\s+(?:account|a/c|acc)\s*[*xX.\s\-]*([0-9]{3,4})\b""")
-                .find(body)?.groupValues?.get(1)
-        } else {
-            null
-        }
+        val sourceAccountLast4 =
+            CardAccountExtractionHelper.extractBankAccountLast4(body)
+                ?: if (isAutoDebitFromAccount) {
+                    Regex("""(?i)(?:from|through)\s+(?:account|a/c|acc)\s*[*xX.\s\-]*([0-9]{3,4})\b""")
+                        .find(body)?.groupValues?.get(1)
+                } else {
+                    null
+                }
 
-        var last4 = sourceAccountLast4 ?: CardAccountExtractionHelper.extractLast4(body)
+        val cardLast4 = CardAccountExtractionHelper.extractCardLast4(body)
+        var last4 = sourceAccountLast4 ?: cardLast4 ?: CardAccountExtractionHelper.extractLast4(body)
 
         val upiMatch =
             Regex(
@@ -186,9 +189,9 @@ class GenericFallbackParser {
 
             for (m in merchantMatches) {
                 val candidate = m.groupValues[1].trim()
-                val cleaned = CardAccountExtractionHelper.cleanCandidateMerchant(candidate) { cardLast4 ->
+                val cleaned = CardAccountExtractionHelper.cleanCandidateMerchant(candidate) { extractedCard ->
                     if (last4 == null) {
-                        last4 = cardLast4
+                        last4 = extractedCard
                     }
                     channel = Channel.CARD
                 }

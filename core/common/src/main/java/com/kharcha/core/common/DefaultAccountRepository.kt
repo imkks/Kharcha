@@ -58,8 +58,6 @@ class DefaultAccountRepository(
             val isBillPayment = smsBody?.let { TransactionClassifierHelper.isCreditCardBillPayment(it) } == true
 
             val isCardChannel = channel == Channel.CARD
-            val isBankChannel = channel == Channel.UPI || channel == Channel.NEFT ||
-                channel == Channel.IMPS || channel == Channel.ATM
             val hasCardText =
                 smsBody?.let { body ->
                     val b = body.lowercase()
@@ -67,7 +65,8 @@ class DefaultAccountRepository(
                         b.contains("spent on card") || b.contains("in your credit card") ||
                         b.contains("spent on hdfc bank card") || b.contains("spent on icici bank card") ||
                         b.contains("spent using") || b.contains("card xx") || b.contains("card x") ||
-                        b.contains("cardmember") || b.contains("credit limit") || b.contains("available limit")) &&
+                        b.contains("cardmember") || b.contains("credit limit") || b.contains("available limit") ||
+                        (b.contains("card") && targetCardLast4 != null)) &&
                         !b.contains("towards credit card") && !b.contains("towards your credit card") &&
                         !b.contains("towards card") && !b.contains("for credit card") &&
                         !b.contains("credit card bil") && !b.contains("credit card payment")
@@ -75,11 +74,11 @@ class DefaultAccountRepository(
 
             val type =
                 when {
-                    sourceAccountLast4 != null && (last4 == null || last4 == sourceAccountLast4) -> AccountType.Savings
+                    sourceAccountLast4 != null -> AccountType.Savings
                     isCardChannel -> AccountType.CreditCard
-                    !isBankChannel && hasCardText -> AccountType.CreditCard
+                    hasCardText -> AccountType.CreditCard
                     channel == Channel.WALLET -> AccountType.Wallet
-                    isBillPayment && targetCardLast4 != null && sourceAccountLast4 == null -> AccountType.CreditCard
+                    isBillPayment && targetCardLast4 != null -> AccountType.CreditCard
                     else -> AccountType.Savings
                 }
 

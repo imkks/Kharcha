@@ -1,0 +1,10 @@
+{
+  "id": "ippb_debit_v1",
+  "bank": "IPPB",
+  "senderPatterns": ["^[A-Za-z]{2}-?(IPPOPB|IPPBIN)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)(?:Rs\\.?|INR|₹)?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+debited\\s+from\\s+IPPB\\s+A/c\\s+[X*]*(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{2}[-/]\\d{2}[-/]\\d{2,4})\\s+by\\s+UPI\\s+to\\s+(?<merchant>[^.\\n]+?)(?:\\.\\s*Avl\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy", "dd/MM/yyyy"],
+  "confidence": 0.95
+}

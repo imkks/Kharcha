@@ -9,6 +9,9 @@ object CategoryIconHelper {
     fun getCategoryIcon(categoryName: String?): Int {
         val lower = categoryName?.lowercase()?.trim() ?: return R.drawable.ic_category_other
         return when {
+            lower.contains("unknown") || lower.contains("uncategorised") || lower.contains("not categorised") ->
+                R.drawable.ic_category_unknown
+
             lower.contains("fuel") || lower.contains("petrol") || lower.contains("diesel") ->
                 R.drawable.ic_category_fuel
 

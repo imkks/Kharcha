@@ -1,0 +1,10 @@
+{
+  "id": "idfc_card_payment_v1",
+  "bank": "IDFC",
+  "senderPatterns": ["^[A-Za-z]{2}-?(IDFCFB|IDFCBK).*$", "^(IDFCFB|IDFCBK).*$"],
+  "direction": "CREDIT",
+  "channel": "CARD",
+  "regex": "(?i)Thank\\s+you\\s+for\\s+payment\\s+of\\s+(?:INR|Rs\\.?|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+towards\\s+your\\s+(?<merchant>.+?Credit\\s*Card)\\s+(?:XX|\\*+)?(?<last4>\\d{4})\\s+on\\s+(?<date>\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{2,4})",
+  "dateFormats": ["d MMM yyyy", "dd MMM yyyy", "d-MMM-yyyy", "dd-MMM-yyyy", "dd-MMM-yy"],
+  "confidence": 0.95
+}

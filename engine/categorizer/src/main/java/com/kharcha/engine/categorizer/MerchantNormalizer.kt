@@ -3,10 +3,10 @@ package com.kharcha.engine.categorizer
 object MerchantNormalizer {
     private val BANK_NARRATIVE_REGEX =
         Regex(
-            "^(DATE\\s+)?\\d{1,2}[A-Z]{3}\\d{2,4}\\s+(TRANSFER\\s+TO|TRF\\s+TO)\\s+|" +
-                "^\\d{1,2}-\\d{2}-\\d{2,4}\\s+(TO|BY)\\s+|" +
-                "^\\d{1,2}-[A-Z0-9]{3}(?:-\\d{2,4})?\\s+(AT|TO|BY)\\s+|" +
-                "^\\d{1,2}[A-Z]{3}\\d{2,4}\\s+(TRANSFER\\s+TO|TRF\\s+TO)\\s+|" +
+            "^(DATE\\s+)?\\d{1,2}[A-Z]{3}\\d{2,4}\\s+(TRANSFER\\s+TO|TRF\\s+TO|TRANSFER\\s+FROM|TRF\\s+FROM)\\s+|" +
+                "^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}\\s+(TO|FROM|BY|AT)\\s+|" +
+                "^\\d{1,2}-[A-Z0-9]{3}(?:-\\d{2,4})?\\s+(AT|TO|FROM|BY)\\s+|" +
+                "^\\d{1,2}[A-Z]{3}\\d{2,4}\\s+(TRANSFER\\s+TO|TRF\\s+TO|TRANSFER\\s+FROM|TRF\\s+FROM)\\s+|" +
                 "^\\d{1,2}-[A-Z]{3}-\\d{2,4}\\s+INFO[A-Z*]+\\s*",
             RegexOption.IGNORE_CASE,
         )
@@ -50,6 +50,24 @@ object MerchantNormalizer {
         if (rawMerchant.isNullOrBlank()) return ""
 
         var normalized = rawMerchant.trim().uppercase()
+
+        if (normalized.contains("INFOATD") || normalized.contains("AUTO DEBI") || normalized == "AUTO DEBIT") {
+            return "AUTO DEBIT"
+        }
+        if (normalized.contains("INFOTRF") || normalized.contains("TRF TO PPF") || normalized == "PPF TRANSFER") {
+            return "PPF TRANSFER"
+        }
+        if (normalized.contains("INFOBIL") || normalized == "BILL PAYMENT") {
+            return "BILL PAYMENT"
+        }
+        if (normalized.contains("INFOCLG") || normalized == "CHEQUE CLEARING") {
+            return "CHEQUE CLEARING"
+        }
+        if (normalized.contains("WELLSFARGO") || normalized.contains("WELLS FARG") ||
+            normalized.endsWith("WELLS") || normalized == "WELLS"
+        ) {
+            return "WELLS FARGO"
+        }
 
         // 1. Strip bank narrative date and transfer prefixes
         normalized = normalized.replace(BANK_NARRATIVE_REGEX, "").trim()

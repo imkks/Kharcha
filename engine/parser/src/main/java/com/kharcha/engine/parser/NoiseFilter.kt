@@ -66,13 +66,34 @@ object NoiseFilter {
                 "from\\s+your\\s+insurer|policy\\s+period|medi\\s*assist|insurance\\s+claim|" +
                 "health\\s+insurance\\s+claim)\\b",
         )
+    private val telecomExpiryRegex =
+        Regex(
+            "(?i)\\b(?:plan|pack|validity)\\s+(?:has\\s+)?expir(?:ed|es)|" +
+                "\\b(?:recharge\\s+(?:now|with|to)|enjoy\\s+uninterrupted)\\b|" +
+                "\\b(?:recharge\\s+(?:of|for)\\s+(?:rs\\.?|inr|₹)?\\s*\\d+\\s+is\\s+due)\\b",
+        )
     private val failedRegex =
         Regex("(?i)\\b(declined|failed|insufficient funds|unsuccessful)\\b")
     private val mandateRegex =
         Regex("(?i)\\bmandate\\b.*\\bregistered\\b")
+    private val serviceWelcomeRegex =
+        Regex(
+            "(?i)\\b(?:welcome\\s+to\\s+[a-zA-Z0-9\\s]+!.*(?:activated|is\\s+now\\s+active)|" +
+                "wi-?fi\\s+id\\s+[a-zA-Z0-9_]+\\s+is\\s+now\\s+activated|" +
+                "plan\\s+details\\s+are:?|" +
+                "connection\\s+type\\s*:|" +
+                "plan\\s+rental\\s*:|" +
+                "advance\\s+amount\\s+paid.*adjusted\\s+in\\s+upcoming|" +
+                "adjusted\\s+in\\s+upcoming\\s+monthly\\s+bills)\\b",
+        )
 
     fun filter(sms: RawSms): ParseResult.Ignored? {
         val body = sms.body
+
+        // Service activation / Broadband / Wi-Fi onboarding notice
+        if (serviceWelcomeRegex.containsMatchIn(body)) {
+            return ParseResult.Ignored(IgnoreReason.NOT_A_TRANSACTION)
+        }
 
         // 1. OTP
         if (otpRegex.containsMatchIn(body)) {
@@ -102,13 +123,19 @@ object NoiseFilter {
             return ParseResult.Ignored(IgnoreReason.PROMO)
         }
 
+        val isPastTransaction =
+            bodyLower.contains("debited") || bodyLower.contains("credited") ||
+                bodyLower.contains("spent") || bodyLower.contains("refunded") ||
+                bodyLower.contains("withdrawn")
+
         // 3. Reminder, Statement Alerts & Pre-debit e-mandate notices
-        if (reminderRegex.containsMatchIn(body) ||
+        if ((reminderRegex.containsMatchIn(body) && !isPastTransaction) ||
             statementAlertRegex.containsMatchIn(body) ||
             brokerPayoutRegex.containsMatchIn(body) ||
             preDebitMandateRegex.containsMatchIn(body) ||
             futureDebitRegex.containsMatchIn(body) ||
             maintainBalanceRegex.containsMatchIn(body) ||
+            (telecomExpiryRegex.containsMatchIn(body) && !hasTransactionKeyword) ||
             (bodyLower.contains("mandate") && (bodyLower.contains("umn") || bodyLower.contains("will be")))
         ) {
             return ParseResult.Ignored(IgnoreReason.REMINDER)

@@ -1,0 +1,10 @@
+{
+  "id": "bob_card_spend_v1",
+  "bank": "BOB",
+  "senderPatterns": ["^[A-Za-z]{2}-?(BOBTXN|BARODA)$"],
+  "direction": "DEBIT",
+  "channel": "CARD",
+  "regex": "(?i)(?:Rs\\.?|INR|₹)?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+spent\\s+on\\s+(?:Bank\\s+of\\s+Baroda|BOB)\\s+(?:Debit|Credit)\\s+Card\\s+[X*]*(?<last4>\\d{4})\\s+at\\s+(?<merchant>[^.\\n]+?)\\s+on\\s+(?<date>\\d{2}[-/]\\d{2}[-/]\\d{2,4})(?:\\.\\s*Avl\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy", "dd/MM/yyyy"],
+  "confidence": 0.95
+}

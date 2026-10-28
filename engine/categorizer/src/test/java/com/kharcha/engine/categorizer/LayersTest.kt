@@ -240,7 +240,7 @@ class LayersTest {
             val layer = FallbackLayer()
             val input = CategorizationInput(100L, "WEIRD MERCH", null, null, TransactionType.Expense)
             val result = layer.categorize(input)
-            assertEquals("Uncategorised", result.categoryId)
+            assertEquals("Unknown Category", result.categoryId)
             assertEquals(CategorySource.Fallback, result.source)
             assertEquals(0.0f, result.confidence, 0.01f)
         }

@@ -9,7 +9,7 @@ class FallbackLayer : CategorizationLayer {
 
     override suspend fun categorize(input: CategorizationInput): CategorizationResult {
         return CategorizationResult(
-            categoryId = "Uncategorised",
+            categoryId = "Unknown Category",
             source = CategorySource.Fallback,
             confidence = 0.0f,
         )

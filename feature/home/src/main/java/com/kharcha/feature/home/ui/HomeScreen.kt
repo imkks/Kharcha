@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -42,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -84,6 +86,14 @@ data class DueReminderItem(
     val frequency: String,
     val name: String,
     val amountMinor: Long,
+)
+
+data class CreditCardItem(
+    val id: Long?,
+    val bankName: String,
+    val cardNumberMasked: String,
+    val outstandingFormatted: String,
+    val creditLimitFormatted: String = "₹1,79,000",
 )
 
 /**
@@ -214,8 +224,9 @@ fun HomeScreen(
 
     val accountModels =
         remember(accounts, isPrivacy) {
-            if (accounts.isNotEmpty()) {
-                accounts.map { acc ->
+            val primaryAccounts = accounts.filter { it.type != AccountType.CreditCard }
+            if (primaryAccounts.isNotEmpty()) {
+                primaryAccounts.map { acc ->
                     AccountCardModel(
                         id = acc.id,
                         bankName = acc.bankName ?: acc.name,
@@ -247,11 +258,28 @@ fun HomeScreen(
         }
 
     val creditCards =
-        remember(isPrivacy) {
-            listOf(
-                Triple("HDFC Bank", "XXXX XXXX XXXX 1999", if (isPrivacy) "₹ ••••••" else "₹18,450.00"),
-                Triple("ICICI Bank", "XXXX XXXX XXXX 4007", if (isPrivacy) "₹ ••••••" else "₹13,746.00"),
-            )
+        remember(accounts, isPrivacy) {
+            val cardAccounts = accounts.filter { it.type == AccountType.CreditCard }
+            if (cardAccounts.isNotEmpty()) {
+                cardAccounts.map { card ->
+                    CreditCardItem(
+                        id = card.id,
+                        bankName = card.bankName ?: "Credit Card",
+                        cardNumberMasked = card.last4?.let { "XXXX XXXX XXXX $it" } ?: card.name,
+                        outstandingFormatted =
+                            if (isPrivacy) {
+                                "₹ ••••••"
+                            } else {
+                                card.currentBalance?.let { MoneyFormatter.formatMinorUnits(it) } ?: "₹0.00"
+                            },
+                    )
+                }
+            } else {
+                listOf(
+                    CreditCardItem(null, "HDFC Bank", "XXXX XXXX XXXX 1999", if (isPrivacy) "₹ ••••••" else "₹18,450.00"),
+                    CreditCardItem(null, "ICICI Bank", "XXXX XXXX XXXX 4007", if (isPrivacy) "₹ ••••••" else "₹13,746.00"),
+                )
+            }
         }
 
     val tagsCloud =
@@ -281,11 +309,14 @@ fun HomeScreen(
             counts.toList().sortedByDescending { it.second }
         }
 
+    val homeListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.financialColors.cardBackground.copy(alpha = 0.35f),
     ) { innerPadding ->
         LazyColumn(
+            state = homeListState,
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -1142,13 +1173,18 @@ fun HomeScreen(
                     ) {
                         items(creditCards) { card ->
                             CreditCardFace(
-                                bankName = card.first,
-                                cardNumberMasked = card.second,
-                                outstandingFormatted = card.third,
+                                bankName = card.bankName,
+                                cardNumberMasked = card.cardNumberMasked,
+                                outstandingFormatted = card.outstandingFormatted,
                                 billingCycle = "17 Oct - 16 Nov",
                                 dueInfo = "09:27 AM • 2, Apr",
-                                creditLimitFormatted = "₹1,79,000",
+                                creditLimitFormatted = card.creditLimitFormatted,
                                 onRefreshClick = {},
+                                onClick = {
+                                    if (card.id != null) {
+                                        accounts.find { it.id == card.id }?.let(onAccountClick)
+                                    }
+                                },
                             )
                         }
                     }

@@ -1,0 +1,10 @@
+{
+  "id": "icici_credit_v2",
+  "bank": "ICICI",
+  "senderPatterns": ["^[A-Za-z]{2}-?(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$", "^(ICICIB|ICICIS|ICICIT|ICICIC|ICICIR|ICICI)(-[A-Za-z0-9]+)?$"],
+  "direction": "CREDIT",
+  "channel": "NEFT",
+  "regex": "(?i)ICICI\\s+Bank\\s+(?:A/[Cc]|Acct|Account)\\s+(?:X+|\\*+)?(?<last4>\\d{3,4})\\s+(?:is\\s+)?credited\\s+(?:with|for)\\s+(?:Rs\\.?|INR|₹)\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}-[A-Za-z0-9]{2,3}-\\d{2,4})\\s+by\\s+(?<merchant>[^.]+?)(?:\\.\\s+Avl\\s+Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*)|\\.?$)",
+  "dateFormats": ["dd-MMM-yy", "dd-MMM-yyyy", "dd-MM-yy", "dd-MM-yyyy"],
+  "confidence": 0.95
+}

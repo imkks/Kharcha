@@ -17,12 +17,12 @@ object AccountAutoLinker {
 
     // Pattern to extract credit card last 4 from a bill payment / transfer note
     private val CARD_TARGET_PATTERNS = listOf(
-        // "towards ICICI Bank Credit Card ending with 8302" or "towards your Card 4620XXXXXXXX6567"
-        Regex("""(?i)(?:towards|for|to|of)\s+(?:your\s+)?(?:[a-z]+\s+){0,3}(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
+        // "towards ICICI Bank Credit Card Account XX1268" or "towards your Card 4620XXXXXXXX6567"
+        Regex("""(?i)(?:towards|for|to|of)\s+(?:your\s+)?(?:[a-z]+\s+){0,3}(?:credit\s*card|card|cc)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
         // "CC 000434155XXXXXX8302 Autopay" or "Credit card ending 8302 payment"
-        Regex("""(?i)\b(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b.*?(?:payment|bill|autodebit|auto-debit|autopay|paid)"""),
+        Regex("""(?i)\b(?:credit\s*card|card|cc)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b.*?(?:payment|bill|autodebit|auto-debit|autopay|paid)"""),
         // "Payment of Rs ... for Card ending 8302"
-        Regex("""(?i)(?:payment|bill|autodebit|auto-debit|autopay|paid).*?(?:towards|for|to)\s+(?:[a-z]+\s+){0,2}(?:credit\s*card|card|cc)?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
+        Regex("""(?i)(?:payment|bill|autodebit|auto-debit|autopay|paid).*?(?:towards|for|to)\s+(?:[a-z]+\s+){0,2}(?:credit\s*card|card|cc)?(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
     )
 
     // Pattern to extract debited bank account last 4
@@ -31,6 +31,8 @@ object AccountAutoLinker {
         Regex("""(?i)(?:from|through|via|in)\s+(?:[a-z]+\s+){0,3}(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b"""),
         // "A/c XX1234 has been debited" or "a/c **2321 is debited"
         Regex("""(?i)(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b\s*(?:has\s+been|is|was)?\s*debited"""),
+        // "debited from a/c *1999"
+        Regex("""(?i)debited\s+from\s+(?:a/c|acc|acct|account)?\s*[*xX.\s\-]*([0-9]{3,4})\b"""),
     )
 
     /**

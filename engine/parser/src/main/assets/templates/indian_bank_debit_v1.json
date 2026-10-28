@@ -1,0 +1,10 @@
+{
+  "id": "indian_bank_debit_v1",
+  "bank": "INDIAN BANK",
+  "senderPatterns": ["^[A-Za-z]{2}-?(INDBNK|INDIAN)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)(?:Dear\\s+Customer,?\\s+)?A/c\\s*(?:no\\.?)?\\s*ending\\s+[X*]*(?<last4>\\d{4})\\s+is\\s+debited\\s+by\\s+(?:Rs\\.?|INR|₹)?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}[-/]\\d{2}[-/]\\d{2,4})\\s+to\\s+(?<merchant>[^.\\n]+)(?:\\.\\s*Ref:?\\s*(?<ref>\\w+))?(?:\\.\\s*Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy", "dd/MM/yyyy"],
+  "confidence": 0.95
+}

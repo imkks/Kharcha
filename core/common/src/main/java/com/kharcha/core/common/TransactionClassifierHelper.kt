@@ -9,24 +9,43 @@ object TransactionClassifierHelper {
         Regex(
             "(?i)^(?:(?:(?:your|[A-Za-z]+)\\s+)?(?:[A-Za-z]+\\s+)*(?:credit\\s*card|debit\\s*card|card|cc)(?:\\s+ending|\\s+no\\.?|\\s+num|\\s*[*xX0-9]+|\\s*bil+)?.*|" +
                 "(?:card|cc)\\s*[*xX0-9]+.*|" +
+                "(?:a/c|acc|acct|account)\\s*[*xX0-9]+.*|" +
+                "to\\s+(?:a/c|acc|acct|account)\\s*[*xX0-9]+.*|" +
+                "[*xX]{1,12}\\d{3,4}.*|" +
                 ".*(?:autopay|mandate|billpay|credit card payment|credit card bil).*|" +
-                ".*(?:mobile number|secure digital banking).*|" +
-                "(?:HDFC|ICICI|SBI|AXIS|KOTAK|IDFC|PNB|BOB|UCO|YES|AMEX|CITI|RBL)\\s+CARD)$",
+                ".*(?:mobile number|secure digital banking|to know your balance|subject to clearing).*|" +
+                ".*-[Uu][Pp][Ii].*|" +
+                "(?:HDFC|ICICI|SBI|AXIS|KOTAK|IDFC|PNB|BOB|UCO|YES|AMEX|CITI|RBL)\\s+(?:CARD|UPI)|" +
+                "your|transaction|dispute|clearing|making a successful transaction|the amount to be|your end|" +
+                "an\\s+outstanding\\s+of.*|" +
+                "(?:rs\\.?|inr\\.?|₹)\\s*[\\d,.]*|" +
+                "(?:m/s\\.?|mr\\.?|mrs\\.?|ms\\.?|md\\.?|shri|smt)\\.?)$",
         )
 
-    private val DATE_AT_REGEX = Regex("""(?i)^\d{1,2}-[A-Za-z0-9]{3}(?:-\d{2,4})?\s+at\s+(.+)$""")
+    private val DATE_PREFIX_REGEX =
+        Regex(
+            """(?i)^(?:date\s+)?(?:\d{1,2}[A-Za-z]{3}\d{2,4}|\d{1,2}[-/][A-Za-z0-9]{3}[-/]\d{2,4}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}-[A-Za-z0-9]{3})\s+(?:transfer\s+to|trf\s+to|transfer\s+from|trf\s+from|transfer|trf|at|towards|for|to|from|by)\s*(.*)$""",
+        )
 
     fun cleanMerchantDisplay(raw: String?, bank: String?, channel: String?): String {
         if (raw.isNullOrBlank()) {
             return if (!bank.isNullOrBlank()) "$bank ${channel ?: "Txn"}" else "Transaction"
         }
         val trimmed = raw.trim()
+
+        val directAccountPattern =
+            Regex("""(?i)^(?:to\s+)?(?:a/c|acc|acct|account)\s*[*xX]{1,12}(\d{3,4})$""")
+        val directAccountMatch = directAccountPattern.find(trimmed)
+        if (directAccountMatch != null) {
+            return "Account ••${directAccountMatch.groupValues[1]}"
+        }
+
         if (trimmed.matches(ACCOUNT_OR_CARD_NOISE_REGEX)) {
             return if (!bank.isNullOrBlank()) "$bank ${channel ?: "Card"}" else "Transaction"
         }
 
         var candidate = trimmed
-        val dateMatch = DATE_AT_REGEX.find(candidate)
+        val dateMatch = DATE_PREFIX_REGEX.find(candidate)
         if (dateMatch != null && dateMatch.groupValues[1].isNotBlank()) {
             candidate = dateMatch.groupValues[1].trim()
         }
@@ -36,7 +55,7 @@ object TransactionClassifierHelper {
         val words = cleaned.split(Regex("\\s+")).filter { it.isNotBlank() }
         val filtered =
             words.filter { word ->
-                word.uppercase() !in setOf("PVT", "LTD", "LIMITED", "PRIVATE", "INC", "CORP", "VPA", "UPI", "POS")
+                word.uppercase() !in setOf("PVT", "LTD", "LIMITED", "PRIVATE", "INC", "CORP", "VPA", "UPI", "POS", "PRIV")
             }
         val finalWords = if (filtered.isNotEmpty()) filtered else words
         return finalWords.take(4).joinToString(" ") { word ->
@@ -50,6 +69,10 @@ object TransactionClassifierHelper {
         }
         val b = body?.lowercase() ?: ""
         val m = merchant?.lowercase() ?: ""
+
+        if (isRefundNarrative(body, merchant)) {
+            return false
+        }
 
         if (b.contains("spent") || b.contains("used for a transaction") ||
             b.contains("used at") || b.contains("used your") || b.contains("made on")
@@ -109,21 +132,21 @@ object TransactionClassifierHelper {
         if (body.isNullOrBlank()) return null
         val pattern =
             Regex(
-                """(?i)(?:towards|for|to|of)\s+(?:your\s+)?(?:[a-zA-Z]+\s+){0,3}(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
+                """(?i)(?:towards|for|to|of)\s+(?:your\s+)?(?:[a-zA-Z]+\s+){0,3}(?:credit\s*card|card|cc)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
             )
         val match = pattern.find(body)
         if (match != null) return match.groupValues[1]
 
         val autopayPattern =
             Regex(
-                """(?i)\b(?:credit\s*card|card|cc)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b.*?(?:payment|bill|autodebit|auto-debit|autopay|paid)""",
+                """(?i)\b(?:credit\s*card|card|cc)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b.*?(?:payment|bill|autodebit|auto-debit|autopay|paid)""",
             )
         val autopayMatch = autopayPattern.find(body)
         if (autopayMatch != null) return autopayMatch.groupValues[1]
 
         val fallbackPattern =
             Regex(
-                """(?i)(?:credit\s*card|card)\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
+                """(?i)(?:credit\s*card|card)(?:\s+(?:account|a/c|acc))?\s*(?:ending(?:\s+with|\s+in)?|no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b""",
             )
         return fallbackPattern.find(body)?.groupValues?.get(1)
     }
@@ -141,7 +164,14 @@ object TransactionClassifierHelper {
             Regex(
                 """(?i)(?:a/c|acc|acct|account)\s*(?:no\.?|number)?\s*[*xX.\s\-]*(?:[0-9]{2,9}[*xX]+)?([0-9]{3,4})\b\s*(?:has\s+been|is|was)?\s*debited""",
             )
-        return debitedPattern.find(body)?.groupValues?.get(1)
+        val debitedMatch = debitedPattern.find(body)
+        if (debitedMatch != null) return debitedMatch.groupValues[1]
+
+        val debitedFromPattern =
+            Regex(
+                """(?i)debited\s+from\s+(?:a/c|acc|acct|account)?\s*[*xX.\s\-]*([0-9]{3,4})\b""",
+            )
+        return debitedFromPattern.find(body)?.groupValues?.get(1)
     }
 
     fun isTransferNarrative(
@@ -216,6 +246,13 @@ object TransactionClassifierHelper {
         return refundPhrases.any { b.contains(it) || m.contains(it) }
     }
 
+    fun isSalaryOrIncome(b: String, m: String): Boolean {
+        return b.contains("salary") || b.contains("payroll") || b.contains("stipend") ||
+            b.contains("wages") || b.contains("epfo") ||
+            m.contains("wells fargo") || m == "wells" || m.contains("qualcomm") ||
+            (b.contains("clearing") && !b.contains("zerodha") && !b.contains("upi"))
+    }
+
     fun classifyType(
         direction: Direction,
         body: String,
@@ -223,13 +260,35 @@ object TransactionClassifierHelper {
         amountMinor: Long = 0L,
         channel: Channel? = null,
     ): TransactionType {
-        if (isTransferNarrative(body, merchant, amountMinor, channel)) {
-            return TransactionType.Transfer
+        val b = body.lowercase()
+        val m = merchant?.lowercase() ?: ""
+        if (direction == Direction.CREDIT) {
+            if (isRefundNarrative(body, merchant)) {
+                return TransactionType.Refund
+            }
+            if (isCreditCardBillPayment(body, merchant)) {
+                return TransactionType.Refund
+            }
+            if (isTransferNarrative(body, merchant, amountMinor, channel)) {
+                return TransactionType.Refund
+            }
+            val isKnownNonIncome =
+                b.contains("upi") || b.contains("credit alert") ||
+                    b.contains("reversal") || b.contains("cashback") || b.contains("reward") ||
+                    b.contains("vpa") || m.contains("@")
+            if (isKnownNonIncome && !isSalaryOrIncome(b, m)) {
+                return TransactionType.Refund
+            }
+            return TransactionType.Income
+        } else {
+            if (isTransferNarrative(body, merchant, amountMinor, channel)) {
+                return TransactionType.Transfer
+            }
+            if (isRefundNarrative(body, merchant)) {
+                return TransactionType.Refund
+            }
+            return TransactionType.Expense
         }
-        if (isRefundNarrative(body, merchant)) {
-            return TransactionType.Refund
-        }
-        return if (direction == Direction.CREDIT) TransactionType.Income else TransactionType.Expense
     }
 
     fun guessCategory(
@@ -240,8 +299,6 @@ object TransactionClassifierHelper {
         body: String? = null,
         userRules: Map<String, String> = emptyMap(),
     ): String {
-        if (isTransfer) return "Transfer"
-        if (isRefund) return "Refund"
         val m = merchant.trim().lowercase()
         val b = body?.lowercase() ?: ""
 
@@ -254,9 +311,22 @@ object TransactionClassifierHelper {
             }?.value
         if (partialMatch != null) return partialMatch
 
+        if (isCreditCardBillPayment(b, m) || b.contains("credit card bil") || b.contains("card bill")) {
+            return "Bill Payment"
+        }
+
+        if (isRefund || isRefundNarrative(b, m)) {
+            return "Refund"
+        }
+
         if (isCredit) {
             return guessInwardCategory(m, b)
         }
+
+        if (isTransfer) {
+            return "Transfer"
+        }
+
         return guessExpenseCategory(m)
     }
 
@@ -266,6 +336,7 @@ object TransactionClassifierHelper {
         }
         if (b.contains("salary") || b.contains("payroll") || b.contains("stipend") ||
             b.contains("wages") || b.contains("epfo") ||
+            m.contains("wells fargo") || m == "wells" || m.contains("qualcomm") ||
             (b.contains("clearing") && !b.contains("zerodha"))
         ) {
             return "Salary"
@@ -323,6 +394,7 @@ object TransactionClassifierHelper {
                 m.contains("bescom") || m.contains("electricity") || m.contains("water") ||
                 m.contains("gas") || m.contains("broadband") || m.contains("bill") ||
                 m.contains("urban company") || m.contains("urbanclap") ||
+                m.contains("waterwala") || m.contains("auto debit") || m.contains("bill payment") ||
                 m.contains("mygate") -> "Bills & Utilities"
 
             m.contains("seva") || m.contains("donation") || m.contains("foundation") ||
@@ -339,7 +411,10 @@ object TransactionClassifierHelper {
             m.contains("zerodha") || m.contains("groww") || m.contains("mutual") ||
                 m.contains("sip") || m.contains("indmoney") || m.contains("upstox") -> "Investments"
 
-            else -> "Other"
+            m.contains("atm") || m.contains("cash wdl") || m.contains("cash withdrawal") ||
+                m.contains("other") || m.contains("misc") -> "Other"
+
+            else -> "Unknown Category"
         }
     }
 }

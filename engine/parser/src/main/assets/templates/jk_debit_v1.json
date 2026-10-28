@@ -1,0 +1,10 @@
+{
+  "id": "jk_debit_v1",
+  "bank": "J&K BANK",
+  "senderPatterns": ["^[A-Za-z]{2}-?(JKBANK)$"],
+  "direction": "DEBIT",
+  "channel": "UPI",
+  "regex": "(?i)(?:Your\\s+)?A/c\\s+[X*]*(?<last4>\\d{4})\\s+debited\\s+by\\s+(?:Rs\\.?|INR|₹)?\\s*(?<amount>[\\d,]+\\.?\\d*)\\s+on\\s+(?<date>\\d{2}[-/]\\d{2}[-/]\\d{2,4})\\.\\s*(?:Transfer\\s+to\\s+|to\\s+)(?<merchant>[^.\\n]+?)(?:\\.\\s*Bal:?\\s*(?:Rs\\.?|INR|₹)?\\s*(?<balance>[\\d,]+\\.?\\d*))?",
+  "dateFormats": ["dd-MM-yyyy", "dd-MM-yy", "dd/MM/yyyy"],
+  "confidence": 0.95
+}

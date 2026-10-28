@@ -1696,4 +1696,86 @@ class SmsParserTest {
         assertEquals("pany@ptybl", txn.merchantRaw)
         assertEquals("185726917017", txn.refNumber)
     }
+
+    @Test
+    fun testHdfcSentRsUpiDebitTemplate() {
+        val sms =
+            RawSms(
+                id = 82,
+                sender = "VM-HDFCBK-S",
+                body = "Sent Rs.80000.00 From HDFC Bank A/C *1999 To MUTUAL FUNDS NCL on 24-10-24. UPI Ref 123456789012",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(8000000L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("1999", txn.accountLast4)
+        assertEquals(Channel.UPI, txn.channel)
+        assertEquals("HDFC", txn.bankName)
+        assertEquals("MUTUAL FUNDS NCL", txn.merchantRaw)
+        assertEquals("123456789012", txn.refNumber)
+    }
+
+    @Test
+    fun testIciciAccountCreditTemplate() {
+        val sms =
+            RawSms(
+                id = 84,
+                sender = "VM-ICICIB",
+                body = "ICICI Bank Account XX321 is credited with Rs 50,000.00 on 22-MAY-26 by transfer from Employer. Avl Bal Rs 1,50,000.00",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(5000000L, txn.amountMinor)
+        assertEquals(Direction.CREDIT, txn.direction)
+        assertEquals("321", txn.accountLast4)
+        assertEquals("ICICI", txn.bankName)
+    }
+
+    @Test
+    fun testIciciCardSpendOnTemplate() {
+        val sms =
+            RawSms(
+                id = 85,
+                sender = "BG-ICICIT-S",
+                body = "Rs 12,999.00 spent on ICICI Bank Card XX3006 on 04-Oct-26 at GOOGLE STORE. Avl Limit: Rs 80,000.00",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1299900L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("3006", txn.accountLast4)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("ICICI", txn.bankName)
+        assertEquals("GOOGLE STORE", txn.merchantRaw)
+    }
+
+    @Test
+    fun testIciciCardPaymentAckTemplate() {
+        val sms =
+            RawSms(
+                id = 86,
+                sender = "AD-ICICIT-S",
+                body = "Dear Customer, thank you for payment of INR 11,311.00 towards ICICI Bank Credit Card Account XX1268 on 04-Oct-26",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1131100L, txn.amountMinor)
+        assertEquals(Direction.CREDIT, txn.direction)
+        assertEquals("1268", txn.accountLast4)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("ICICI", txn.bankName)
+    }
 }

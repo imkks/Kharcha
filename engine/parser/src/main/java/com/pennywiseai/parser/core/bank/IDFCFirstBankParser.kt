@@ -21,12 +21,8 @@ class IDFCFirstBankParser : BaseIndianBankParser() {
 
     override fun getBankName() = "IDFC First Bank"
 
-    override fun canHandle(sender: String): Boolean {
-        val normalizedSender = sender.uppercase()
-        return normalizedSender.contains("IDFCBK") ||
-                normalizedSender.contains("IDFCFB") ||
-                normalizedSender.contains("IDFC")
-    }
+    override fun canHandle(sender: String): Boolean =
+        sender.contains("IDFC", ignoreCase = true)
 
     override fun parse(smsBody: String, sender: String, timestamp: Long): ParsedTransaction? {
         // Skip non-transaction messages
@@ -138,7 +134,13 @@ class IDFCFirstBankParser : BaseIndianBankParser() {
         // Skip bill reminders and due date notifications
         if (lowerMessage.contains("reminder") ||
             lowerMessage.contains("is due on") ||
-            lowerMessage.contains("bill of rs") && lowerMessage.contains("due")
+            lowerMessage.contains("due by") ||
+            lowerMessage.contains("payment due") ||
+            lowerMessage.contains("total due") ||
+            lowerMessage.contains("min due") ||
+            lowerMessage.contains("estatement") ||
+            lowerMessage.contains("e-statement") ||
+            (lowerMessage.contains("bill of rs") && lowerMessage.contains("due"))
         ) {
             return false
         }
@@ -158,11 +160,22 @@ class IDFCFirstBankParser : BaseIndianBankParser() {
         // Must contain transaction keywords - IDFC specific patterns
         val transactionKeywords = listOf(
             "debit", "debited", "credited", "withdrawn", "deposited",
-            "spent", "received", "transferred", "paid", "payment", "interest",
+            "spent", "received", "transferred", "paid", "interest",
             "refund", "refunded"
         )
 
-        return transactionKeywords.any { lowerMessage.contains(it) }
+        if (transactionKeywords.any { lowerMessage.contains(it) }) {
+            return true
+        }
+
+        // Real credit card bill payment acknowledgments (e.g., "Thank you for payment of INR ... towards your ... Credit Card")
+        if (lowerMessage.contains("thank you for payment") ||
+            (lowerMessage.contains("payment of") && lowerMessage.contains("credit card") && !lowerMessage.contains("due"))
+        ) {
+            return true
+        }
+
+        return false
     }
 
     override fun extractTransactionType(message: String): TransactionType? {

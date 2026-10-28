@@ -1654,6 +1654,47 @@ class SmsParserTest {
     }
 
     @Test
+    fun testIdfcEStatementDueMessageMustNotBeTracked() {
+        val sms =
+            RawSms(
+                id = 201,
+                sender = "AD-IDFCFB-S",
+                body = """The eStatement for your FIRST Wealth Credit Card XX5625 is here https://idfcfr.in/IDFCFB/pFjq11
+To access eStatement use your date of birth in DDMM format
+Payment Due by 04-11-2026
+Min Due: INR 707.00
+Total Due: INR 35,330.41
+Click to pay: https://idfcfr.in/IDFCFB/fztZ8n
+IDFC FIRST Bank""",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("eStatement / Due reminder must NOT be tracked as a transaction", result !is ParseResult.Success)
+    }
+
+    @Test
+    fun testIciciKrishnaKumarSMessageMustBeTracked() {
+        val sms =
+            RawSms(
+                id = 202,
+                sender = "AD-ICICIT-S",
+                body = "ICICI Bank Acct XX321 debited for Rs 80000.00 on 22-Oct-26; KRISHNA KUMAR S credited. UPI:218683710640. Call 18002662 for dispute. SMS BLOCK 321 to 9215676766.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue("Legitimate ICICI debit transaction must be tracked", result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(8000000L, txn.amountMinor)
+        assertEquals(Direction.DEBIT, txn.direction)
+        assertEquals("321", txn.accountLast4)
+        assertEquals("KRISHNA KUMAR S", txn.merchantRaw)
+        assertEquals(Channel.UPI, txn.channel)
+        assertEquals("ICICI", txn.bankName)
+    }
+
+    @Test
     fun testIdfcCreditCardRefundNumericDateMessage() {
         val sms =
             RawSms(

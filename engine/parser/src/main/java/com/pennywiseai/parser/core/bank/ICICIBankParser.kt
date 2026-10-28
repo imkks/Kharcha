@@ -144,22 +144,8 @@ class ICICIBankParser : BaseIndianBankParser() {
         return null
     }
 
-    override fun canHandle(sender: String): Boolean {
-        val normalizedSender = sender.uppercase()
-        return normalizedSender.contains("ICICI") ||
-                normalizedSender.contains("ICICIB") ||
-                // DLT patterns for transactions (-S suffix)
-                normalizedSender.matches(Regex("^[A-Z]{2}-ICICIB-S$")) ||
-                normalizedSender.matches(Regex("^[A-Z]{2}-ICICI-S$")) ||
-                // Other DLT patterns
-                normalizedSender.matches(Regex("^[A-Z]{2}-ICICIB-[TPG]$")) ||
-                // Legacy patterns
-                normalizedSender.matches(Regex("^[A-Z]{2}-ICICIB$")) ||
-                normalizedSender.matches(Regex("^[A-Z]{2}-ICICI$")) ||
-                // Direct sender IDs
-                normalizedSender == "ICICIB" ||
-                normalizedSender == "ICICIBANK"
-    }
+    override fun canHandle(sender: String): Boolean =
+        sender.contains("ICICI", ignoreCase = true)
 
     override fun extractAmount(message: String): BigDecimal? {
         // Pattern 1: Multi-currency support - "USD 11.80 spent" or "EUR 50.00 spent"

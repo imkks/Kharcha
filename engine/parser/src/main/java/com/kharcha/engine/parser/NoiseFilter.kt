@@ -33,12 +33,13 @@ object NoiseFilter {
         Regex("(?i)\\b(a/c|account|ending|card|\\*+|x+|upi\\s+ref|utr|neft|imps|rtgs)\\b")
     private val winCongratRegex = Regex("(?i)\\b(congratulations|congrats|won|win\\b)\\b")
     private val reminderRegex =
-        Regex("(?i)\\b(reminder|due date|minimum due|min amount due|minimum amount due|overdue|in arrears|ignore if paid|pls pay)\\b")
+        Regex("(?i)\\b(reminder|due date|payment due|min due|total due|minimum due|min amount due|minimum amount due|overdue|in arrears|ignore if paid|pls pay)\\b")
     private val statementAlertRegex =
         Regex(
             "(?i)\\b(?:credit\\s+card|card)\\s+[x\\*\\d]+\\s+statement\\s+is\\s+sent\\b|" +
                 "\\bstatement\\s+is\\s+sent\\s+to\\b|" +
-                "\\b(?:e-?statement|monthly\\s+statement)\\b.*\\b(?:sent|generated|due)\\b|" +
+                "(?s)\\b(?:e-?statement|monthly\\s+statement)\\b.*\\b(?:sent|generated|due|here)\\b|" +
+                "\\b(?:e-?statement|monthly\\s+statement)\\b|" +
                 "\\btotal\\s+(?:of\\s+)?(?:rs\\.?|inr|₹)?\\s*[\\d,]+\\.?\\d*\\s+or\\s+minimum\\s+" +
                 "(?:of\\s+)?(?:rs\\.?|inr|₹)?\\s*[\\d,]+\\.?\\d*\\s+is\\s+due\\b",
         )

@@ -27,7 +27,7 @@ abstract class BankParser {
         /** A verb saying money actually moved — used to tell a payment from a reminder. */
         val COMPLETED_MONEY_VERB = Regex(
             """\b(debited|deducted|credited|deposited|withdrawn|spent|received|transferred|""" +
-                """sent|charged|used|refunded|reversed|paid|payment|purchased)\b"""
+                """sent|charged|used|refunded|reversed|paid|purchased)\b"""
         )
     }
 
@@ -228,20 +228,28 @@ abstract class BankParser {
         // …"), so only skip when no completed-money verb is present. The list
         // covers every completed verb the parsers recognise; word boundaries so
         // the "paid" inside "Postpaid" doesn't count.
-        if (lowerMessage.contains("due on") && !COMPLETED_MONEY_VERB.containsMatchIn(lowerMessage)) {
+        if ((lowerMessage.contains("due on") || lowerMessage.contains("due by") || lowerMessage.contains("payment due")) &&
+            !COMPLETED_MONEY_VERB.containsMatchIn(lowerMessage)
+        ) {
             return true
         }
 
-        // Skip payment reminder/due messages
-        if (lowerMessage.contains("is due") ||
-            lowerMessage.contains("min amount due") ||
-            lowerMessage.contains("minimum amount due") ||
-            lowerMessage.contains("in arrears") ||
-            lowerMessage.contains("is overdue") ||
-            lowerMessage.contains("ignore if paid") ||
-            (lowerMessage.contains("pls pay") && lowerMessage.contains("min of"))
-        ) {
-            return true
+        // Skip payment reminder/due messages when no completed money verb or refund is present
+        if (!COMPLETED_MONEY_VERB.containsMatchIn(lowerMessage) && !lowerMessage.contains("refund")) {
+            if (lowerMessage.contains("is due") ||
+                lowerMessage.contains("min amount due") ||
+                lowerMessage.contains("minimum amount due") ||
+                lowerMessage.contains("min due") ||
+                lowerMessage.contains("total due") ||
+                lowerMessage.contains("in arrears") ||
+                lowerMessage.contains("is overdue") ||
+                lowerMessage.contains("ignore if paid") ||
+                lowerMessage.contains("estatement") ||
+                lowerMessage.contains("e-statement") ||
+                (lowerMessage.contains("pls pay") && lowerMessage.contains("min of"))
+            ) {
+                return true
+            }
         }
 
         return false

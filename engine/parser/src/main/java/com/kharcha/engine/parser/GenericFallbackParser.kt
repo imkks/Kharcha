@@ -138,7 +138,9 @@ class GenericFallbackParser {
         val upiId = upiMatch?.groupValues?.get(1)
 
         val refMatch =
-            Regex("(?i)(?:ref(?:erence)?(?:\\s*(?:no|num|#))?|txn|rrn)[\\s:.]*([a-zA-Z0-9]{6,20})").find(body)
+            Regex(
+                "(?i)(?:upi(?:\\s*ref(?:erence)?(?:\\s*(?:no|num|#))?)?|ref(?:erence)?(?:\\s*(?:no|num|#))?|txn|rrn)[\\s:.]*([a-zA-Z0-9]{6,20})",
+            ).find(body)
         var refNumber = refMatch?.groupValues?.get(1)
 
         val balMatch =
@@ -174,9 +176,23 @@ class GenericFallbackParser {
             }
         }
 
-        val vpaPattern = Regex("(?i)\\bvpa\\s+([a-zA-Z0-9.\\-_@]+)").find(contentBody)
+        val vpaPattern = Regex("(?i)\\bvpa\\s+([*a-zA-Z0-9.\\-_@]+)").find(contentBody)
         if (merchantRaw == null && vpaPattern != null) {
-            merchantRaw = vpaPattern.groupValues[1].trim()
+            merchantRaw = vpaPattern.groupValues[1].trim().trimStart('*')
+        }
+
+        if (merchantRaw == null) {
+            val refundMerchantMatch =
+                Regex(
+                    """(?i)\b([A-Za-z0-9.\-_/&* ]{2,40}?)\s+refund\s+of\s+(?:rs\.?|inr|₹)""",
+                ).find(contentBody)
+            if (refundMerchantMatch != null) {
+                val candidate = refundMerchantMatch.groupValues[1].trim()
+                val cleaned = CardAccountExtractionHelper.cleanCandidateMerchant(candidate)
+                if (cleaned != null) {
+                    merchantRaw = cleaned
+                }
+            }
         }
 
         if (merchantRaw == null) {

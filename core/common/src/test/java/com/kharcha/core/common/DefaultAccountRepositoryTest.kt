@@ -261,4 +261,40 @@ class DefaultAccountRepositoryTest {
             assertEquals("8302", account.last4)
             assertEquals("HDFC Card ••8302", account.name)
         }
+
+    @Test
+    fun consolidates3DigitAnd4DigitMaskedAccounts() =
+        runTest(testDispatcher) {
+            val first =
+                repository.resolveOrCreateAccount(
+                    bankName = "ICICI",
+                    last4 = "321",
+                    channel = Channel.UPI,
+                    smsBody = "ICICI Bank Acct XX321 debited for Rs 96808.63",
+                )
+            assertEquals("321", first.last4)
+            assertEquals("ICICI ••321", first.name)
+
+            val second =
+                repository.resolveOrCreateAccount(
+                    bankName = "ICICI",
+                    last4 = "4321",
+                    channel = Channel.UPI,
+                    smsBody = "ICICI Bank Acct XX4321 debited for Rs 500.00",
+                )
+            assertEquals(first.id, second.id)
+            assertEquals("4321", second.last4)
+            assertEquals("ICICI ••4321", second.name)
+
+            val third =
+                repository.resolveOrCreateAccount(
+                    bankName = "ICICI",
+                    last4 = "321",
+                    channel = Channel.UPI,
+                    smsBody = "ICICI Bank Acct XX321 debited for Rs 100.00",
+                )
+            assertEquals(first.id, third.id)
+            assertEquals("4321", third.last4)
+            assertEquals(1, repository.getAccountsSync().size)
+        }
 }

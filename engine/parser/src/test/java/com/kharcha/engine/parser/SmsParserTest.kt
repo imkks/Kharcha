@@ -1633,4 +1633,67 @@ class SmsParserTest {
         assertEquals("621717806116", txn.refNumber)
         assertEquals("ICICI", txn.bankName)
     }
+
+    @Test
+    fun testIdfcCreditCardRefundNumericDateMessage() {
+        val sms =
+            RawSms(
+                id = 79,
+                sender = "AX-IDFCFB-S",
+                body = "Transaction of INR 1599.00 is refunded to IDFC FIRST Bank Credit Card XX5625 on 28-08-2026. Please refer to your email for details.",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(159900L, txn.amountMinor)
+        assertEquals(Direction.CREDIT, txn.direction)
+        assertEquals("5625", txn.accountLast4)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("IDFC", txn.bankName)
+    }
+
+    @Test
+    fun testIciciCreditCardRefundMessageWithMerchant() {
+        val sms =
+            RawSms(
+                id = 80,
+                sender = "AD-ICICIT-S",
+                body = "Zepto Marketplace Priv refund of Rs 189.00 credited to ICICI Bank Credit Card XX3006 on 22-MAY-26. Revised total due Rs 14,568.00, minimum due Rs 493.00",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(18900L, txn.amountMinor)
+        assertEquals(Direction.CREDIT, txn.direction)
+        assertEquals("3006", txn.accountLast4)
+        assertEquals(Channel.CARD, txn.channel)
+        assertEquals("ICICI", txn.bankName)
+        assertEquals("Zepto Marketplace Priv", txn.merchantRaw)
+    }
+
+    @Test
+    fun testHdfcUpiCreditAlertWithVpaMessage() {
+        val sms =
+            RawSms(
+                id = 81,
+                sender = "VM-HDFCBK-S",
+                body = "Credit Alert! Rs.2511.00 credited to HDFC Bank A/c XX1999 on 21-10-26 from VPA *pany@ptybl (UPI 185726917017)",
+                receivedAt = 1792897200000L,
+                subId = null,
+            )
+        val result = parser.parse(sms)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(251100L, txn.amountMinor)
+        assertEquals(Direction.CREDIT, txn.direction)
+        assertEquals("1999", txn.accountLast4)
+        assertEquals(Channel.UPI, txn.channel)
+        assertEquals("HDFC", txn.bankName)
+        assertEquals("pany@ptybl", txn.merchantRaw)
+        assertEquals("185726917017", txn.refNumber)
+    }
 }

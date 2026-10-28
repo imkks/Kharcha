@@ -331,7 +331,9 @@ object CardAccountExtractionHelper {
             s.contains("JUPITER") || b.contains("JUPITER") -> "JUPITER"
             s.contains("FI") || b.contains("FI MONEY") -> "FI"
             s.contains("PAYTM") || b.contains("PAYTM") -> "PAYTM"
-            s.contains("AIRTEL") || b.contains("AIRTEL") -> "AIRTEL"
+            s.contains("AIRBNK") || s.contains("AIRTELPB") || s.contains("APBLTD") ||
+                b.contains("AIRTEL PAYMENTS BANK") || b.contains("AIRTEL BANK") || b.contains("AIRTEL MONEY") ||
+                (s.contains("AIRTEL") && (b.contains("PAYMENTS BANK") || b.contains("SAVINGS") || b.contains("WALLET A/C"))) -> "AIRTEL"
             else -> null
         }
     }

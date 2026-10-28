@@ -31,7 +31,7 @@ class TransactionClassifierHelperTest {
             direction = Direction.CREDIT,
             body = "Payment of Rs 15,000 received towards your HDFC Bank Credit Card ending 9876",
         )
-        assertEquals(TransactionType.Transfer, cardBillReceivedType)
+        assertEquals(TransactionType.Refund, cardBillReceivedType)
 
         val credType = TransactionClassifierHelper.classifyType(
             direction = Direction.DEBIT,
@@ -231,5 +231,56 @@ class TransactionClassifierHelperTest {
         assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Bill Payment", isCredit = false))
         assertEquals("Other", TransactionClassifierHelper.guessCategory("SBI ATM", isCredit = false))
         assertEquals("Other", TransactionClassifierHelper.guessCategory("Cash Withdrawal", isCredit = false))
+
+        // Credit Card Bill Payment inward message: category Bill Payment & type Refund (non-income credit)
+        val ccBillPaymentBody = "Thank you for payment of INR 10,641.62 towards your FIRST Wealth Credit Card XX5625 on 05 Jun 2026. IDFC FIRST Bank"
+        val ccBillCat = TransactionClassifierHelper.guessCategory(
+            merchant = "IDFC FIRST Bank",
+            isCredit = true,
+            body = ccBillPaymentBody,
+        )
+        assertEquals("Bill Payment", ccBillCat)
+        val ccBillType = TransactionClassifierHelper.classifyType(
+            direction = Direction.CREDIT,
+            body = ccBillPaymentBody,
+            merchant = "IDFC FIRST Bank",
+        )
+        assertEquals(TransactionType.Refund, ccBillType)
+
+        // Zepto Refund message: category Refund & type Refund
+        val zeptoBody = "Zepto Marketplace Priv refund of Rs 189.00 credited to ICICI Bank Credit Card XX3006 on 22-MAY-26."
+        val zeptoCat = TransactionClassifierHelper.guessCategory(
+            merchant = "Zepto Marketplace Priv",
+            isCredit = true,
+            body = zeptoBody,
+        )
+        assertEquals("Refund", zeptoCat)
+        val zeptoType = TransactionClassifierHelper.classifyType(
+            direction = Direction.CREDIT,
+            body = zeptoBody,
+            merchant = "Zepto Marketplace Priv",
+        )
+        assertEquals(TransactionType.Refund, zeptoType)
+        val zeptoCleanedName = TransactionClassifierHelper.cleanMerchantDisplay(
+            raw = "Zepto Marketplace Priv",
+            bank = "ICICI",
+            channel = "CARD",
+        )
+        assertEquals("Zepto Marketplace", zeptoCleanedName)
+
+        // HDFC VPA credit alert: category A/C Transfer & type Refund (non-income credit)
+        val hdfcAlertBody = "Credit Alert! Rs.2511.00 credited to HDFC Bank A/c XX1999 on 21-10-26 from VPA *pany@ptybl (UPI 185726917017)"
+        val alertCat = TransactionClassifierHelper.guessCategory(
+            merchant = "pany@ptybl",
+            isCredit = true,
+            body = hdfcAlertBody,
+        )
+        assertEquals("A/C Transfer", alertCat)
+        val alertType = TransactionClassifierHelper.classifyType(
+            direction = Direction.CREDIT,
+            body = hdfcAlertBody,
+            merchant = "pany@ptybl",
+        )
+        assertEquals(TransactionType.Refund, alertType)
     }
 }

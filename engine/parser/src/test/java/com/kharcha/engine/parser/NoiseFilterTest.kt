@@ -271,5 +271,26 @@ class NoiseFilterTest {
         val telecomResult = NoiseFilter.filter(telecomSms)
         assertNotNull(telecomResult)
         assertEquals(IgnoreReason.REMINDER, (telecomResult as ParseResult.Ignored).reason)
+
+        val airtelWifiSms =
+            RawSms(
+                id = 20,
+                sender = "AIRTEL",
+                body = "Welcome to Airtel! Your Wi-Fi ID 061235610931_wifi is now activated. Your plan details are:\n" +
+                    "Connection type: Postpaid\n" +
+                    "Plan rental: Rs 799 /month (excluding GST)\n" +
+                    "1st bill generation date: 02/09/2026\n" +
+                    "Plan quota: Unlimited GB\n" +
+                    "Plan speed: 100 Mbps\n" +
+                    "Advance Amount Paid: 2500\n" +
+                    "Registered mobile no.: 8235622860\n" +
+                    "Registered Email ID : imkrsh007@gmail.com\n" +
+                    "Note : Advance amount paid will be adjusted in upcoming monthly bills.",
+                receivedAt = 1000L,
+                subId = null,
+            )
+        val airtelWifiResult = NoiseFilter.filter(airtelWifiSms)
+        assertNotNull(airtelWifiResult)
+        assertEquals(IgnoreReason.NOT_A_TRANSACTION, (airtelWifiResult as ParseResult.Ignored).reason)
     }
 }

@@ -55,7 +55,7 @@ object TransactionClassifierHelper {
         val words = cleaned.split(Regex("\\s+")).filter { it.isNotBlank() }
         val filtered =
             words.filter { word ->
-                word.uppercase() !in setOf("PVT", "LTD", "LIMITED", "PRIVATE", "INC", "CORP", "VPA", "UPI", "POS")
+                word.uppercase() !in setOf("PVT", "LTD", "LIMITED", "PRIVATE", "INC", "CORP", "VPA", "UPI", "POS", "PRIV")
             }
         val finalWords = if (filtered.isNotEmpty()) filtered else words
         return finalWords.take(4).joinToString(" ") { word ->
@@ -69,6 +69,10 @@ object TransactionClassifierHelper {
         }
         val b = body?.lowercase() ?: ""
         val m = merchant?.lowercase() ?: ""
+
+        if (isRefundNarrative(body, merchant)) {
+            return false
+        }
 
         if (b.contains("spent") || b.contains("used for a transaction") ||
             b.contains("used at") || b.contains("used your") || b.contains("made on")
@@ -242,6 +246,13 @@ object TransactionClassifierHelper {
         return refundPhrases.any { b.contains(it) || m.contains(it) }
     }
 
+    fun isSalaryOrIncome(b: String, m: String): Boolean {
+        return b.contains("salary") || b.contains("payroll") || b.contains("stipend") ||
+            b.contains("wages") || b.contains("epfo") ||
+            m.contains("wells fargo") || m == "wells" || m.contains("qualcomm") ||
+            (b.contains("clearing") && !b.contains("zerodha") && !b.contains("upi"))
+    }
+
     fun classifyType(
         direction: Direction,
         body: String,
@@ -249,13 +260,35 @@ object TransactionClassifierHelper {
         amountMinor: Long = 0L,
         channel: Channel? = null,
     ): TransactionType {
-        if (isTransferNarrative(body, merchant, amountMinor, channel)) {
-            return TransactionType.Transfer
+        val b = body.lowercase()
+        val m = merchant?.lowercase() ?: ""
+        if (direction == Direction.CREDIT) {
+            if (isRefundNarrative(body, merchant)) {
+                return TransactionType.Refund
+            }
+            if (isCreditCardBillPayment(body, merchant)) {
+                return TransactionType.Refund
+            }
+            if (isTransferNarrative(body, merchant, amountMinor, channel)) {
+                return TransactionType.Refund
+            }
+            val isKnownNonIncome =
+                b.contains("upi") || b.contains("credit alert") ||
+                    b.contains("reversal") || b.contains("cashback") || b.contains("reward") ||
+                    b.contains("vpa") || m.contains("@")
+            if (isKnownNonIncome && !isSalaryOrIncome(b, m)) {
+                return TransactionType.Refund
+            }
+            return TransactionType.Income
+        } else {
+            if (isTransferNarrative(body, merchant, amountMinor, channel)) {
+                return TransactionType.Transfer
+            }
+            if (isRefundNarrative(body, merchant)) {
+                return TransactionType.Refund
+            }
+            return TransactionType.Expense
         }
-        if (isRefundNarrative(body, merchant)) {
-            return TransactionType.Refund
-        }
-        return if (direction == Direction.CREDIT) TransactionType.Income else TransactionType.Expense
     }
 
     fun guessCategory(
@@ -266,8 +299,6 @@ object TransactionClassifierHelper {
         body: String? = null,
         userRules: Map<String, String> = emptyMap(),
     ): String {
-        if (isTransfer) return "Transfer"
-        if (isRefund) return "Refund"
         val m = merchant.trim().lowercase()
         val b = body?.lowercase() ?: ""
 
@@ -280,9 +311,22 @@ object TransactionClassifierHelper {
             }?.value
         if (partialMatch != null) return partialMatch
 
+        if (isCreditCardBillPayment(b, m) || b.contains("credit card bil") || b.contains("card bill")) {
+            return "Bill Payment"
+        }
+
+        if (isRefund || isRefundNarrative(b, m)) {
+            return "Refund"
+        }
+
         if (isCredit) {
             return guessInwardCategory(m, b)
         }
+
+        if (isTransfer) {
+            return "Transfer"
+        }
+
         return guessExpenseCategory(m)
     }
 

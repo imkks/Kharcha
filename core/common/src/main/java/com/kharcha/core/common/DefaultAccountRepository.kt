@@ -127,17 +127,25 @@ class DefaultAccountRepository(
 
             val existingIndex =
                 currentList.indexOfFirst { acc ->
+                    val accLast4 = acc.last4
+                    val accBank = acc.bankName
                     val sameType = acc.type == type
                     val sameLast4 =
-                        resolvedLast4 != null && acc.last4 != null &&
-                            acc.last4.equals(resolvedLast4, ignoreCase = true)
+                        resolvedLast4 != null && accLast4 != null &&
+                            (accLast4.equals(resolvedLast4, ignoreCase = true) ||
+                                (accLast4.length >= 3 && resolvedLast4.length >= 3 &&
+                                    (accLast4.endsWith(resolvedLast4, ignoreCase = true) ||
+                                        resolvedLast4.endsWith(accLast4, ignoreCase = true))))
                     val sameBank =
-                        resolvedBank != null && acc.bankName != null &&
-                            acc.bankName.equals(resolvedBank, ignoreCase = true)
+                        resolvedBank != null && accBank != null &&
+                            AccountAutoLinker.normalizeBank(accBank).equals(
+                                AccountAutoLinker.normalizeBank(resolvedBank),
+                                ignoreCase = true,
+                            )
 
-                    if (resolvedLast4 != null && acc.last4 != null) {
-                        sameType && sameLast4 && (sameBank || acc.bankName == null || resolvedBank == null)
-                    } else if (resolvedBank != null && acc.bankName != null) {
+                    if (resolvedLast4 != null && accLast4 != null) {
+                        sameType && sameLast4 && (sameBank || accBank == null || resolvedBank == null)
+                    } else if (resolvedBank != null && accBank != null) {
                         sameType && sameBank
                     } else {
                         false
@@ -152,15 +160,40 @@ class DefaultAccountRepository(
                 val shouldUpdateBalance =
                     balanceMinor != null && (lastUpdated == null || now >= lastUpdated)
 
-                val updated =
-                    if (shouldUpdateBalance) {
-                        existing.copy(
-                            currentBalance = balanceMinor,
-                            balanceUpdatedAt = now,
-                        )
+                val shouldUpgradeLast4 =
+                    resolvedLast4 != null && (existing.last4 == null || resolvedLast4.length > (existing.last4?.length ?: 0))
+                val newLast4 = if (shouldUpgradeLast4) resolvedLast4 else existing.last4
+                val newBankName = existing.bankName ?: resolvedBank
+                val newName =
+                    if (shouldUpgradeLast4) {
+                        when (existing.type) {
+                            AccountType.CreditCard -> {
+                                val bankPart = newBankName ?: "Credit"
+                                val last4Part = newLast4?.let { " ••$it" } ?: ""
+                                "$bankPart Card$last4Part"
+                            }
+                            AccountType.Wallet -> {
+                                val walletPart = newBankName ?: "Digital"
+                                "$walletPart Wallet"
+                            }
+                            else -> {
+                                val bankPart = newBankName ?: "Bank"
+                                val last4Part = newLast4?.let { " ••$it" } ?: ""
+                                "$bankPart$last4Part"
+                            }
+                        }
                     } else {
-                        existing
+                        existing.name
                     }
+
+                val updated =
+                    existing.copy(
+                        name = newName,
+                        bankName = newBankName,
+                        last4 = newLast4,
+                        currentBalance = if (shouldUpdateBalance) balanceMinor else existing.currentBalance,
+                        balanceUpdatedAt = if (shouldUpdateBalance) now else existing.balanceUpdatedAt,
+                    )
                 currentList[existingIndex] = updated
                 primaryAccount = updated
             } else {

@@ -158,6 +158,7 @@ fun MainAppShell(
     var showReportSmsScreen by rememberSaveable { mutableStateOf(false) }
     var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(false) }
     var showSetBudgetSheet by rememberSaveable { mutableStateOf(false) }
+    var showSplitInfoDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
     var transactionsFilter by remember { mutableStateOf(TransactionFilter()) }
     var transactionsYearMonth by remember { mutableStateOf<YearMonth?>(YearMonth.now()) }
@@ -178,6 +179,7 @@ fun MainAppShell(
         BackHandler(enabled = showReviewQueue) { showReviewQueue = false }
         BackHandler(enabled = showAddTransactionDialog) { showAddTransactionDialog = false }
         BackHandler(enabled = showSetBudgetSheet) { showSetBudgetSheet = false }
+        BackHandler(enabled = showSplitInfoDialog) { showSplitInfoDialog = false }
         BackHandler(
             enabled = currentDestination != AppDestination.HOME &&
                 selectedTransactionForDetail == null &&
@@ -340,6 +342,9 @@ fun MainAppShell(
                         }
                     },
                     onAccountClick = { selectedAccountForDetail = it },
+                    onProfileClick = { currentDestination = AppDestination.MORE },
+                    onDuesClick = { currentDestination = AppDestination.INSIGHTS },
+                    onSplitClick = { showSplitInfoDialog = true },
                 )
             }
 
@@ -580,6 +585,36 @@ fun MainAppShell(
             },
         )
     }
+
+    if (showSplitInfoDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showSplitInfoDialog = false },
+            title = { Text(text = "Split Expenses") },
+            text = {
+                Text(
+                    text = "To split a bill, tap on any transaction from your Transactions list and tap 'Split Bill' to calculate individual shares and track group settlements.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.Button(
+                    onClick = {
+                        showSplitInfoDialog = false
+                        currentDestination = AppDestination.TRANSACTIONS
+                    },
+                ) {
+                    Text(text = "Go to Transactions")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { showSplitInfoDialog = false },
+                ) {
+                    Text(text = "Close")
+                }
+            },
+        )
+    }
 }
 }
 
@@ -625,6 +660,7 @@ fun BoxDestinationContent(
     onSplitClick: () -> Unit = {},
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((Long, Set<Long>) -> Unit)? = null,
     onMergeDuplicateAccounts: ((Long, Long) -> Unit)? = null,
@@ -655,6 +691,7 @@ fun BoxDestinationContent(
                 onSplitClick = onSplitClick,
                 onDepositClick = onDepositClick,
                 onDuesClick = onDuesClick,
+                onProfileClick = onProfileClick,
                 modifier = modifier,
             )
         }

@@ -14,6 +14,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -22,6 +26,8 @@ import androidx.compose.ui.unit.dp
 @Deprecated("Removed from onboarding flow.")
 @Composable
 fun PrivacyScreen(onContinueClick: () -> Unit) {
+    var showPolicyDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier =
             Modifier
@@ -37,7 +43,7 @@ fun PrivacyScreen(onContinueClick: () -> Unit) {
         PrivacyRow(text = stringResource(id = R.string.onboarding_privacy_delete))
         Spacer(modifier = Modifier.height(32.dp))
 
-        TextButton(onClick = { /* Handle privacy policy link */ }) {
+        TextButton(onClick = { showPolicyDialog = true }) {
             Text(text = stringResource(id = R.string.onboarding_privacy_link))
         }
 
@@ -48,6 +54,24 @@ fun PrivacyScreen(onContinueClick: () -> Unit) {
         ) {
             Text(text = stringResource(id = R.string.onboarding_continue))
         }
+    }
+
+    if (showPolicyDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showPolicyDialog = false },
+            title = { Text(text = stringResource(id = R.string.onboarding_privacy_link)) },
+            text = {
+                Text(
+                    text = "Kharcha operates strictly 100% offline. Zero SMS bodies, transaction amounts, or personal account numbers are ever transmitted or uploaded. Your financial data never leaves your device.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showPolicyDialog = false }) {
+                    Text(text = "OK")
+                }
+            },
+        )
     }
 }
 

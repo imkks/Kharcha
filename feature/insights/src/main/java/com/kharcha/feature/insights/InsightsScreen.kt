@@ -166,7 +166,13 @@ fun InsightsScreen(
                 TopAppBar(
                     title = { Text(text = stringResource(id = R.string.insights_title)) },
                     navigationIcon = {
-                        IconButton(onClick = { selectedTab = InsightsTab.OVERVIEW }) {
+                        IconButton(onClick = {
+                            if (selectedTab != InsightsTab.OVERVIEW) {
+                                selectedTab = InsightsTab.OVERVIEW
+                            } else {
+                                onBack()
+                            }
+                        }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(id = DesignR.string.navigate_up),

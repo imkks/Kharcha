@@ -139,6 +139,7 @@ fun HomeScreen(
     onSplitClick: () -> Unit = {},
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val currentYearMonth = remember { YearMonth.now() }
@@ -335,7 +336,11 @@ fun HomeScreen(
                 ) {
                     // Circular Green Avatar
                     Surface(
-                        modifier = Modifier.size(40.dp),
+                        modifier =
+                            Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .clickable { onProfileClick() },
                         shape = CircleShape,
                         color = MaterialTheme.financialColors.limeAccent,
                     ) {
@@ -354,6 +359,7 @@ fun HomeScreen(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.financialColors.textPrimary,
+                        modifier = Modifier.clickable { onProfileClick() },
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = onPrivacyToggle) {

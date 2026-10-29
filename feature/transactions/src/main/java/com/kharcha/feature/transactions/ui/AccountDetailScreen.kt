@@ -271,10 +271,10 @@ fun AccountDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { }) {
+                    IconButton(onClick = { showLinkAccountsSheet = true }) {
                         Icon(
                             painter = painterResource(id = DesignR.drawable.ic_channel_card),
-                            contentDescription = null,
+                            contentDescription = stringResource(id = R.string.account_detail_menu_link),
                             tint = Color.White,
                             modifier = Modifier.size(20.dp),
                         )

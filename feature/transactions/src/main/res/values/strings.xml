@@ -296,4 +296,20 @@
     <string name="account_settings_last4_label">Last 4 digits</string>
     <string name="account_settings_save">Save</string>
     <string name="account_settings_cancel">Cancel</string>
+
+    <string name="report_sms_sender_list_title">Report undetected SMS</string>
+    <string name="report_sms_info_title">How this works</string>
+    <string name="report_sms_info_body">If an SMS from your bank was not turned into a transaction, you can report it here. We use this to add support for that message format. Your messages never leave your device.</string>
+    <string name="report_sms_status_supported">Supported</string>
+    <string name="report_sms_status_request">Request to support</string>
+    <string name="report_sms_status_reported">Reported</string>
+    <string name="report_sms_reporting_snackbar">Reporting this SMS.</string>
+    <string name="report_sms_thread_empty">No messages from this sender</string>
+    <string name="report_sms_search_hint">Search senders or messages…</string>
+    <string name="report_sms_permission_needed">SMS read permission required to view your inbox</string>
+    <string name="report_sms_info_icon_desc">Information</string>
+    <string name="report_sms_search_icon_desc">Search</string>
+    <string name="report_sms_back_desc">Back</string>
+    <string name="report_sms_no_senders">No SMS senders found</string>
+    <string name="report_sms_loading">Loading…</string>
 </resources>

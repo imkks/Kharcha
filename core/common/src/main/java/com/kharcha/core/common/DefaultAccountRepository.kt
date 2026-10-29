@@ -75,11 +75,11 @@ class DefaultAccountRepository(
 
             val type =
                 when {
+                    isBillPayment && targetCardLast4 != null -> AccountType.CreditCard
                     sourceAccountLast4 != null -> AccountType.Savings
                     isCardChannel -> AccountType.CreditCard
                     hasCardText -> AccountType.CreditCard
                     channel == Channel.WALLET -> AccountType.Wallet
-                    isBillPayment && targetCardLast4 != null -> AccountType.CreditCard
                     else -> AccountType.Savings
                 }
 

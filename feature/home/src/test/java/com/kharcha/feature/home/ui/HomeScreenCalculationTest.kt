@@ -88,10 +88,11 @@ class HomeScreenCalculationTest {
             id = 2L,
             amount = 11_311_00L,
             type = TransactionType.Expense,
-            channel = Channel.OTHER,
+            channel = Channel.CARD,
             dateTime = octEpoch,
             merchantRaw = "ICICI Bank Credit Card",
-            categorySource = "Bill Payment",
+            categorySource = "Bills",
+            isCounted = false,
         )
 
         val transactions = listOf(cardSpend, billPaymentDebit)

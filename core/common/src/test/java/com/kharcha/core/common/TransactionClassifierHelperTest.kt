@@ -15,7 +15,7 @@ class TransactionClassifierHelperTest {
             body = body1,
         )
         assertEquals(TransactionType.Expense, type1)
-        assertEquals("Bill Payment", TransactionClassifierHelper.guessCategory("Credit Card", false, isTransfer = true, body = body1))
+        assertEquals("Bills", TransactionClassifierHelper.guessCategory("Credit Card", false, isTransfer = true, body = body1))
 
         val body2 = "Rs 5,000 debited for self transfer to SBI"
         val type2 = TransactionClassifierHelper.classifyType(
@@ -31,7 +31,7 @@ class TransactionClassifierHelperTest {
             body = autoDebitBody,
         )
         assertEquals(TransactionType.Expense, autoDebitType)
-        assertEquals("Bill Payment", TransactionClassifierHelper.guessCategory("HDFC", false, body = autoDebitBody))
+        assertEquals("Bills", TransactionClassifierHelper.guessCategory("HDFC", false, body = autoDebitBody))
 
         val cardBillReceivedType = TransactionClassifierHelper.classifyType(
             direction = Direction.CREDIT,
@@ -263,14 +263,14 @@ class TransactionClassifierHelperTest {
         assertEquals("Entertainment", TransactionClassifierHelper.guessCategory("BookMyShow Media", isCredit = false))
         assertEquals("Investments", TransactionClassifierHelper.guessCategory("Groww Investments", isCredit = false))
 
-        // Credit Card Bill Payment inward message: category Bill Payment & type Refund (non-income credit)
+        // Credit Card Bill Payment inward message: category Bills & type Income
         val ccBillPaymentBody = "Thank you for payment of INR 10,641.62 towards your FIRST Wealth Credit Card XX5625 on 05 Jun 2026. IDFC FIRST Bank"
         val ccBillCat = TransactionClassifierHelper.guessCategory(
             merchant = "IDFC FIRST Bank",
             isCredit = true,
             body = ccBillPaymentBody,
         )
-        assertEquals("Bill Payment", ccBillCat)
+        assertEquals("Bills", ccBillCat)
         val ccBillType = TransactionClassifierHelper.classifyType(
             direction = Direction.CREDIT,
             body = ccBillPaymentBody,

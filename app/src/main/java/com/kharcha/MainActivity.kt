@@ -238,14 +238,12 @@ fun MainAppShell(
                     onClearCategoryFilter = { filterCategoryForTransactions = null },
                     onDeleteTransaction = { toDelete ->
                         scope.launch {
-                            transactionRepository.updateTransaction(
-                                toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
-                            )
+                            transactionRepository.deleteTransaction(toDelete.id)
                         }
                     },
                     onRestoreTransaction = { toRestore ->
                         scope.launch {
-                            transactionRepository.updateTransaction(toRestore)
+                            transactionRepository.insertTransaction(toRestore)
                         }
                     },
                     onReviewTransaction = { toReview ->
@@ -423,9 +421,7 @@ fun MainAppShell(
                 },
                 onDelete = { toDelete ->
                     scope.launch {
-                        transactionRepository.updateTransaction(
-                            toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
-                        )
+                        transactionRepository.deleteTransaction(toDelete.id)
                         snackbarHostState.showSnackbar("Transaction deleted")
                     }
                     selectedTransactionForDetail = null
@@ -495,19 +491,13 @@ fun MainAppShell(
         ReviewQueueScreen(
             unreviewedTransactions = unreviewed,
             onCategorize = { txn, category, propagate ->
-                val type =
-                    if (category.equals("Transfer", ignoreCase = true)) {
-                        TransactionType.Transfer
-                    } else {
-                        txn.type
-                    }
                 scope.launch {
                     if (propagate) {
                         val count =
                             transactionRepository.updateTransactionAndPropagateMerchant(
                                 transaction = txn,
                                 newCategory = category,
-                                newType = type,
+                                newType = txn.type,
                                 userPreferences = userPreferences,
                             )
                         val merchant = txn.merchantNormalised ?: txn.merchantRaw ?: "Merchant"
@@ -515,8 +505,14 @@ fun MainAppShell(
                             snackbarHostState.showSnackbar("Updated $count transactions for $merchant")
                         }
                     } else {
+                        val isTransferCat = category.equals("Transfer", ignoreCase = true) ||
+                            category.equals("A/C Transfer", ignoreCase = true)
                         transactionRepository.updateTransaction(
-                            txn.copy(categorySource = category, type = type, isReviewed = true),
+                            txn.copy(
+                                categorySource = category,
+                                isCounted = !isTransferCat,
+                                isReviewed = true,
+                            ),
                         )
                     }
                 }
@@ -524,7 +520,7 @@ fun MainAppShell(
             onIgnore = { txn ->
                 scope.launch {
                     transactionRepository.updateTransaction(
-                        txn.copy(type = TransactionType.Ignored, isReviewed = true),
+                        txn.copy(isCounted = false, isReviewed = true),
                     )
                 }
             },

@@ -11,6 +11,7 @@ import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.common.TransactionRepository
+import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.ParseResult
 import com.kharcha.core.model.Transaction
@@ -195,16 +196,28 @@ class OnboardingViewModel
                                     amountMinor = parsedTxn.amountMinor,
                                     channel = parsedTxn.channel,
                                 )
-                            val isTransfer = type == TransactionType.Transfer
+                            val isCardBill = TransactionClassifierHelper.isCreditCardBillPayment(sms.body, normMerchant)
+                            val targetCardLast4 = if (isCardBill) TransactionClassifierHelper.extractTargetCardLast4(sms.body) else null
+                            val resolvedAccountLast4 = targetCardLast4 ?: parsedTxn.accountLast4
+                            val resolvedChannel = if (isCardBill) Channel.CARD else parsedTxn.channel
+                            val isTransferNarrative = TransactionClassifierHelper.isTransferNarrative(
+                                body = sms.body,
+                                merchant = normMerchant,
+                                amountMinor = parsedTxn.amountMinor,
+                                channel = parsedTxn.channel,
+                            )
                             val normLower = normMerchant.lowercase().trim()
                             val isUserCategorized = userRules.containsKey(normLower)
                             val category =
                                 TransactionClassifierHelper.guessCategory(
                                     normMerchant,
                                     isCredit,
-                                    isTransfer,
+                                    isTransfer = isTransferNarrative,
+                                    body = sms.body,
                                     userRules = userRules,
                                 )
+                            val isTransfer = !isCardBill && (category.equals("Transfer", ignoreCase = true) || category.equals("A/C Transfer", ignoreCase = true))
+                            val isCounted = !isCardBill && !isTransfer
                             val isHighConf = (parsedTxn.confidence >= 0.8f) && (rawMerchant != null)
                             val isReviewed = isUserCategorized || (isHighConf && category != "Other")
 
@@ -215,8 +228,8 @@ class OnboardingViewModel
                                     val account =
                                         accountRepo.resolveOrCreateAccount(
                                             bankName = parsedTxn.bankName,
-                                            last4 = parsedTxn.accountLast4,
-                                            channel = parsedTxn.channel,
+                                            last4 = resolvedAccountLast4,
+                                            channel = resolvedChannel,
                                             balanceMinor = parsedTxn.balanceAfterMinor,
                                             timestamp = parsedTxn.dateTime ?: sms.receivedAt,
                                             smsBody = sms.body,
@@ -238,7 +251,7 @@ class OnboardingViewModel
                                     merchantRaw = rawMerchant ?: normMerchant,
                                     merchantNormalised = normMerchant,
                                     categorySource = category,
-                                    channel = parsedTxn.channel,
+                                    channel = resolvedChannel,
                                     refNumber = parsedTxn.refNumber,
                                     upiId = parsedTxn.upiId,
                                     balanceAfter = parsedTxn.balanceAfterMinor,
@@ -246,9 +259,10 @@ class OnboardingViewModel
                                     parseConfidence = parsedTxn.confidence,
                                     isReviewed = isReviewed,
                                     templateId = parsedTxn.templateId ?: "generic_fallback",
-                                    accountLast4 = parsedTxn.accountLast4,
+                                    accountLast4 = resolvedAccountLast4,
                                     bankName = parsedTxn.bankName,
                                     sender = sms.sender,
+                                    isCounted = isCounted,
                                 )
                             batchTxns.add(txn)
                         }

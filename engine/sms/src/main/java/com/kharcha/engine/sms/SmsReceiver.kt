@@ -11,6 +11,7 @@ import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
 import com.kharcha.core.common.LocationCaptureHelper
 import com.kharcha.core.common.TransactionClassifierHelper
+import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.ParseResult
 import com.kharcha.core.model.RawSms
@@ -79,19 +80,28 @@ class SmsReceiver : BroadcastReceiver() {
                                 amountMinor = parsed.amountMinor,
                                 channel = parsed.channel,
                             )
-                        val isTransfer = type == TransactionType.Transfer
-                        val isRefund = type == TransactionType.Refund
+                        val isCardBill = TransactionClassifierHelper.isCreditCardBillPayment(body, normMerchant)
+                        val targetCardLast4 = if (isCardBill) TransactionClassifierHelper.extractTargetCardLast4(body) else null
+                        val resolvedAccountLast4 = targetCardLast4 ?: parsed.accountLast4
+                        val resolvedChannel = if (isCardBill) Channel.CARD else parsed.channel
+                        val isTransferNarrative = TransactionClassifierHelper.isTransferNarrative(
+                            body = body,
+                            merchant = normMerchant,
+                            amountMinor = parsed.amountMinor,
+                            channel = parsed.channel,
+                        )
                         val userRules = DefaultUserPreferences(context).getMerchantCategoryRules()
                         val isUserCategorized = userRules.containsKey(normMerchant.trim().lowercase())
                         val category =
                             TransactionClassifierHelper.guessCategory(
                                 merchant = normMerchant,
                                 isCredit = isCredit,
-                                isTransfer = isTransfer,
-                                isRefund = isRefund,
+                                isTransfer = isTransferNarrative,
                                 body = body,
                                 userRules = userRules,
                             )
+                        val isTransfer = !isCardBill && (category.equals("Transfer", ignoreCase = true) || category.equals("A/C Transfer", ignoreCase = true))
+                        val isCounted = !isCardBill && !isTransfer
 
                         val accountId =
                             try {
@@ -99,8 +109,8 @@ class SmsReceiver : BroadcastReceiver() {
                                 val account =
                                     accountRepo.resolveOrCreateAccount(
                                         bankName = parsed.bankName,
-                                        last4 = parsed.accountLast4,
-                                        channel = parsed.channel,
+                                        last4 = resolvedAccountLast4,
+                                        channel = resolvedChannel,
                                         balanceMinor = parsed.balanceAfterMinor,
                                         timestamp = parsed.dateTime ?: receivedAt,
                                         smsBody = body,
@@ -124,7 +134,7 @@ class SmsReceiver : BroadcastReceiver() {
                                 merchantRaw = rawMerchant ?: normMerchant,
                                 merchantNormalised = normMerchant,
                                 categorySource = category,
-                                channel = parsed.channel,
+                                channel = resolvedChannel,
                                 refNumber = parsed.refNumber,
                                 upiId = parsed.upiId,
                                 balanceAfter = parsed.balanceAfterMinor,
@@ -135,9 +145,10 @@ class SmsReceiver : BroadcastReceiver() {
                                 longitude = capturedLocation?.longitude,
                                 locationLabel = capturedLocation?.label,
                                 templateId = parsed.templateId ?: "generic_fallback",
-                                accountLast4 = parsed.accountLast4,
+                                accountLast4 = resolvedAccountLast4,
                                 bankName = parsed.bankName,
                                 sender = sender,
+                                isCounted = isCounted,
                             )
                         repo.insertTransaction(txn)
                     }

@@ -35,7 +35,7 @@ class DonutChartTest {
     fun buildCategorySlicesOnlyIncomeReturnsEmpty() {
         val txns = listOf(
             createTxn(1L, 50000_00L, TransactionType.Income, "Salary"),
-            createTxn(2L, 10000_00L, TransactionType.Transfer, "Savings"),
+            createTxn(2L, 10000_00L, TransactionType.Income, "Transfer"),
         )
         val slices = buildCategorySlices(txns)
         assertTrue(slices.isEmpty())

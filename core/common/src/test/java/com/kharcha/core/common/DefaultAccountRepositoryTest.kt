@@ -169,28 +169,18 @@ class DefaultAccountRepositoryTest {
         runTest(testDispatcher) {
             val body =
                 "Dear Customer, thank you for your payment of INR 11,311.00 towards ICICI Bank Credit Card Account XX1268 through Auto Debit from Account XX2321 on 04-Oct-26"
-            val debitedAccount =
+            val account =
                 repository.resolveOrCreateAccount(
                     bankName = "ICICI",
-                    last4 = "2321",
-                    channel = Channel.OTHER,
+                    last4 = "1268",
+                    channel = Channel.CARD,
                     smsBody = body,
                 )
 
-            assertEquals(AccountType.Savings, debitedAccount.type)
-            assertEquals("ICICI", debitedAccount.bankName)
-            assertEquals("2321", debitedAccount.last4)
-            assertEquals("ICICI ••2321", debitedAccount.name)
-
-            val allAccounts = repository.getAccountsSync()
-            assertEquals(2, allAccounts.size)
-
-            val cardAccount = allAccounts.find { it.type == AccountType.CreditCard }
-            org.junit.Assert.assertNotNull(cardAccount)
-            assertEquals("ICICI", cardAccount?.bankName)
-            assertEquals("1268", cardAccount?.last4)
-            assertEquals("ICICI Card ••1268", cardAccount?.name)
-            assertEquals(debitedAccount.id, cardAccount?.linkedPrimaryAccountId)
+            assertEquals(AccountType.CreditCard, account.type)
+            assertEquals("ICICI", account.bankName)
+            assertEquals("1268", account.last4)
+            assertEquals("ICICI Card ••1268", account.name)
         }
 
     @Test

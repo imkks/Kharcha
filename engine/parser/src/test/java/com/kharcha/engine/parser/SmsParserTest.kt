@@ -1583,11 +1583,15 @@ class SmsParserTest {
                 subId = null,
             )
         val result = parser.parse(sms)
-        assertTrue("Credit card bill payment confirmation should be skipped", result is ParseResult.NoMatch)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1064162L, txn.amountMinor)
+        assertEquals("5625", txn.accountLast4)
+        assertEquals("IDFC", txn.bankName)
     }
 
     @Test
-    fun testIdfcCreditCardBillPayment44514Skipped() {
+    fun testIdfcCreditCardBillPayment44514() {
         val sms =
             RawSms(
                 id = 19328,
@@ -1597,7 +1601,11 @@ class SmsParserTest {
                 subId = null,
             )
         val result = parser.parse(sms)
-        assertTrue("IDFC credit card bill payment acknowledgment should be skipped", result is ParseResult.NoMatch)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(4451444L, txn.amountMinor)
+        assertEquals("5625", txn.accountLast4)
+        assertEquals("IDFC", txn.bankName)
     }
 
     @Test
@@ -1611,7 +1619,11 @@ class SmsParserTest {
                 subId = null,
             )
         val result = parser.parse(sms)
-        assertTrue("Credit card bill payment confirmation should be skipped", result is ParseResult.NoMatch)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1131100L, txn.amountMinor)
+        assertEquals("1268", txn.accountLast4)
+        assertEquals("ICICI", txn.bankName)
     }
 
     @Test
@@ -1834,7 +1846,11 @@ IDFC FIRST Bank""",
                 subId = null,
             )
         val result = parser.parse(sms)
-        assertTrue("Credit card bill payment confirmation should be skipped", result is ParseResult.NoMatch)
+        assertTrue(result is ParseResult.Success)
+        val txn = (result as ParseResult.Success).txn
+        assertEquals(1131100L, txn.amountMinor)
+        assertEquals("1268", txn.accountLast4)
+        assertEquals("ICICI", txn.bankName)
     }
 
     @Test

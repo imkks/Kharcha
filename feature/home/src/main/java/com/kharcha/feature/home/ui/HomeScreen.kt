@@ -1279,7 +1279,7 @@ fun HomeTransactionRow(
     modifier: Modifier = Modifier,
 ) {
     val isPrivacy = LocalPrivacyMode.current
-    val isTransfer = transaction.type == TransactionType.Transfer
+    val isTransfer = transaction.isTransfer
     val isDebit = transaction.type == TransactionType.Expense
     val arrowGlyph = when {
         isTransfer -> "⇄"

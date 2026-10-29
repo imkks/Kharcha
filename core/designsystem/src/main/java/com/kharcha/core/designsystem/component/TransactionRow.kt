@@ -155,7 +155,7 @@ fun TransactionRow(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
                         ) {
                             Text(
-                                text = if (transaction.type == TransactionType.Transfer) {
+                                text = if (transaction.isTransfer) {
                                     stringResource(id = R.string.add_txn_type_transfer)
                                 } else {
                                     stringResource(id = R.string.row_not_counted)
@@ -200,6 +200,8 @@ fun TransactionRow(
                 amountMinor = transaction.amount,
                 type = transaction.type,
                 style = MaterialTheme.typography.titleMedium,
+                isCounted = isCounted,
+                isTransfer = transaction.isTransfer,
             )
             if (relativeTime.isNotEmpty() || transaction.isReviewed) {
                 Spacer(modifier = Modifier.height(2.dp))

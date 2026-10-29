@@ -507,11 +507,7 @@ fun TransactionsScreen(
                     },
                     onDeleteClick = {
                         val selectedTxns = transactions.filter { selectedIds.contains(it.id) }
-                        val updated =
-                            selectedTxns.map {
-                                it.copy(type = TransactionType.Ignored, isReviewed = true)
-                            }
-                        onUpdateTransactions(updated)
+                        selectedTxns.forEach { onDeleteTransaction(it) }
                         val count = selectedTxns.size
                         selectedIds = emptySet()
                         scope.launch {
@@ -522,7 +518,7 @@ fun TransactionsScreen(
                                     duration = SnackbarDuration.Short,
                                 )
                             if (result == SnackbarResult.ActionPerformed) {
-                                onUpdateTransactions(selectedTxns)
+                                selectedTxns.forEach { onRestoreTransaction(it) }
                             }
                         }
                     },
@@ -1880,11 +1876,9 @@ fun filterTransactions(
         val matchesFilter =
             when (filter) {
                 TransactionFilterType.ALL -> true
-                TransactionFilterType.EXPENSE -> txn.type == TransactionType.Expense
-                TransactionFilterType.INCOME -> txn.type == TransactionType.Income
-                TransactionFilterType.TRANSFER ->
-                    txn.type == TransactionType.Transfer ||
-                        txn.categorySource.equals("Transfer", ignoreCase = true)
+                TransactionFilterType.EXPENSE -> txn.type == TransactionType.Expense && !txn.isTransfer
+                TransactionFilterType.INCOME -> txn.type == TransactionType.Income && !txn.isTransfer
+                TransactionFilterType.TRANSFER -> txn.isTransfer
                 TransactionFilterType.NEEDS_REVIEW -> !txn.isReviewed
             }
 

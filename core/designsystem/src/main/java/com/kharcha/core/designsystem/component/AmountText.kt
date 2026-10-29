@@ -18,6 +18,8 @@ fun AmountText(
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.bodyLarge,
     maskIfPrivacy: Boolean = true,
+    isCounted: Boolean = true,
+    isTransfer: Boolean = false,
 ) {
     val isPrivacyMode = LocalPrivacyMode.current
     val formatted =
@@ -29,22 +31,20 @@ fun AmountText(
                     MoneyFormatter.formatMinorUnits(amountMinor, showSign = true, isCredit = true)
                 TransactionType.Expense ->
                     MoneyFormatter.formatMinorUnits(amountMinor, showSign = true, isCredit = false)
-                else ->
-                    MoneyFormatter.formatMinorUnits(amountMinor, showSign = false)
             }
         }
 
     val financialColors = MaterialTheme.financialColors
     val color =
-        when (type) {
-            TransactionType.Income -> financialColors.income
-            TransactionType.Transfer, TransactionType.Refund -> financialColors.transfer
-            TransactionType.Ignored -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        when {
+            !isCounted -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            isTransfer -> financialColors.transfer
+            type == TransactionType.Income -> financialColors.income
             else -> financialColors.expense
         }
 
     val textDecoration =
-        if (type == TransactionType.Ignored) TextDecoration.LineThrough else TextDecoration.None
+        if (!isCounted) TextDecoration.LineThrough else TextDecoration.None
 
     Text(
         text = formatted,

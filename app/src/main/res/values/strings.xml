@@ -6,6 +6,7 @@
     <string name="app_lock_title">Unlock Kharcha</string>
     <string name="app_lock_subtitle">Verify your identity to view your finances.</string>
     <string name="app_lock_unlock">Unlock with fingerprint</string>
+    <string name="sms_rescan_started">SMS inbox rescan started</string>
     <string name="app_name">Kharcha</string>
     <string name="home_welcome_title">You\'re all set!</string>
     <string name="home_welcome_subtitle">New bank transactions will be tracked automatically from incoming SMS.</string>

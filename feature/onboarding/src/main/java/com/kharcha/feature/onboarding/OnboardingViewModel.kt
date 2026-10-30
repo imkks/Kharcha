@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class OnboardingUiState(
-    val currentState: OnboardingState = OnboardingState.WELCOME,
+    val currentState: OnboardingState = OnboardingState.PROFILE,
     val isPermissionDenied: Boolean = false,
     val progress: Float = 0.0f,
     val transactionCount: Int = 0,
@@ -97,14 +97,8 @@ class OnboardingViewModel
             _uiState.update { it.copy(currentState = state) }
         }
 
-        fun saveProfile(
-            name: String,
-            phone: String,
-        ) {
-            DefaultUserPreferences(context).apply {
-                userName = name.trim()
-                userPhone = phone.trim()
-            }
+        fun saveProfile(name: String) {
+            DefaultUserPreferences(context).userName = name.trim()
             moveToState(OnboardingState.PERMISSION)
         }
 

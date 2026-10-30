@@ -111,7 +111,7 @@ import java.util.Locale
 fun MoreScreen(
     transactions: List<Transaction>,
     userPreferences: UserPreferences,
-    onResetOnboarding: () -> Unit,
+    onRescanSmsInbox: () -> Unit,
     modifier: Modifier = Modifier,
     onUpdateMonthlyBudget: (Long) -> Unit = {},
     accounts: List<Account> = emptyList(),
@@ -157,7 +157,6 @@ fun MoreScreen(
     var showNotificationsDialog by remember { mutableStateOf(false) }
     var showSecurityDialog by remember { mutableStateOf(false) }
     var currentUserName by remember { mutableStateOf(userPreferences.userName) }
-    var currentUserPhone by remember { mutableStateOf(userPreferences.userPhone) }
 
     var categoriesRevision by remember { mutableIntStateOf(0) }
     val customSpendCategories =
@@ -238,7 +237,7 @@ fun MoreScreen(
             onNotificationsClick = { showNotificationsDialog = true },
             onBackupClick = { showExportDialog = true },
             onSecurityClick = { showSecurityDialog = true },
-            onResetOnboarding = onResetOnboarding,
+            onRescanSmsInbox = onRescanSmsInbox,
             onBack = { showPreferencesScreen = false },
             modifier = modifier,
         )
@@ -317,40 +316,6 @@ fun MoreScreen(
                         border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
                     ) {
                         Column(modifier = Modifier.padding(18.dp)) {
-                            // Phone row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = DesignR.drawable.ic_channel_upi),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.financialColors.textSecondary,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text =
-                                        currentUserPhone.ifBlank {
-                                            stringResource(id = R.string.settings_user_phone_missing)
-                                        },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White,
-                                )
-                                if (currentUserPhone.isNotBlank()) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.financialColors.textSecondary,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
                             // Email row
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1545,7 +1510,6 @@ fun MoreScreen(
 
     if (showEditProfileDialog) {
         var nameInput by remember { mutableStateOf(currentUserName) }
-        var phoneInput by remember { mutableStateOf(currentUserPhone) }
         AlertDialog(
             onDismissRequest = { showEditProfileDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_edit_profile_title)) },
@@ -1558,23 +1522,13 @@ fun MoreScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    OutlinedTextField(
-                        value = phoneInput,
-                        onValueChange = { phoneInput = it },
-                        label = { Text(text = stringResource(id = R.string.settings_user_phone_label)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
                         userPreferences.userName = nameInput.trim()
-                        userPreferences.userPhone = phoneInput.trim()
                         currentUserName = userPreferences.userName
-                        currentUserPhone = userPreferences.userPhone
                         showEditProfileDialog = false
                     },
                     colors =
@@ -1929,7 +1883,7 @@ private fun PreferencesScreenView(
     onNotificationsClick: () -> Unit = {},
     onBackupClick: () -> Unit = {},
     onSecurityClick: () -> Unit = {},
-    onResetOnboarding: () -> Unit,
+    onRescanSmsInbox: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -2130,7 +2084,7 @@ private fun PreferencesScreenView(
                         SettingsNavRow(
                             icon = Icons.Default.Refresh,
                             title = stringResource(id = R.string.settings_rescan_title),
-                            onClick = onResetOnboarding,
+                            onClick = onRescanSmsInbox,
                         )
                     }
                 }

@@ -93,7 +93,7 @@
     <string name="settings_privacy_mode_title">Privacy Mode</string>
     <string name="settings_privacy_mode_subtitle">Mask monetary amounts on dashboard and list views</string>
     <string name="settings_rescan_title">Re-scan SMS Inbox</string>
-    <string name="settings_rescan_subtitle">Re-run onboarding and import missed bank alerts</string>
+    <string name="settings_rescan_subtitle">Reprocess bank SMS already in your inbox</string>
     <string name="settings_rules_title">Learned Merchant Rules</string>
     <string name="settings_rules_subtitle">%1$d active automated merchant rules</string>
     <string name="settings_rules_dialog_title">Configured Merchant Rules</string>
@@ -135,8 +135,6 @@
     <string name="settings_edit_profile_title">Edit Profile</string>
     <string name="settings_user_name_label">Name</string>
     <string name="settings_user_name_missing">Add your name</string>
-    <string name="settings_user_phone_label">Phone number</string>
-    <string name="settings_user_phone_missing">Add your phone number</string>
     <string name="settings_profile_details">Personal details</string>
     <string name="settings_reminders_dialog_title">Reminders &amp; Alerts</string>
     <string name="settings_reminders_daily_title">Daily Expense Check</string>

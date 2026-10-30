@@ -21,7 +21,6 @@ interface UserPreferences {
     var autoTransferThresholdPaise: Long
     var userName: String
     var userEmail: String
-    var userPhone: String
     fun getMerchantCategoryRules(): Map<String, String>
     fun setMerchantCategory(merchant: String, category: String)
     fun removeMerchantCategoryRule(merchant: String)
@@ -46,6 +45,10 @@ interface UserPreferences {
 class DefaultUserPreferences(context: Context) : UserPreferences {
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    init {
+        prefs.edit().remove(KEY_LEGACY_USER_PHONE).apply()
+    }
 
     override var isOnboardingCompleted: Boolean
         get() = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
@@ -111,9 +114,6 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         get() = prefs.getString(KEY_USER_EMAIL, "").orEmpty()
         set(value) = prefs.edit().putString(KEY_USER_EMAIL, value).apply()
 
-    override var userPhone: String
-        get() = prefs.getString(KEY_USER_PHONE, "").orEmpty()
-        set(value) = prefs.edit().putString(KEY_USER_PHONE, value).apply()
 
     override fun getMerchantCategoryRules(): Map<String, String> {
         val raw = prefs.getString(KEY_MERCHANT_RULES, null) ?: return emptyMap()
@@ -319,7 +319,7 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_UNLINKED_ACCOUNT_IDS = "key_unlinked_account_ids_json"
         private const val KEY_USER_NAME = "key_user_name"
         private const val KEY_USER_EMAIL = "key_user_email"
-        private const val KEY_USER_PHONE = "key_user_phone"
+        private const val KEY_LEGACY_USER_PHONE = "key_user_phone"
         const val DEFAULT_BUDGET_PAISE: Long = 30_000_00L
     }
 }

@@ -3,10 +3,10 @@
     <string name="onboarding_welcome_title">Track spends\nautomatically</string>
     <string name="onboarding_welcome_subtitle">Smart, effortless financial insights right from your bank alert SMS.</string>
     <string name="onboarding_get_started">Get Started</string>
-    <string name="onboarding_profile_title">About you</string>
-    <string name="onboarding_profile_subtitle">Your name and phone number are saved only on this device.</string>
-    <string name="onboarding_profile_name">Name</string>
-    <string name="onboarding_profile_phone">Phone number</string>
+    <string name="onboarding_profile_title">What should we call you?</string>
+    <string name="onboarding_profile_subtitle">Your money journey deserves a name. We’ll use it to make Kharcha feel like yours.</string>
+    <string name="onboarding_profile_name">Your name</string>
+    <string name="onboarding_profile_name_hint">e.g. Aanya</string>
     <string name="onboarding_profile_continue">Continue</string>
 
     <string name="onboarding_trust_on_device_title">100% On-Device</string>

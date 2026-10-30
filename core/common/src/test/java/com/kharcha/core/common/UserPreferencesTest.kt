@@ -63,14 +63,11 @@ class UserPreferencesTest {
     @Test
     fun profileFieldsHaveNoPrepopulatedPersonalDetails() {
         every { sharedPreferences.getString("key_user_name", "") } returns ""
-        every { sharedPreferences.getString("key_user_phone", "") } returns ""
         assertEquals("", userPreferences.userName)
-        assertEquals("", userPreferences.userPhone)
+        verify { editor.remove("key_user_phone") }
 
         userPreferences.userName = "Asha"
-        userPreferences.userPhone = "+919876543210"
         verify { editor.putString("key_user_name", "Asha") }
-        verify { editor.putString("key_user_phone", "+919876543210") }
     }
 
     @Test

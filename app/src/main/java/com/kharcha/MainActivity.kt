@@ -1,8 +1,13 @@
 package com.kharcha
 
 import android.os.Bundle
+import android.view.WindowManager
+import android.widget.Toast
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +60,7 @@ import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
 import com.kharcha.engine.sms.ExpenseNotification
+import com.kharcha.engine.sms.ImportWorker
 import com.kharcha.feature.home.ui.HomeScreen
 import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
@@ -91,6 +98,7 @@ enum class AppDestination(
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+    private var appUnlockState: MutableState<Boolean>? = null
     @Inject
     lateinit var transactionRepository: TransactionRepository
 
@@ -99,6 +107,9 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         setContent {
             KharchaTheme {
                 Surface(
@@ -108,9 +119,11 @@ class MainActivity : FragmentActivity() {
                     var isOnboardingCompleted by rememberSaveable {
                         mutableStateOf(userPreferences.isOnboardingCompleted)
                     }
-                    var isAppUnlocked by rememberSaveable {
+                    val appUnlockedState = rememberSaveable {
                         mutableStateOf(!userPreferences.isAppLockEnabled && !userPreferences.isIncomeHidden)
                     }
+                    appUnlockState = appUnlockedState
+                    var isAppUnlocked by appUnlockedState
 
                     if (!isOnboardingCompleted) {
                         OnboardingRoute(
@@ -135,14 +148,35 @@ class MainActivity : FragmentActivity() {
                                 intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
                                     .takeIf { it >= 0L },
                             notificationAction = intent.getStringExtra(ExpenseNotification.EXTRA_ACTION),
-                            onResetOnboarding = {
-                                userPreferences.isOnboardingCompleted = false
-                                isOnboardingCompleted = false
+                            onRescanSmsInbox = {
+                                WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                                    "sms_inbox_rescan",
+                                    ExistingWorkPolicy.KEEP,
+                                    OneTimeWorkRequestBuilder<ImportWorker>().build(),
+                                )
+                                Toast.makeText(applicationContext, R.string.sms_rescan_started, Toast.LENGTH_SHORT).show()
                             },
                         )
                     }
                 }
             }
+        }
+    }
+
+    override fun onStop() {
+        if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
+            appUnlockState?.value = false
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
 
@@ -190,7 +224,7 @@ private fun AppLockScreen(onUnlock: () -> Unit) {
 fun MainAppShell(
     transactionRepository: TransactionRepository,
     userPreferences: UserPreferences,
-    onResetOnboarding: () -> Unit,
+    onRescanSmsInbox: () -> Unit,
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
 ) {
@@ -346,7 +380,7 @@ fun MainAppShell(
                             transactionRepository.updateTransactions(updatedList)
                         }
                     },
-                    onResetOnboarding = onResetOnboarding,
+                    onRescanSmsInbox = onRescanSmsInbox,
                     onPrivacyToggle = onTogglePrivacyMode,
                     onCategoriseUnknown = { showReviewQueue = true },
                     transactionsFilter = transactionsFilter,
@@ -728,7 +762,7 @@ fun BoxDestinationContent(
     onRestoreTransaction: (Transaction) -> Unit = {},
     onReviewTransaction: (Transaction) -> Unit = {},
     onUpdateTransactions: (List<Transaction>) -> Unit = {},
-    onResetOnboarding: () -> Unit,
+    onRescanSmsInbox: () -> Unit,
     onPrivacyToggle: () -> Unit,
     onCategoriseUnknown: () -> Unit = {},
     transactionsFilter: TransactionFilter = TransactionFilter(),
@@ -843,7 +877,7 @@ fun BoxDestinationContent(
                 transactions = transactions,
                 accounts = accounts,
                 userPreferences = userPreferences,
-                onResetOnboarding = onResetOnboarding,
+                onRescanSmsInbox = onRescanSmsInbox,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 onSaveAccount = onSaveAccount,
                 onMergeAccounts = onMergeAccounts,

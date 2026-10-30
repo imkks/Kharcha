@@ -61,8 +61,8 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun initialStateIsWelcome() {
-        assertEquals(OnboardingState.WELCOME, viewModel.uiState.value.currentState)
+    fun initialStateRequestsOnlyNameBeforePermissions() {
+        assertEquals(OnboardingState.PROFILE, viewModel.uiState.value.currentState)
     }
 
     @Test
@@ -93,16 +93,15 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun saveProfileStoresNameAndPhoneBeforePermissionStep() {
+    fun saveProfileStoresNameBeforePermissionStep() {
         val preferences = mockk<SharedPreferences>(relaxed = true)
         val editor = mockk<SharedPreferences.Editor>(relaxed = true)
         every { context.getSharedPreferences("kharcha_user_prefs", Context.MODE_PRIVATE) } returns preferences
         every { preferences.edit() } returns editor
 
-        viewModel.saveProfile("  Asha  ", " +919876543210 ")
+        viewModel.saveProfile("  Asha  ")
 
         io.mockk.verify { editor.putString("key_user_name", "Asha") }
-        io.mockk.verify { editor.putString("key_user_phone", "+919876543210") }
         assertEquals(OnboardingState.PERMISSION, viewModel.uiState.value.currentState)
     }
 

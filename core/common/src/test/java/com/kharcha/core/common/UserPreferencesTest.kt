@@ -61,6 +61,19 @@ class UserPreferencesTest {
     }
 
     @Test
+    fun profileFieldsHaveNoPrepopulatedPersonalDetails() {
+        every { sharedPreferences.getString("key_user_name", "") } returns ""
+        every { sharedPreferences.getString("key_user_phone", "") } returns ""
+        assertEquals("", userPreferences.userName)
+        assertEquals("", userPreferences.userPhone)
+
+        userPreferences.userName = "Asha"
+        userPreferences.userPhone = "+919876543210"
+        verify { editor.putString("key_user_name", "Asha") }
+        verify { editor.putString("key_user_phone", "+919876543210") }
+    }
+
+    @Test
     fun expenseNotifications_defaultToEnabledAndCanBeDisabled() {
         every { sharedPreferences.getBoolean("key_expense_notifications_enabled", true) } returns true
         assertTrue(userPreferences.isExpenseNotificationsEnabled)

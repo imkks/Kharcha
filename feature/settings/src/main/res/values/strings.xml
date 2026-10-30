@@ -2,9 +2,7 @@
 <resources>
     <string name="settings_screen_title">Account</string>
     <string name="settings_account_title">Account</string>
-    <string name="settings_user_name">Krishna</string>
-    <string name="settings_user_phone">+918235622860</string>
-    <string name="settings_user_email">imkrsh007@gmail.com</string>
+    <string name="settings_user_name">Name</string>
     <string name="settings_edit">Edit</string>
     <string name="settings_expense_tracking_section">Expense tracking</string>
     <string name="settings_preferences_title">Preferences</string>
@@ -122,7 +120,10 @@
     <string name="duplicate_accounts_banner_desc">Found %1$s and %2$s. Merge to combine transactions and automatically recognize future SMS.</string>
     <string name="settings_edit_profile_title">Edit Profile</string>
     <string name="settings_user_name_label">Name</string>
-    <string name="settings_user_email_label">Email Address</string>
+    <string name="settings_user_name_missing">Add your name</string>
+    <string name="settings_user_phone_label">Phone number</string>
+    <string name="settings_user_phone_missing">Add your phone number</string>
+    <string name="settings_profile_details">Personal details</string>
     <string name="settings_reminders_dialog_title">Reminders &amp; Alerts</string>
     <string name="settings_reminders_daily_title">Daily Expense Check</string>
     <string name="settings_reminders_daily_desc">Receive an end-of-day summary of your expenses</string>

@@ -18,6 +18,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 enum class OnboardingState {
     WELCOME,
+    PROFILE,
     PERMISSION,
     IMPORT_PROGRESS,
 }
@@ -44,8 +45,11 @@ fun OnboardingRoute(
     when (uiState.currentState) {
         OnboardingState.WELCOME -> {
             WelcomeScreen(
-                onGetStartedClick = { viewModel.moveToState(OnboardingState.PERMISSION) },
+                onGetStartedClick = { viewModel.moveToState(OnboardingState.PROFILE) },
             )
+        }
+        OnboardingState.PROFILE -> {
+            ProfileScreen(onContinue = viewModel::saveProfile)
         }
         OnboardingState.PERMISSION -> {
             PermissionScreen(

@@ -1,6 +1,7 @@
 package com.kharcha.feature.onboarding
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.model.RawSms
 import com.kharcha.engine.sms.Deduplicator
@@ -89,6 +90,20 @@ class OnboardingViewModelTest {
     fun onPermissionDeniedSetsFlag() {
         viewModel.onPermissionResult(false)
         assertEquals(true, viewModel.uiState.value.isPermissionDenied)
+    }
+
+    @Test
+    fun saveProfileStoresNameAndPhoneBeforePermissionStep() {
+        val preferences = mockk<SharedPreferences>(relaxed = true)
+        val editor = mockk<SharedPreferences.Editor>(relaxed = true)
+        every { context.getSharedPreferences("kharcha_user_prefs", Context.MODE_PRIVATE) } returns preferences
+        every { preferences.edit() } returns editor
+
+        viewModel.saveProfile("  Asha  ", " +919876543210 ")
+
+        io.mockk.verify { editor.putString("key_user_name", "Asha") }
+        io.mockk.verify { editor.putString("key_user_phone", "+919876543210") }
+        assertEquals(OnboardingState.PERMISSION, viewModel.uiState.value.currentState)
     }
 
     @Test

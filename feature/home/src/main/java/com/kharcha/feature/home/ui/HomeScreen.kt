@@ -99,7 +99,7 @@ data class CreditCardItem(
 /**
  * Axio-style Home Dashboard Screen (UI Specification Section 3.1 & 7.1).
  * Features:
- * - Avatar + "Hi Krishna" header with search and privacy toggle.
+ * - Avatar and personalized greeting with search and privacy toggle.
  * - Centered "Spent in [Month]" caption.
  * - 190dp circular progress ring with center "↗" amount, tappable to All Spends.
  * - Income and Set monthly budget split columns.
@@ -184,7 +184,7 @@ fun HomeScreen(
         }
 
     val isPrivacy = LocalPrivacyMode.current
-    val greetingUser = userName ?: stringResource(id = R.string.home_default_user)
+    val greetingUser = userName?.takeIf(String::isNotBlank) ?: stringResource(id = R.string.home_default_user)
 
     // Data models for Section 7.1 continuous scrolling feed
     val duesList =
@@ -327,7 +327,7 @@ fun HomeScreen(
                     .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // 1. Header: Avatar + "Hi Krishna" + Actions (Search & Privacy)
+            // 1. Header: Avatar, personalized greeting, and actions (Search & Privacy)
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(

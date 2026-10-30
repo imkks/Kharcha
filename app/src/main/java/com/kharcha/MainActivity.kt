@@ -711,6 +711,7 @@ fun BoxDestinationContent(
             HomeScreen(
                 transactions = transactions,
                 accounts = accounts,
+                userName = userPreferences.userName,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onSeeAllClick = onNavigateToTransactions,
                 onIncomeClick = onIncomeClick,

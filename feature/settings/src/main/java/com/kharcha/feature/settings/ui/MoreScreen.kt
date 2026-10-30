@@ -149,7 +149,7 @@ fun MoreScreen(
     var showNotificationsDialog by remember { mutableStateOf(false) }
     var showSecurityDialog by remember { mutableStateOf(false) }
     var currentUserName by remember { mutableStateOf(userPreferences.userName) }
-    var currentUserEmail by remember { mutableStateOf(userPreferences.userEmail) }
+    var currentUserPhone by remember { mutableStateOf(userPreferences.userPhone) }
 
     var categoriesRevision by remember { mutableIntStateOf(0) }
     val customSpendCategories =
@@ -286,7 +286,10 @@ fun MoreScreen(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = currentUserName,
+                            text =
+                                currentUserName.ifBlank {
+                                    stringResource(id = R.string.settings_user_name_missing)
+                                },
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
@@ -319,18 +322,23 @@ fun MoreScreen(
                                 )
                                 Spacer(modifier = Modifier.width(14.dp))
                                 Text(
-                                    text = stringResource(id = R.string.settings_user_phone),
+                                    text =
+                                        currentUserPhone.ifBlank {
+                                            stringResource(id = R.string.settings_user_phone_missing)
+                                        },
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color.White,
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.financialColors.textSecondary,
-                                    modifier = Modifier.size(16.dp),
-                                )
+                                if (currentUserPhone.isNotBlank()) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.financialColors.textSecondary,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -350,7 +358,7 @@ fun MoreScreen(
                                     )
                                     Spacer(modifier = Modifier.width(14.dp))
                                     Text(
-                                        text = currentUserEmail,
+                                        text = stringResource(id = R.string.settings_profile_details),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color.White,
@@ -1529,7 +1537,7 @@ fun MoreScreen(
 
     if (showEditProfileDialog) {
         var nameInput by remember { mutableStateOf(currentUserName) }
-        var emailInput by remember { mutableStateOf(currentUserEmail) }
+        var phoneInput by remember { mutableStateOf(currentUserPhone) }
         AlertDialog(
             onDismissRequest = { showEditProfileDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_edit_profile_title)) },
@@ -1543,9 +1551,10 @@ fun MoreScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
-                        value = emailInput,
-                        onValueChange = { emailInput = it },
-                        label = { Text(text = stringResource(id = R.string.settings_user_email_label)) },
+                        value = phoneInput,
+                        onValueChange = { phoneInput = it },
+                        label = { Text(text = stringResource(id = R.string.settings_user_phone_label)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -1555,9 +1564,9 @@ fun MoreScreen(
                 Button(
                     onClick = {
                         userPreferences.userName = nameInput.trim()
-                        userPreferences.userEmail = emailInput.trim()
+                        userPreferences.userPhone = phoneInput.trim()
                         currentUserName = userPreferences.userName
-                        currentUserEmail = userPreferences.userEmail
+                        currentUserPhone = userPreferences.userPhone
                         showEditProfileDialog = false
                     },
                     colors =

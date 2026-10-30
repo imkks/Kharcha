@@ -97,6 +97,17 @@ class OnboardingViewModel
             _uiState.update { it.copy(currentState = state) }
         }
 
+        fun saveProfile(
+            name: String,
+            phone: String,
+        ) {
+            DefaultUserPreferences(context).apply {
+                userName = name.trim()
+                userPhone = phone.trim()
+            }
+            moveToState(OnboardingState.PERMISSION)
+        }
+
         fun onPermissionResult(
             isGranted: Boolean,
             window: String = "90 days",

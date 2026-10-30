@@ -31,4 +31,13 @@ data class Transaction(
     val accountLast4: String? = null,
     val bankName: String? = null,
     val sender: String? = null,
-)
+    val isCounted: Boolean = true,
+) {
+    val isTransfer: Boolean
+        get() = categorySource.equals("Transfer", ignoreCase = true) ||
+            categorySource.equals("A/C Transfer", ignoreCase = true) ||
+            (categorySource.equals("Bills", ignoreCase = true) && !isCounted) ||
+            categorySource.equals("Bill Payment", ignoreCase = true) ||
+            categorySource.equals("Credit Card Bill", ignoreCase = true) ||
+            merchantNormalised.equals("Transfer", ignoreCase = true)
+}

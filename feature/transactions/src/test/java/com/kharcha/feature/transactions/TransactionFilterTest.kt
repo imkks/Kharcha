@@ -54,7 +54,9 @@ class TransactionFilterTest {
             Transaction(
                 id = 4L,
                 accountId = 101L,
-                type = TransactionType.Transfer,
+                type = TransactionType.Expense,
+                categorySource = "Transfer",
+                isCounted = false,
                 amount = 500000L,
                 dateTime = System.currentTimeMillis() - 172800000L,
                 merchantRaw = "Self Transfer",

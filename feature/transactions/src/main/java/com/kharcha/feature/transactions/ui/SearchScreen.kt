@@ -329,7 +329,7 @@ fun SearchTransactionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isTransfer = transaction.type == TransactionType.Transfer
+    val isTransfer = transaction.isTransfer
     val isDebit = transaction.type == TransactionType.Expense
     val arrowGlyph = when {
         isTransfer -> "⇄"

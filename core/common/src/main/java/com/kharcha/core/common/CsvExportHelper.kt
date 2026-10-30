@@ -2,7 +2,6 @@ package com.kharcha.core.common
 
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.isCounted
-import com.kharcha.core.model.isTransfer
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant

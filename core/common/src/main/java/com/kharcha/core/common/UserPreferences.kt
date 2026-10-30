@@ -10,6 +10,8 @@ interface UserPreferences {
     var isPrivacyModeEnabled: Boolean
     var isLaunchInMoneyManagerEnabled: Boolean
     var autoTransferThresholdPaise: Long
+    var userName: String
+    var userEmail: String
     fun getMerchantCategoryRules(): Map<String, String>
     fun setMerchantCategory(merchant: String, category: String)
     fun removeMerchantCategoryRule(merchant: String)
@@ -54,6 +56,14 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
     override var autoTransferThresholdPaise: Long
         get() = prefs.getLong(KEY_AUTO_TRANSFER_THRESHOLD, 10_000_00L)
         set(value) = prefs.edit().putLong(KEY_AUTO_TRANSFER_THRESHOLD, value).apply()
+
+    override var userName: String
+        get() = prefs.getString(KEY_USER_NAME, "Krishna") ?: "Krishna"
+        set(value) = prefs.edit().putString(KEY_USER_NAME, value).apply()
+
+    override var userEmail: String
+        get() = prefs.getString(KEY_USER_EMAIL, "imkrsh007@gmail.com") ?: "imkrsh007@gmail.com"
+        set(value) = prefs.edit().putString(KEY_USER_EMAIL, value).apply()
 
     override fun getMerchantCategoryRules(): Map<String, String> {
         val raw = prefs.getString(KEY_MERCHANT_RULES, null) ?: return emptyMap()
@@ -248,6 +258,8 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_LAUNCH_IN_MONEY_MANAGER = "key_launch_in_money_manager"
         private const val KEY_AUTO_TRANSFER_THRESHOLD = "key_auto_transfer_threshold"
         private const val KEY_UNLINKED_ACCOUNT_IDS = "key_unlinked_account_ids_json"
+        private const val KEY_USER_NAME = "key_user_name"
+        private const val KEY_USER_EMAIL = "key_user_email"
         const val DEFAULT_BUDGET_PAISE: Long = 30_000_00L
     }
 }

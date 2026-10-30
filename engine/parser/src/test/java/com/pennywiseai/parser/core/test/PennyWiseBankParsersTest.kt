@@ -78,6 +78,16 @@ class PennyWiseBankParsersTest {
                     accountLast4 = "8899",
                 ),
             ),
+            ParserTestCase(
+                name = "ICICI Credit Card Bill Payment Auto Debit",
+                message = "Dear Customer, thank you for your payment of INR 11,311.00 towards ICICI Bank Credit Card Account XX1268 through Auto Debit from Account XX2321 on 04-Oct-26",
+                sender = "AD-ICICIT-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("11311.00"),
+                    type = TransactionType.CREDIT,
+                    accountLast4 = "1268",
+                ),
+            ),
         )
         ParserTestHelper.assertCases(parser, cases)
     }

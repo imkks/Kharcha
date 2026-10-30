@@ -158,6 +158,7 @@ fun MainAppShell(
     var showReportSmsScreen by rememberSaveable { mutableStateOf(false) }
     var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(false) }
     var showSetBudgetSheet by rememberSaveable { mutableStateOf(false) }
+    var showSplitInfoDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
     var transactionsFilter by remember { mutableStateOf(TransactionFilter()) }
     var transactionsYearMonth by remember { mutableStateOf<YearMonth?>(YearMonth.now()) }
@@ -178,6 +179,7 @@ fun MainAppShell(
         BackHandler(enabled = showReviewQueue) { showReviewQueue = false }
         BackHandler(enabled = showAddTransactionDialog) { showAddTransactionDialog = false }
         BackHandler(enabled = showSetBudgetSheet) { showSetBudgetSheet = false }
+        BackHandler(enabled = showSplitInfoDialog) { showSplitInfoDialog = false }
         BackHandler(
             enabled = currentDestination != AppDestination.HOME &&
                 selectedTransactionForDetail == null &&
@@ -238,14 +240,12 @@ fun MainAppShell(
                     onClearCategoryFilter = { filterCategoryForTransactions = null },
                     onDeleteTransaction = { toDelete ->
                         scope.launch {
-                            transactionRepository.updateTransaction(
-                                toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
-                            )
+                            transactionRepository.deleteTransaction(toDelete.id)
                         }
                     },
                     onRestoreTransaction = { toRestore ->
                         scope.launch {
-                            transactionRepository.updateTransaction(toRestore)
+                            transactionRepository.insertTransaction(toRestore)
                         }
                     },
                     onReviewTransaction = { toReview ->
@@ -342,6 +342,9 @@ fun MainAppShell(
                         }
                     },
                     onAccountClick = { selectedAccountForDetail = it },
+                    onProfileClick = { currentDestination = AppDestination.MORE },
+                    onDuesClick = { currentDestination = AppDestination.INSIGHTS },
+                    onSplitClick = { showSplitInfoDialog = true },
                 )
             }
 
@@ -423,9 +426,7 @@ fun MainAppShell(
                 },
                 onDelete = { toDelete ->
                     scope.launch {
-                        transactionRepository.updateTransaction(
-                            toDelete.copy(type = TransactionType.Ignored, isReviewed = true),
-                        )
+                        transactionRepository.deleteTransaction(toDelete.id)
                         snackbarHostState.showSnackbar("Transaction deleted")
                     }
                     selectedTransactionForDetail = null
@@ -495,19 +496,13 @@ fun MainAppShell(
         ReviewQueueScreen(
             unreviewedTransactions = unreviewed,
             onCategorize = { txn, category, propagate ->
-                val type =
-                    if (category.equals("Transfer", ignoreCase = true)) {
-                        TransactionType.Transfer
-                    } else {
-                        txn.type
-                    }
                 scope.launch {
                     if (propagate) {
                         val count =
                             transactionRepository.updateTransactionAndPropagateMerchant(
                                 transaction = txn,
                                 newCategory = category,
-                                newType = type,
+                                newType = txn.type,
                                 userPreferences = userPreferences,
                             )
                         val merchant = txn.merchantNormalised ?: txn.merchantRaw ?: "Merchant"
@@ -515,8 +510,14 @@ fun MainAppShell(
                             snackbarHostState.showSnackbar("Updated $count transactions for $merchant")
                         }
                     } else {
+                        val isTransferCat = category.equals("Transfer", ignoreCase = true) ||
+                            category.equals("A/C Transfer", ignoreCase = true)
                         transactionRepository.updateTransaction(
-                            txn.copy(categorySource = category, type = type, isReviewed = true),
+                            txn.copy(
+                                categorySource = category,
+                                isCounted = !isTransferCat,
+                                isReviewed = true,
+                            ),
                         )
                     }
                 }
@@ -524,7 +525,7 @@ fun MainAppShell(
             onIgnore = { txn ->
                 scope.launch {
                     transactionRepository.updateTransaction(
-                        txn.copy(type = TransactionType.Ignored, isReviewed = true),
+                        txn.copy(isCounted = false, isReviewed = true),
                     )
                 }
             },
@@ -584,6 +585,36 @@ fun MainAppShell(
             },
         )
     }
+
+    if (showSplitInfoDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showSplitInfoDialog = false },
+            title = { Text(text = "Split Expenses") },
+            text = {
+                Text(
+                    text = "To split a bill, tap on any transaction from your Transactions list and tap 'Split Bill' to calculate individual shares and track group settlements.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.Button(
+                    onClick = {
+                        showSplitInfoDialog = false
+                        currentDestination = AppDestination.TRANSACTIONS
+                    },
+                ) {
+                    Text(text = "Go to Transactions")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { showSplitInfoDialog = false },
+                ) {
+                    Text(text = "Close")
+                }
+            },
+        )
+    }
 }
 }
 
@@ -629,6 +660,7 @@ fun BoxDestinationContent(
     onSplitClick: () -> Unit = {},
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((Long, Set<Long>) -> Unit)? = null,
     onMergeDuplicateAccounts: ((Long, Long) -> Unit)? = null,
@@ -659,6 +691,7 @@ fun BoxDestinationContent(
                 onSplitClick = onSplitClick,
                 onDepositClick = onDepositClick,
                 onDuesClick = onDuesClick,
+                onProfileClick = onProfileClick,
                 modifier = modifier,
             )
         }

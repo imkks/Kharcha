@@ -8,6 +8,7 @@ import androidx.work.workDataOf
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.TransactionClassifierHelper
+import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.IgnoreReason
 import com.kharcha.core.model.IgnoredMessage
@@ -79,16 +80,25 @@ class ImportWorker
                                                 amountMinor = parsed.amountMinor,
                                                 channel = parsed.channel,
                                             )
-                                        val isTransfer = type == TransactionType.Transfer
-                                        val isRefund = type == TransactionType.Refund
+                                        val isCardBill = TransactionClassifierHelper.isCreditCardBillPayment(sms.body, normMerchant)
+                                        val targetCardLast4 = if (isCardBill) TransactionClassifierHelper.extractTargetCardLast4(sms.body) else null
+                                        val resolvedAccountLast4 = targetCardLast4 ?: parsed.accountLast4
+                                        val resolvedChannel = if (isCardBill) Channel.CARD else parsed.channel
+                                        val isTransferNarrative = TransactionClassifierHelper.isTransferNarrative(
+                                            body = sms.body,
+                                            merchant = normMerchant,
+                                            amountMinor = parsed.amountMinor,
+                                            channel = parsed.channel,
+                                        )
                                         val category =
                                             TransactionClassifierHelper.guessCategory(
                                                 merchant = normMerchant,
                                                 isCredit = isCredit,
-                                                isTransfer = isTransfer,
-                                                isRefund = isRefund,
+                                                isTransfer = isTransferNarrative,
                                                 body = sms.body,
                                             )
+                                        val isTransfer = !isCardBill && (category.equals("Transfer", ignoreCase = true) || category.equals("A/C Transfer", ignoreCase = true))
+                                        val isCounted = !isCardBill && !isTransfer
                                         val accountId =
                                             try {
                                                 val accountRepo =
@@ -96,8 +106,8 @@ class ImportWorker
                                                 val account =
                                                     accountRepo.resolveOrCreateAccount(
                                                         bankName = parsed.bankName,
-                                                        last4 = parsed.accountLast4,
-                                                        channel = parsed.channel,
+                                                        last4 = resolvedAccountLast4,
+                                                        channel = resolvedChannel,
                                                         balanceMinor = parsed.balanceAfterMinor,
                                                         timestamp = parsed.dateTime ?: sms.receivedAt,
                                                         smsBody = sms.body,
@@ -123,7 +133,7 @@ class ImportWorker
                                                 merchantRaw = rawMerchant ?: normMerchant,
                                                 merchantNormalised = normMerchant,
                                                 categorySource = category,
-                                                channel = parsed.channel,
+                                                channel = resolvedChannel,
                                                 refNumber = parsed.refNumber,
                                                 upiId = parsed.upiId,
                                                 balanceAfter = parsed.balanceAfterMinor,
@@ -131,9 +141,10 @@ class ImportWorker
                                                 parseConfidence = parsed.confidence,
                                                 isReviewed = true,
                                                 templateId = parsed.templateId ?: "generic_fallback",
-                                                accountLast4 = parsed.accountLast4,
+                                                accountLast4 = resolvedAccountLast4,
                                                 bankName = parsed.bankName,
                                                 sender = sms.sender,
+                                                isCounted = isCounted,
                                             )
                                         DefaultTransactionRepository.getInstance(applicationContext)
                                             .insertTransaction(txn)

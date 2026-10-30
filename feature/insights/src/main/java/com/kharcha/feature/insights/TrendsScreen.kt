@@ -57,6 +57,7 @@ import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
@@ -121,14 +122,14 @@ fun TrendsScreen(
     val selectedMonthSpendsMinor =
         remember(monthTransactions) {
             monthTransactions
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.Expense && it.isCounted }
                 .sumOf { it.amount }
         }
 
     val selectedMonthIncomeMinor =
         remember(monthTransactions) {
             monthTransactions
-                .filter { it.type == TransactionType.Income }
+                .filter { it.type == TransactionType.Income && it.isCounted }
                 .sumOf { it.amount }
         }
 

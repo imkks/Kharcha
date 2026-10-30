@@ -29,5 +29,9 @@ interface TransactionRepository {
 
     suspend fun clearTransactions()
 
+    suspend fun deleteTransaction(id: Long)
+
+    suspend fun deleteTransactions(ids: Collection<Long>)
+
     suspend fun reassignAccountTransactions(fromAccountId: Long, toAccountId: Long)
 }

@@ -439,6 +439,14 @@ class ICICIBankParser : BaseIndianBankParser() {
     }
 
     override fun extractAccountLast4(message: String): String? {
+        val towardsCardPattern = Regex(
+            """(?:towards|for|to)\s+(?:ICICI\s+Bank\s+)?Credit\s+Card(?:\s+Account)?\s+([X*\d]+)""",
+            RegexOption.IGNORE_CASE
+        )
+        towardsCardPattern.find(message)?.let { match ->
+            extractLast4Digits(match.groupValues[1])?.let { return it }
+        }
+
         val fromAccountPattern = Regex(
             """(?:from|through)\s+(?:Auto\s*Debit\s+from\s+)?(?:Account|Acct|A/c)\s+([X*\d]+)""",
             RegexOption.IGNORE_CASE
@@ -628,12 +636,6 @@ class ICICIBankParser : BaseIndianBankParser() {
         // Examples: "will be debited on", "will be debited with", "account will be debited"
         if (lowerMessage.contains("will be debited")) {
             return false // This is a future debit notification, not an actual transaction
-        }
-
-        // Skip credit card bill payment confirmations - these are transfers between own accounts
-        // Example: "Payment of Rs 26,266.00 has been received on your ICICI Bank Credit Card XX9006..."
-        if (lowerMessage.contains("has been received on your icici bank credit card")) {
-            return false // This is a credit card bill payment, not a transaction
         }
 
         // Check for ICICI-specific transaction keywords

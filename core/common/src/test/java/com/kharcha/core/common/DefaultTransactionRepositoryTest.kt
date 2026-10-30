@@ -350,7 +350,8 @@ class DefaultTransactionRepositoryTest {
 
             assertEquals(2L, linkedExpense.linkedTransactionId)
             assertEquals(1L, linkedRefund.linkedTransactionId)
-            assertEquals(TransactionType.Refund, linkedRefund.type)
+            assertEquals(TransactionType.Income, linkedRefund.type)
+            org.junit.Assert.assertFalse(linkedRefund.isCounted)
 
             repository.unlinkTransactions(1L)
             testScheduler.advanceUntilIdle()
@@ -377,7 +378,8 @@ class DefaultTransactionRepositoryTest {
                     id = 20L,
                     accountId = 1L,
                     amount = 45000L,
-                    type = TransactionType.Refund,
+                    type = TransactionType.Income,
+                    categorySource = "Refund",
                     merchantNormalised = "Swiggy",
                     dateTime = 1000L + (5L * 24 * 60 * 60 * 1000L), // 5 days later
                 )

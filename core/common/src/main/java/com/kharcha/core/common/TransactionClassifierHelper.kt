@@ -115,8 +115,9 @@ object TransactionClassifierHelper {
 
         val isAutoDebitForCard =
             (b.contains("auto debit") || b.contains("autodebit") || b.contains("auto-debit") ||
-                b.contains("standing instruction") || b.contains("nach") || b.contains("e-mandate")) &&
-                (b.contains("card") || b.contains("cc") || b.contains("credit"))
+                b.contains("standing instruction") || b.contains("nach") || b.contains("e-mandate") ||
+                b.contains("infoatd") || b.contains("auto debi")) &&
+                (b.contains("card") || b.contains("cc") || b.contains("credit") || b.contains("infoatd"))
 
         return hasCardPhrase || isAutoDebitForCard
     }
@@ -269,7 +270,7 @@ object TransactionClassifierHelper {
         if (partialMatch != null) return partialMatch
 
         if (isCreditCardBillPayment(b, m) || b.contains("credit card bil") || b.contains("card bill")) {
-            return "Bill Payment"
+            return "Bills"
         }
 
         if (isRefund || isRefundNarrative(b, m)) {
@@ -307,7 +308,7 @@ object TransactionClassifierHelper {
             return "Investment"
         }
         if (isCreditCardBillPayment(b, m) || b.contains("bill payment") || b.contains("card bil")) {
-            return "Bill Payment"
+            return "Bills"
         }
         if (m.contains("reward") || m.contains("cashback") || m.contains("cliq cash") ||
             b.contains("cashback") || b.contains("cash back") || b.contains("reward")

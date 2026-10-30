@@ -118,4 +118,17 @@
     <string name="duplicate_accounts_keep">Keep separate</string>
     <string name="duplicate_accounts_banner_title">Duplicate accounts detected</string>
     <string name="duplicate_accounts_banner_desc">Found %1$s and %2$s. Merge to combine transactions and automatically recognize future SMS.</string>
+    <string name="settings_edit_profile_title">Edit Profile</string>
+    <string name="settings_user_name_label">Name</string>
+    <string name="settings_user_email_label">Email Address</string>
+    <string name="settings_reminders_dialog_title">Reminders &amp; Alerts</string>
+    <string name="settings_reminders_daily_title">Daily Expense Check</string>
+    <string name="settings_reminders_daily_desc">Receive an end-of-day summary of your expenses</string>
+    <string name="settings_reminders_dues_title">Upcoming Bill Dues</string>
+    <string name="settings_reminders_dues_desc">Get notified before credit card and utility bills are due</string>
+    <string name="settings_security_dialog_title">Security &amp; Privacy</string>
+    <string name="settings_security_privacy_title">Privacy Mode</string>
+    <string name="settings_security_privacy_desc">Hide transaction and balance amounts on dashboard</string>
+    <string name="settings_security_offline_notice">Kharcha is strictly 100% offline. Zero data ever leaves your device.</string>
+    <string name="settings_tags_empty">No tags found. Add tags like #food or #trip in transaction notes.</string>
 </resources>

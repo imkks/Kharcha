@@ -139,6 +139,7 @@ fun HomeScreen(
     onSplitClick: () -> Unit = {},
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val currentYearMonth = remember { YearMonth.now() }
@@ -161,14 +162,14 @@ fun HomeScreen(
     val spentThisMonth =
         remember(currentMonthTransactions) {
             currentMonthTransactions
-                .filter { it.type == TransactionType.Expense }
+                .filter { it.type == TransactionType.Expense && it.isCounted }
                 .sumOf { it.amount }
         }
 
     val incomeThisMonth =
         remember(currentMonthTransactions) {
             currentMonthTransactions
-                .filter { it.type == TransactionType.Income }
+                .filter { it.type == TransactionType.Income && it.isCounted }
                 .sumOf { it.amount }
         }
 
@@ -202,6 +203,7 @@ fun HomeScreen(
             currentMonthTransactions
                 .filter {
                     it.type == TransactionType.Expense &&
+                        it.isCounted &&
                         (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed)
                 }
                 .sumOf { it.amount }
@@ -212,6 +214,7 @@ fun HomeScreen(
             currentMonthTransactions
                 .filter {
                     it.type == TransactionType.Expense &&
+                        it.isCounted &&
                         it.categorySource != "Unknown" &&
                         it.categorySource != "Other"
                 }
@@ -333,7 +336,11 @@ fun HomeScreen(
                 ) {
                     // Circular Green Avatar
                     Surface(
-                        modifier = Modifier.size(40.dp),
+                        modifier =
+                            Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .clickable { onProfileClick() },
                         shape = CircleShape,
                         color = MaterialTheme.financialColors.limeAccent,
                     ) {
@@ -352,6 +359,7 @@ fun HomeScreen(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.financialColors.textPrimary,
+                        modifier = Modifier.clickable { onProfileClick() },
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = onPrivacyToggle) {
@@ -1277,7 +1285,7 @@ fun HomeTransactionRow(
     modifier: Modifier = Modifier,
 ) {
     val isPrivacy = LocalPrivacyMode.current
-    val isTransfer = transaction.type == TransactionType.Transfer
+    val isTransfer = transaction.isTransfer
     val isDebit = transaction.type == TransactionType.Expense
     val arrowGlyph = when {
         isTransfer -> "⇄"

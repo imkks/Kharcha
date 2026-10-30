@@ -78,19 +78,16 @@ fun LinkTransactionSheet(
                 if (isTransferLink) {
                     if (isCreditTarget) {
                         // On credit side -> link debit
-                        candidate.type == TransactionType.Expense ||
-                            candidate.type == TransactionType.Transfer
+                        candidate.type == TransactionType.Expense
                     } else {
                         // On debit side -> link credit
-                        candidate.type == TransactionType.Income ||
-                            candidate.type == TransactionType.Transfer ||
-                            candidate.type == TransactionType.Refund
+                        candidate.type == TransactionType.Income
                     }
                 } else {
                     if (isLinkingToRefund) {
-                        candidate.categorySource.equals("Refund", ignoreCase = true) ||
-                            candidate.type == TransactionType.Refund ||
-                            TransactionClassifierHelper.isRefundNarrative(candidate.note)
+                        candidate.type == TransactionType.Income &&
+                            (candidate.categorySource.equals("Refund", ignoreCase = true) ||
+                                TransactionClassifierHelper.isRefundNarrative(candidate.note))
                     } else {
                         candidate.type == TransactionType.Expense
                     }

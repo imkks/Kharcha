@@ -97,8 +97,9 @@ import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Transaction
 import com.kharcha.feature.settings.R
 import java.io.File
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MoreScreen(
     transactions: List<Transaction>,
@@ -142,6 +143,13 @@ fun MoreScreen(
     var showTransferThresholdDialog by remember { mutableStateOf(false) }
     var showBudgetDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
+    var showEditProfileDialog by remember { mutableStateOf(false) }
+    var showRemindersDialog by remember { mutableStateOf(false) }
+    var showManageTagsSheet by remember { mutableStateOf(false) }
+    var showNotificationsDialog by remember { mutableStateOf(false) }
+    var showSecurityDialog by remember { mutableStateOf(false) }
+    var currentUserName by remember { mutableStateOf(userPreferences.userName) }
+    var currentUserEmail by remember { mutableStateOf(userPreferences.userEmail) }
 
     var categoriesRevision by remember { mutableIntStateOf(0) }
     val customSpendCategories =
@@ -217,6 +225,11 @@ fun MoreScreen(
             onCreditCategoriesClick = { showCreditCategoriesSheet = true },
             onRulesClick = { showRulesDialog = true },
             onMarkTransferClick = { showTransferThresholdDialog = true },
+            onRemindersClick = { showRemindersDialog = true },
+            onTagsClick = { showManageTagsSheet = true },
+            onNotificationsClick = { showNotificationsDialog = true },
+            onBackupClick = { showExportDialog = true },
+            onSecurityClick = { showSecurityDialog = true },
             onResetOnboarding = onResetOnboarding,
             onBack = { showPreferencesScreen = false },
             modifier = modifier,
@@ -264,7 +277,7 @@ fun MoreScreen(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = "K",
+                                    text = currentUserName.take(1).uppercase(Locale.ROOT).ifEmpty { "K" },
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.financialColors.onLimeAccent,
@@ -273,7 +286,7 @@ fun MoreScreen(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = stringResource(id = R.string.settings_user_name),
+                            text = currentUserName,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
@@ -337,7 +350,7 @@ fun MoreScreen(
                                     )
                                     Spacer(modifier = Modifier.width(14.dp))
                                     Text(
-                                        text = stringResource(id = R.string.settings_user_email),
+                                        text = currentUserEmail,
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color.White,
@@ -348,7 +361,7 @@ fun MoreScreen(
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.financialColors.limeAccent,
-                                    modifier = Modifier.clickable { },
+                                    modifier = Modifier.clickable { showEditProfileDialog = true },
                                 )
                             }
                         }
@@ -1513,6 +1526,273 @@ fun MoreScreen(
             },
         )
     }
+
+    if (showEditProfileDialog) {
+        var nameInput by remember { mutableStateOf(currentUserName) }
+        var emailInput by remember { mutableStateOf(currentUserEmail) }
+        AlertDialog(
+            onDismissRequest = { showEditProfileDialog = false },
+            title = { Text(text = stringResource(id = R.string.settings_edit_profile_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = nameInput,
+                        onValueChange = { nameInput = it },
+                        label = { Text(text = stringResource(id = R.string.settings_user_name_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = emailInput,
+                        onValueChange = { emailInput = it },
+                        label = { Text(text = stringResource(id = R.string.settings_user_email_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        userPreferences.userName = nameInput.trim()
+                        userPreferences.userEmail = emailInput.trim()
+                        currentUserName = userPreferences.userName
+                        currentUserEmail = userPreferences.userEmail
+                        showEditProfileDialog = false
+                    },
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.financialColors.limeAccent,
+                            contentColor = MaterialTheme.financialColors.onLimeAccent,
+                        ),
+                ) {
+                    Text(text = stringResource(id = R.string.settings_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditProfileDialog = false }) {
+                    Text(text = stringResource(id = R.string.settings_cancel))
+                }
+            },
+        )
+    }
+
+    if (showRemindersDialog) {
+        var isDailyReminderEnabled by remember { mutableStateOf(true) }
+        var isDuesReminderEnabled by remember { mutableStateOf(true) }
+        AlertDialog(
+            onDismissRequest = { showRemindersDialog = false },
+            title = { Text(text = stringResource(id = R.string.settings_reminders_dialog_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(id = R.string.settings_reminders_daily_title),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                            )
+                            Text(
+                                text = stringResource(id = R.string.settings_reminders_daily_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.financialColors.textSecondary,
+                            )
+                        }
+                        Switch(
+                            checked = isDailyReminderEnabled,
+                            onCheckedChange = { isDailyReminderEnabled = it },
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(id = R.string.settings_reminders_dues_title),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                            )
+                            Text(
+                                text = stringResource(id = R.string.settings_reminders_dues_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.financialColors.textSecondary,
+                            )
+                        }
+                        Switch(
+                            checked = isDuesReminderEnabled,
+                            onCheckedChange = { isDuesReminderEnabled = it },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRemindersDialog = false }) {
+                    Text(text = stringResource(id = R.string.settings_close))
+                }
+            },
+        )
+    }
+
+    if (showNotificationsDialog) {
+        var isNotifsEnabled by remember { mutableStateOf(true) }
+        AlertDialog(
+            onDismissRequest = { showNotificationsDialog = false },
+            title = { Text(text = stringResource(id = R.string.settings_notifications_reminders_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Push Notifications",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                            )
+                            Text(
+                                text = "Allow alerts for transactions and statement sync",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.financialColors.textSecondary,
+                            )
+                        }
+                        Switch(
+                            checked = isNotifsEnabled,
+                            onCheckedChange = { isNotifsEnabled = it },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showNotificationsDialog = false }) {
+                    Text(text = stringResource(id = R.string.settings_close))
+                }
+            },
+        )
+    }
+
+    if (showSecurityDialog) {
+        var isPrivacyChecked by remember { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
+        AlertDialog(
+            onDismissRequest = { showSecurityDialog = false },
+            title = { Text(text = stringResource(id = R.string.settings_security_dialog_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(id = R.string.settings_security_privacy_title),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                            )
+                            Text(
+                                text = stringResource(id = R.string.settings_security_privacy_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.financialColors.textSecondary,
+                            )
+                        }
+                        Switch(
+                            checked = isPrivacyChecked,
+                            onCheckedChange = {
+                                isPrivacyChecked = it
+                                userPreferences.isPrivacyModeEnabled = it
+                            },
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                    Text(
+                        text = stringResource(id = R.string.settings_security_offline_notice),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.financialColors.textSecondary,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSecurityDialog = false }) {
+                    Text(text = stringResource(id = R.string.settings_close))
+                }
+            },
+        )
+    }
+
+    if (showManageTagsSheet) {
+        val allTagsWithCounts = remember(transactions) {
+            val counts = mutableMapOf<String, Int>()
+            transactions.forEach { txn ->
+                val note = txn.note ?: ""
+                val regex = Regex("#[A-Za-z0-9_]+")
+                regex.findAll(note).forEach { match ->
+                    val tag = match.value
+                    counts[tag] = (counts[tag] ?: 0) + 1
+                }
+            }
+            counts.toList().sortedByDescending { it.second }
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { showManageTagsSheet = false },
+            containerColor = MaterialTheme.financialColors.cardBackground,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = stringResource(id = R.string.settings_tags_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+                if (allTagsWithCounts.isEmpty()) {
+                    Text(
+                        text = stringResource(id = R.string.settings_tags_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.financialColors.textSecondary,
+                    )
+                } else {
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        allTagsWithCounts.forEach { (tag, count) ->
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.financialColors.raisedRowBackground,
+                                border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                            ) {
+                                Text(
+                                    text = "$tag ($count)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -1531,6 +1811,11 @@ private fun PreferencesScreenView(
     onCreditCategoriesClick: () -> Unit,
     onRulesClick: () -> Unit,
     onMarkTransferClick: () -> Unit,
+    onRemindersClick: () -> Unit = {},
+    onTagsClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
+    onBackupClick: () -> Unit = {},
+    onSecurityClick: () -> Unit = {},
     onResetOnboarding: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1655,7 +1940,7 @@ private fun PreferencesScreenView(
                         SettingsNavRow(
                             iconRes = DesignR.drawable.ic_copy,
                             title = stringResource(id = R.string.settings_manage_reminders_title),
-                            onClick = { },
+                            onClick = onRemindersClick,
                         )
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
@@ -1685,7 +1970,7 @@ private fun PreferencesScreenView(
                             iconRes = DesignR.drawable.ic_label,
                             title = stringResource(id = R.string.settings_tags_title),
                             subtitle = stringResource(id = R.string.settings_tags_subtitle),
-                            onClick = { },
+                            onClick = onTagsClick,
                         )
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
@@ -1705,7 +1990,7 @@ private fun PreferencesScreenView(
                         SettingsNavRow(
                             iconRes = DesignR.drawable.ic_notes,
                             title = stringResource(id = R.string.settings_notifications_reminders_title),
-                            onClick = { },
+                            onClick = onNotificationsClick,
                         )
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
@@ -1714,7 +1999,7 @@ private fun PreferencesScreenView(
                         SettingsNavRow(
                             iconRes = DesignR.drawable.ic_copy,
                             title = stringResource(id = R.string.settings_backup_title),
-                            onClick = { },
+                            onClick = onBackupClick,
                         )
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
@@ -1723,7 +2008,7 @@ private fun PreferencesScreenView(
                         SettingsNavRow(
                             iconRes = DesignR.drawable.ic_channel_card,
                             title = stringResource(id = R.string.settings_security_title),
-                            onClick = { },
+                            onClick = onSecurityClick,
                         )
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)

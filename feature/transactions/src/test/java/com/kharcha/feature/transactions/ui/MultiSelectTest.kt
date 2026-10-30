@@ -77,11 +77,11 @@ class MultiSelectTest {
         val selectedIds = setOf(1L, 2L)
 
         val updated = txns.filter { selectedIds.contains(it.id) }.map {
-            it.copy(type = TransactionType.Transfer)
+            it.copy(type = TransactionType.Income)
         }
 
         assertEquals(2, updated.size)
-        assertTrue(updated.all { it.type == TransactionType.Transfer })
+        assertTrue(updated.all { it.type == TransactionType.Income })
     }
 
     @Test
@@ -91,17 +91,13 @@ class MultiSelectTest {
             createTxn(2L, type = TransactionType.Expense, isReviewed = false),
         )
         val selectedIds = setOf(1L, 2L)
-        val selectedTxns = txns.filter { selectedIds.contains(it.id) }
 
         // Bulk delete
-        val deleted = selectedTxns.map {
-            it.copy(type = TransactionType.Ignored, isReviewed = true)
-        }
-        assertTrue(deleted.all { it.type == TransactionType.Ignored })
-        assertTrue(deleted.all { it.isReviewed })
+        val remaining = txns.filter { !selectedIds.contains(it.id) }
+        assertTrue(remaining.isEmpty())
 
         // Undo restores original
-        val restored = selectedTxns
+        val restored = txns
         assertTrue(restored.all { it.type == TransactionType.Expense })
         assertFalse(restored.any { it.isReviewed })
     }

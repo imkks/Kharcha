@@ -4,6 +4,7 @@ import com.kharcha.core.common.PeriodHelper
 import com.kharcha.core.model.TimePeriod
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.isCounted
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -88,9 +89,9 @@ object InsightsAnalyticsHelper {
                 .toEpochMilli()
 
         val monthTxns = transactions.filter { it.dateTime in monthStart..monthEnd }
-        val expenses = monthTxns.filter { it.type == TransactionType.Expense }
+        val expenses = monthTxns.filter { it.type == TransactionType.Expense && it.isCounted }
         val totalSpent = expenses.sumOf { it.amount }
-        val totalIncome = monthTxns.filter { it.type == TransactionType.Income }.sumOf { it.amount }
+        val totalIncome = monthTxns.filter { it.type == TransactionType.Income && it.isCounted }.sumOf { it.amount }
 
         val monthlyBudget =
             customMonthlyBudgetMinor

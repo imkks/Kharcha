@@ -32,24 +32,24 @@ class SwipeActionTest {
     @Test
     fun testSwipeDeleteMarksIgnoredAndReviewed() {
         val original = createTxn(id = 10L, type = TransactionType.Expense, isReviewed = false)
-        val deleted = original.copy(type = TransactionType.Ignored, isReviewed = true)
-
-        assertEquals(TransactionType.Ignored, deleted.type)
-        assertTrue(deleted.isReviewed)
-        assertEquals(original.id, deleted.id)
+        val list = listOf(original)
+        val afterDelete = list.filter { it.id != original.id }
+        assertTrue(afterDelete.isEmpty())
     }
 
     @Test
     fun testSwipeDeleteUndoRestoresOriginal() {
         val original = createTxn(id = 10L, type = TransactionType.Expense, isReviewed = false)
-        val deleted = original.copy(type = TransactionType.Ignored, isReviewed = true)
+        val list = listOf(original)
+        val afterDelete = list.filter { it.id != original.id }
 
         // Undo action restores original instance
-        val restored = original
+        val restored = afterDelete + original
 
-        assertEquals(TransactionType.Expense, restored.type)
-        assertFalse(restored.isReviewed)
-        assertEquals(original.amount, restored.amount)
+        assertEquals(1, restored.size)
+        assertEquals(TransactionType.Expense, restored.first().type)
+        assertFalse(restored.first().isReviewed)
+        assertEquals(original.amount, restored.first().amount)
     }
 
     @Test

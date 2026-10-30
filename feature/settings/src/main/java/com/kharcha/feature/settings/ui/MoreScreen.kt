@@ -1643,7 +1643,7 @@ fun MoreScreen(
     }
 
     if (showNotificationsDialog) {
-        var isNotifsEnabled by remember { mutableStateOf(true) }
+        var isNotifsEnabled by remember { mutableStateOf(userPreferences.isExpenseNotificationsEnabled) }
         AlertDialog(
             onDismissRequest = { showNotificationsDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_notifications_reminders_title)) },
@@ -1656,20 +1656,23 @@ fun MoreScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Push Notifications",
+                                text = stringResource(id = R.string.settings_expense_notifications_title),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.White,
                             )
                             Text(
-                                text = "Allow alerts for transactions and statement sync",
+                                text = stringResource(id = R.string.settings_expense_notifications_subtitle),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.financialColors.textSecondary,
                             )
                         }
                         Switch(
                             checked = isNotifsEnabled,
-                            onCheckedChange = { isNotifsEnabled = it },
+                            onCheckedChange = {
+                                isNotifsEnabled = it
+                                userPreferences.isExpenseNotificationsEnabled = it
+                            },
                         )
                     }
                 }

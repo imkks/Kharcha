@@ -61,6 +61,18 @@ class UserPreferencesTest {
     }
 
     @Test
+    fun expenseNotifications_defaultToEnabledAndCanBeDisabled() {
+        every { sharedPreferences.getBoolean("key_expense_notifications_enabled", true) } returns true
+        assertTrue(userPreferences.isExpenseNotificationsEnabled)
+
+        userPreferences.isExpenseNotificationsEnabled = false
+        verify { editor.putBoolean("key_expense_notifications_enabled", false) }
+
+        every { sharedPreferences.getBoolean("key_expense_notifications_enabled", true) } returns false
+        assertFalse(userPreferences.isExpenseNotificationsEnabled)
+    }
+
+    @Test
     fun testMerchantCategoryRules() {
         every { sharedPreferences.getString("key_merchant_rules_json", null) } returns null
         assertTrue(userPreferences.getMerchantCategoryRules().isEmpty())

@@ -24,6 +24,8 @@
     <string name="settings_tags_subtitle">Create / Delete tags</string>
     <string name="settings_mark_transfer_title">Mark as transfer amount</string>
     <string name="settings_notifications_reminders_title">Notifications &amp; Reminders</string>
+    <string name="settings_expense_notifications_title">Expense notifications</string>
+    <string name="settings_expense_notifications_subtitle">Show an alert when a new expense is detected</string>
     <string name="settings_backup_title">Backup</string>
     <string name="settings_security_title">Security</string>
     <string name="settings_account_settings_title">Account settings</string>

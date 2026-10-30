@@ -155,7 +155,12 @@ class SmsReceiver : BroadcastReceiver() {
                                 it.smsHash == txn.smsHash || it.id == txn.id
                             }
                         repo.insertTransaction(txn)
-                        if (!alreadySaved && txn.type == TransactionType.Expense && txn.isCounted) {
+                        val preferences = DefaultUserPreferences(context)
+                        if (!alreadySaved &&
+                            preferences.isExpenseNotificationsEnabled &&
+                            txn.type == TransactionType.Expense &&
+                            txn.isCounted
+                        ) {
                             val accountDescription =
                                 if (!txn.accountLast4.isNullOrBlank()) {
                                     context.getString(
@@ -166,7 +171,6 @@ class SmsReceiver : BroadcastReceiver() {
                                 } else {
                                     txn.bankName ?: txn.channel?.name.orEmpty()
                                 }
-                            val preferences = DefaultUserPreferences(context)
                             ExpenseNotification.forApplication(context).show(
                                 transaction = txn,
                                 merchant = txn.merchantNormalised

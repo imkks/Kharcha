@@ -8,6 +8,7 @@ interface UserPreferences {
     var isOnboardingCompleted: Boolean
     var monthlyBudgetMinor: Long
     var isPrivacyModeEnabled: Boolean
+    var isExpenseNotificationsEnabled: Boolean
     var isLaunchInMoneyManagerEnabled: Boolean
     var autoTransferThresholdPaise: Long
     var userName: String
@@ -48,6 +49,10 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
     override var isPrivacyModeEnabled: Boolean
         get() = prefs.getBoolean(KEY_PRIVACY_MODE_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_PRIVACY_MODE_ENABLED, value).apply()
+
+    override var isExpenseNotificationsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_EXPENSE_NOTIFICATIONS_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_EXPENSE_NOTIFICATIONS_ENABLED, value).apply()
 
     override var isLaunchInMoneyManagerEnabled: Boolean
         get() = prefs.getBoolean(KEY_LAUNCH_IN_MONEY_MANAGER, true)
@@ -250,6 +255,7 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_ONBOARDING_COMPLETED = "key_onboarding_completed"
         private const val KEY_MONTHLY_BUDGET = "key_monthly_budget_paise"
         private const val KEY_PRIVACY_MODE_ENABLED = "key_privacy_mode_enabled"
+        private const val KEY_EXPENSE_NOTIFICATIONS_ENABLED = "key_expense_notifications_enabled"
         private const val KEY_MERCHANT_RULES = "key_merchant_rules_json"
         private const val KEY_CATEGORY_BUDGETS = "key_category_budgets_json"
         private const val KEY_CUSTOM_CATEGORIES = "key_custom_categories_json"

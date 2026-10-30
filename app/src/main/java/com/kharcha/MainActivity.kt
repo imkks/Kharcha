@@ -1,7 +1,8 @@
 package com.kharcha
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.biometric.BiometricPrompt
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -89,7 +90,7 @@ enum class AppDestination(
 }
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     @Inject
     lateinit var transactionRepository: TransactionRepository
 
@@ -107,12 +108,23 @@ class MainActivity : ComponentActivity() {
                     var isOnboardingCompleted by rememberSaveable {
                         mutableStateOf(userPreferences.isOnboardingCompleted)
                     }
+                    var isAppUnlocked by rememberSaveable {
+                        mutableStateOf(!userPreferences.isAppLockEnabled && !userPreferences.isIncomeHidden)
+                    }
 
                     if (!isOnboardingCompleted) {
                         OnboardingRoute(
                             onOnboardingComplete = {
                                 userPreferences.isOnboardingCompleted = true
                                 isOnboardingCompleted = true
+                            },
+                        )
+                    } else if ((userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) && !isAppUnlocked) {
+                        AppLockScreen(
+                            onUnlock = {
+                                authenticateWithBiometric {
+                                    isAppUnlocked = true
+                                }
                             },
                         )
                     } else {
@@ -131,6 +143,45 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    private fun authenticateWithBiometric(onAuthenticated: () -> Unit) {
+        val prompt = BiometricPrompt(
+            this,
+            mainExecutor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    onAuthenticated()
+                }
+            },
+        )
+        prompt.authenticate(
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle(getString(R.string.app_lock_title))
+                .setSubtitle(getString(R.string.app_lock_subtitle))
+                .setAllowedAuthenticators(
+                    androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                        androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                )
+                .build(),
+        )
+    }
+}
+
+@Composable
+private fun AppLockScreen(onUnlock: () -> Unit) {
+    androidx.compose.foundation.layout.Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+    ) {
+        Text(text = stringResource(R.string.app_lock_title), style = MaterialTheme.typography.headlineSmall)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = stringResource(R.string.app_lock_subtitle), style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.height(24.dp))
+        androidx.compose.material3.Button(onClick = onUnlock) {
+            Text(text = stringResource(R.string.app_lock_unlock))
         }
     }
 }
@@ -381,6 +432,9 @@ fun MainAppShell(
                     onAccountClick = { selectedAccountForDetail = it },
                     onProfileClick = { currentDestination = AppDestination.MORE },
                     onDuesClick = { currentDestination = AppDestination.INSIGHTS },
+                    onNotificationSettingsChanged = {
+                        SummaryNotificationWorker.scheduleAll(context, userPreferences)
+                    },
                     onSplitClick = { showSplitInfoDialog = true },
                 )
             }
@@ -698,6 +752,7 @@ fun BoxDestinationContent(
     onSplitClick: () -> Unit = {},
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
+    onNotificationSettingsChanged: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((Long, Set<Long>) -> Unit)? = null,
@@ -798,6 +853,7 @@ fun BoxDestinationContent(
                 onReportSmsClick = onReportSmsClick,
                 onAccountClick = onAccountClick,
                 onTransactionClick = onTransactionClick,
+                onNotificationSettingsChanged = onNotificationSettingsChanged,
                 modifier = modifier,
             )
         }

@@ -86,6 +86,32 @@ class UserPreferencesTest {
     }
 
     @Test
+    fun reminderAndSecurityPreferencesHaveScreenshotDefaults() {
+        every { sharedPreferences.getBoolean("key_hide_default_sms_notifications", false) } returns false
+        every { sharedPreferences.getBoolean("key_daily_summary_enabled", true) } returns true
+        every { sharedPreferences.getInt("key_daily_summary_time", 22 * 60) } returns 22 * 60
+        every { sharedPreferences.getBoolean("key_weekly_summary_enabled", true) } returns true
+        every { sharedPreferences.getInt("key_weekly_summary_time", 11 * 60) } returns 11 * 60
+        every { sharedPreferences.getBoolean("key_bill_reminder_enabled", true) } returns true
+        every { sharedPreferences.getBoolean("key_app_lock_enabled", false) } returns false
+        every { sharedPreferences.getBoolean("key_income_hidden", false) } returns false
+
+        assertFalse(userPreferences.hideDefaultSmsNotifications)
+        assertTrue(userPreferences.isDailySummaryEnabled)
+        assertEquals(22 * 60, userPreferences.dailySummaryMinuteOfDay)
+        assertTrue(userPreferences.isWeeklySummaryEnabled)
+        assertEquals(11 * 60, userPreferences.weeklySummaryMinuteOfDay)
+        assertTrue(userPreferences.isBillReminderEnabled)
+        assertFalse(userPreferences.isAppLockEnabled)
+        assertFalse(userPreferences.isIncomeHidden)
+
+        userPreferences.dailySummaryMinuteOfDay = 1500
+        userPreferences.weeklySummaryMinuteOfDay = -1
+        verify { editor.putInt("key_daily_summary_time", 1439) }
+        verify { editor.putInt("key_weekly_summary_time", 0) }
+    }
+
+    @Test
     fun testMerchantCategoryRules() {
         every { sharedPreferences.getString("key_merchant_rules_json", null) } returns null
         assertTrue(userPreferences.getMerchantCategoryRules().isEmpty())

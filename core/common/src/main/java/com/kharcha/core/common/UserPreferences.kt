@@ -9,6 +9,14 @@ interface UserPreferences {
     var monthlyBudgetMinor: Long
     var isPrivacyModeEnabled: Boolean
     var isExpenseNotificationsEnabled: Boolean
+    var hideDefaultSmsNotifications: Boolean
+    var isDailySummaryEnabled: Boolean
+    var dailySummaryMinuteOfDay: Int
+    var isWeeklySummaryEnabled: Boolean
+    var weeklySummaryMinuteOfDay: Int
+    var isBillReminderEnabled: Boolean
+    var isAppLockEnabled: Boolean
+    var isIncomeHidden: Boolean
     var isLaunchInMoneyManagerEnabled: Boolean
     var autoTransferThresholdPaise: Long
     var userName: String
@@ -54,6 +62,38 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
     override var isExpenseNotificationsEnabled: Boolean
         get() = prefs.getBoolean(KEY_EXPENSE_NOTIFICATIONS_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_EXPENSE_NOTIFICATIONS_ENABLED, value).apply()
+
+    override var hideDefaultSmsNotifications: Boolean
+        get() = prefs.getBoolean(KEY_HIDE_DEFAULT_SMS_NOTIFICATIONS, false)
+        set(value) = prefs.edit().putBoolean(KEY_HIDE_DEFAULT_SMS_NOTIFICATIONS, value).apply()
+
+    override var isDailySummaryEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DAILY_SUMMARY_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_DAILY_SUMMARY_ENABLED, value).apply()
+
+    override var dailySummaryMinuteOfDay: Int
+        get() = prefs.getInt(KEY_DAILY_SUMMARY_TIME, 22 * 60)
+        set(value) = prefs.edit().putInt(KEY_DAILY_SUMMARY_TIME, value.coerceIn(0, 1439)).apply()
+
+    override var isWeeklySummaryEnabled: Boolean
+        get() = prefs.getBoolean(KEY_WEEKLY_SUMMARY_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_WEEKLY_SUMMARY_ENABLED, value).apply()
+
+    override var weeklySummaryMinuteOfDay: Int
+        get() = prefs.getInt(KEY_WEEKLY_SUMMARY_TIME, 11 * 60)
+        set(value) = prefs.edit().putInt(KEY_WEEKLY_SUMMARY_TIME, value.coerceIn(0, 1439)).apply()
+
+    override var isBillReminderEnabled: Boolean
+        get() = prefs.getBoolean(KEY_BILL_REMINDER_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_BILL_REMINDER_ENABLED, value).apply()
+
+    override var isAppLockEnabled: Boolean
+        get() = prefs.getBoolean(KEY_APP_LOCK_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_APP_LOCK_ENABLED, value).apply()
+
+    override var isIncomeHidden: Boolean
+        get() = prefs.getBoolean(KEY_INCOME_HIDDEN, false)
+        set(value) = prefs.edit().putBoolean(KEY_INCOME_HIDDEN, value).apply()
 
     override var isLaunchInMoneyManagerEnabled: Boolean
         get() = prefs.getBoolean(KEY_LAUNCH_IN_MONEY_MANAGER, true)
@@ -261,6 +301,14 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_MONTHLY_BUDGET = "key_monthly_budget_paise"
         private const val KEY_PRIVACY_MODE_ENABLED = "key_privacy_mode_enabled"
         private const val KEY_EXPENSE_NOTIFICATIONS_ENABLED = "key_expense_notifications_enabled"
+        private const val KEY_HIDE_DEFAULT_SMS_NOTIFICATIONS = "key_hide_default_sms_notifications"
+        private const val KEY_DAILY_SUMMARY_ENABLED = "key_daily_summary_enabled"
+        private const val KEY_DAILY_SUMMARY_TIME = "key_daily_summary_time"
+        private const val KEY_WEEKLY_SUMMARY_ENABLED = "key_weekly_summary_enabled"
+        private const val KEY_WEEKLY_SUMMARY_TIME = "key_weekly_summary_time"
+        private const val KEY_BILL_REMINDER_ENABLED = "key_bill_reminder_enabled"
+        private const val KEY_APP_LOCK_ENABLED = "key_app_lock_enabled"
+        private const val KEY_INCOME_HIDDEN = "key_income_hidden"
         private const val KEY_MERCHANT_RULES = "key_merchant_rules_json"
         private const val KEY_CATEGORY_BUDGETS = "key_category_budgets_json"
         private const val KEY_CUSTOM_CATEGORIES = "key_custom_categories_json"

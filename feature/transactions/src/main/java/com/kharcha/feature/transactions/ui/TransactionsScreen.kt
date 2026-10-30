@@ -56,7 +56,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
@@ -534,11 +534,12 @@ fun TransactionsScreen(
                     .padding(innerPadding),
         ) {
             // 1. Sub-Tabs Row: Transactions | Categories | Merchants
-            TabRow(
+            ScrollableTabRow(
                 selectedTabIndex = selectedSubTab.ordinal,
                 containerColor = Color.Transparent,
                 contentColor = MaterialTheme.financialColors.income,
                 divider = {},
+                edgePadding = 8.dp,
                 indicator = { tabPositions ->
                     if (selectedSubTab.ordinal < tabPositions.size) {
                         val currentTabPosition = tabPositions[selectedSubTab.ordinal]
@@ -569,7 +570,7 @@ fun TransactionsScreen(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 TransactionsSubTab.entries.forEach { tab ->
                     val isSelected = selectedSubTab == tab
@@ -581,6 +582,9 @@ fun TransactionsScreen(
                                 text = stringResource(id = tab.titleRes),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
                                 color =
                                     if (isSelected) {
                                         MaterialTheme.financialColors.limeAccent

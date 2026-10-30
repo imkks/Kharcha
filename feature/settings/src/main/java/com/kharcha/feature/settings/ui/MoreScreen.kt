@@ -2,6 +2,11 @@ package com.kharcha.feature.settings.ui
 
 import android.content.Context
 import android.content.Intent
+import android.app.TimePickerDialog
+import android.provider.Settings
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -20,6 +25,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -116,6 +123,7 @@ fun MoreScreen(
     onReportSmsClick: () -> Unit = {},
     onAccountClick: (Account) -> Unit = {},
     onTransactionClick: (Transaction) -> Unit = {},
+    onNotificationSettingsChanged: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var showPreferencesScreen by remember { mutableStateOf(false) }
@@ -1653,36 +1661,49 @@ fun MoreScreen(
 
     if (showNotificationsDialog) {
         var isNotifsEnabled by remember { mutableStateOf(userPreferences.isExpenseNotificationsEnabled) }
+        var hideSmsNotifications by remember { mutableStateOf(userPreferences.hideDefaultSmsNotifications) }
+        var dailySummary by remember { mutableStateOf(userPreferences.isDailySummaryEnabled) }
+        var dailyTime by remember { mutableIntStateOf(userPreferences.dailySummaryMinuteOfDay) }
+        var weeklySummary by remember { mutableStateOf(userPreferences.isWeeklySummaryEnabled) }
+        var weeklyTime by remember { mutableIntStateOf(userPreferences.weeklySummaryMinuteOfDay) }
+        var billReminders by remember { mutableStateOf(userPreferences.isBillReminderEnabled) }
+        val context = LocalContext.current
+        fun timeLabel(minutes: Int): String = String.format(Locale.getDefault(), "%02d:%02d", minutes / 60, minutes % 60)
         AlertDialog(
             onDismissRequest = { showNotificationsDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_notifications_reminders_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(id = R.string.settings_expense_notifications_title),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
-                            )
-                            Text(
-                                text = stringResource(id = R.string.settings_expense_notifications_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.financialColors.textSecondary,
-                            )
+                Column(
+                    modifier = Modifier.height(520.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SettingsToggleRow(stringResource(R.string.settings_expense_notifications_title), stringResource(R.string.settings_expense_notifications_subtitle), isNotifsEnabled) {
+                        isNotifsEnabled = it; userPreferences.isExpenseNotificationsEnabled = it
+                    }
+                    SettingsToggleRow(stringResource(R.string.settings_hide_sms_title), stringResource(R.string.settings_hide_sms_desc), hideSmsNotifications) {
+                        if (it) {
+                            userPreferences.hideDefaultSmsNotifications = true
+                            hideSmsNotifications = true
+                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        } else {
+                            hideSmsNotifications = false
+                            userPreferences.hideDefaultSmsNotifications = false
                         }
-                        Switch(
-                            checked = isNotifsEnabled,
-                            onCheckedChange = {
-                                isNotifsEnabled = it
-                                userPreferences.isExpenseNotificationsEnabled = it
-                            },
-                        )
+                    }
+                    SettingsToggleRow(stringResource(R.string.settings_daily_summary_title), stringResource(R.string.settings_toggle_status, if (dailySummary) stringResource(R.string.settings_on) else stringResource(R.string.settings_off)), dailySummary) {
+                        dailySummary = it; userPreferences.isDailySummaryEnabled = it; onNotificationSettingsChanged()
+                    }
+                    SettingsValueRow(stringResource(R.string.settings_daily_summary_time), timeLabel(dailyTime)) {
+                        TimePickerDialog(context, { _, hour, minute -> dailyTime = hour * 60 + minute; userPreferences.dailySummaryMinuteOfDay = dailyTime; onNotificationSettingsChanged() }, dailyTime / 60, dailyTime % 60, false).show()
+                    }
+                    SettingsToggleRow(stringResource(R.string.settings_weekly_summary_title), stringResource(R.string.settings_toggle_status, if (weeklySummary) stringResource(R.string.settings_on) else stringResource(R.string.settings_off)), weeklySummary) {
+                        weeklySummary = it; userPreferences.isWeeklySummaryEnabled = it; onNotificationSettingsChanged()
+                    }
+                    SettingsValueRow(stringResource(R.string.settings_weekly_summary_time), timeLabel(weeklyTime)) {
+                        TimePickerDialog(context, { _, hour, minute -> weeklyTime = hour * 60 + minute; userPreferences.weeklySummaryMinuteOfDay = weeklyTime; onNotificationSettingsChanged() }, weeklyTime / 60, weeklyTime % 60, false).show()
+                    }
+                    SettingsValueRow(stringResource(R.string.settings_bill_reminders), stringResource(R.string.settings_bill_reminders_desc)) {
+                        billReminders = !billReminders; userPreferences.isBillReminderEnabled = billReminders
                     }
                 }
             },
@@ -1696,6 +1717,8 @@ fun MoreScreen(
 
     if (showSecurityDialog) {
         var isPrivacyChecked by remember { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
+        var hideIncome by remember { mutableStateOf(userPreferences.isIncomeHidden) }
+        var appLock by remember { mutableStateOf(userPreferences.isAppLockEnabled) }
         AlertDialog(
             onDismissRequest = { showSecurityDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_security_dialog_title)) },
@@ -1728,6 +1751,51 @@ fun MoreScreen(
                         )
                     }
                     HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                    SettingsToggleRow(stringResource(R.string.settings_app_lock_title), stringResource(R.string.settings_app_lock_desc), appLock) {
+                        if (!it) {
+                            appLock = false
+                            userPreferences.isAppLockEnabled = false
+                        } else {
+                            val activity = context as? FragmentActivity
+                            val available = BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
+                            if (activity != null && available) {
+                                val prompt = BiometricPrompt(activity, activity.mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
+                                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                        appLock = true
+                                        userPreferences.isAppLockEnabled = true
+                                    }
+                                })
+                                prompt.authenticate(BiometricPrompt.PromptInfo.Builder()
+                                    .setTitle(context.getString(R.string.settings_app_lock_title))
+                                    .setSubtitle(context.getString(R.string.settings_app_lock_desc))
+                                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                                    .build())
+                            }
+                        }
+                    }
+                    SettingsToggleRow(stringResource(R.string.settings_hide_income_title), stringResource(R.string.settings_hide_income_desc), hideIncome) {
+                        if (!it) {
+                            hideIncome = false
+                            userPreferences.isIncomeHidden = false
+                        } else {
+                            val activity = context as? FragmentActivity
+                            val available = BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
+                            if (activity != null && available) {
+                                val prompt = BiometricPrompt(activity, activity.mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
+                                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                        hideIncome = true
+                                        userPreferences.isIncomeHidden = true
+                                    }
+                                })
+                                prompt.authenticate(BiometricPrompt.PromptInfo.Builder()
+                                    .setTitle(context.getString(R.string.settings_hide_income_title))
+                                    .setSubtitle(context.getString(R.string.settings_hide_income_desc))
+                                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                                    .build())
+                            }
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                     Text(
                         text = stringResource(id = R.string.settings_security_offline_notice),
                         style = MaterialTheme.typography.bodySmall,
@@ -1754,6 +1822,8 @@ fun MoreScreen(
                     counts[tag] = (counts[tag] ?: 0) + 1
                 }
             }
+            val defaults = listOf("#rent", "Family", "Friends", "Office", "Online", "School")
+            defaults.forEach { tag -> counts.putIfAbsent(tag, 0) }
             counts.toList().sortedByDescending { it.second }
         }
 
@@ -1804,6 +1874,37 @@ fun MoreScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.financialColors.textSecondary)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun SettingsValueRow(title: String, value: String, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
+        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.financialColors.textSecondary)
     }
 }
 

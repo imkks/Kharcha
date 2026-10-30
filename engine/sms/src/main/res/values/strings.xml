@@ -1,0 +1,13 @@
+<resources>
+    <string name="expense_notification_channel">Transactions</string>
+    <string name="expense_notification_title">Spent %1$s at %2$s</string>
+    <string name="expense_notification_hidden_title">New expense at %1$s</string>
+    <string name="expense_notification_body">%1$s · %2$s</string>
+    <string name="expense_notification_edit">Edit</string>
+    <string name="expense_notification_not_expense">Not an expense</string>
+    <string name="expense_notification_show_sms">Show SMS</string>
+    <string name="expense_notification_amount">₹%1$d.%2$s</string>
+    <string name="expense_notification_account">%1$s ending %2$s</string>
+    <string name="expense_notification_unknown_merchant">Unknown merchant</string>
+    <string name="expense_notification_uncategorised">Uncategorised</string>
+</resources>

@@ -135,6 +135,7 @@ fun TransactionDetailScreen(
     onNavigateToMerchant: ((String) -> Unit)? = null,
     onLinkTransactions: ((primaryId: Long, secondaryId: Long, isRefund: Boolean) -> Unit)? = null,
     onUnlinkTransaction: ((id: Long) -> Unit)? = null,
+    openCategoryPickerOnStart: Boolean = false,
 ) {
     var selectedType by remember { mutableStateOf(transaction.type) }
     var selectedCategory by remember { mutableStateOf(transaction.categorySource ?: "Other") }
@@ -142,7 +143,7 @@ fun TransactionDetailScreen(
     var noteText by remember { mutableStateOf(transaction.note ?: "") }
 
     var showMenu by remember { mutableStateOf(false) }
-    var showCategorySheet by remember { mutableStateOf(false) }
+    var showCategorySheet by remember(transaction.id) { mutableStateOf(openCategoryPickerOnStart) }
     var showPropagateDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditNoteDialog by remember { mutableStateOf(false) }

@@ -14,7 +14,7 @@
 
     <string name="onboarding_permission_title">Enable SMS access</string>
     <string name="onboarding_permission_subtitle">Kharcha reads your bank SMS alerts to log debits, credits, and account balances automatically.</string>
-    <string name="onboarding_permission_rationale">We need READ_SMS and RECEIVE_SMS to automatically categorize your transactions.</string>
+    <string name="onboarding_permission_rationale">We need SMS access to categorize transactions and notification access to alert you when an expense arrives.</string>
     <string name="onboarding_permission_point_automated">Automates manual expense tracking</string>
     <string name="onboarding_permission_point_accounts">Auto-detects bank accounts, cards &amp; UPI</string>
     <string name="onboarding_permission_point_private">Personal SMS and OTPs are strictly ignored</string>

@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionRepository
@@ -51,6 +52,7 @@ import com.kharcha.core.model.Account
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
+import com.kharcha.engine.sms.ExpenseNotification
 import com.kharcha.feature.home.ui.HomeScreen
 import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
@@ -117,6 +119,10 @@ class MainActivity : ComponentActivity() {
                         MainAppShell(
                             transactionRepository = transactionRepository,
                             userPreferences = userPreferences,
+                            notificationTransactionId =
+                                intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
+                                    .takeIf { it >= 0L },
+                            notificationAction = intent.getStringExtra(ExpenseNotification.EXTRA_ACTION),
                             onResetOnboarding = {
                                 userPreferences.isOnboardingCompleted = false
                                 isOnboardingCompleted = false
@@ -134,6 +140,8 @@ fun MainAppShell(
     transactionRepository: TransactionRepository,
     userPreferences: UserPreferences,
     onResetOnboarding: () -> Unit,
+    notificationTransactionId: Long? = null,
+    notificationAction: String? = null,
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
@@ -151,6 +159,7 @@ fun MainAppShell(
     val scope = rememberCoroutineScope()
     var showReviewQueue by rememberSaveable { mutableStateOf(false) }
     var selectedTransactionForDetail by remember { mutableStateOf<Transaction?>(null) }
+    var categoryPickerTransactionId by remember { mutableStateOf<Long?>(null) }
     var selectedEntityForDetail by remember { mutableStateOf<SelectedEntity?>(null) }
     var selectedAccountForDetail by remember { mutableStateOf<Account?>(null) }
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
@@ -164,6 +173,34 @@ fun MainAppShell(
     var transactionsYearMonth by remember { mutableStateOf<YearMonth?>(YearMonth.now()) }
     var transactionsIsAllMonthsSelected by remember { mutableStateOf(false) }
     var transactionsSubTab by remember { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
+    var handledNotificationAction by rememberSaveable { mutableStateOf("") }
+
+    LaunchedEffect(notificationTransactionId, notificationAction, transactions) {
+        val transactionId = notificationTransactionId ?: return@LaunchedEffect
+        val action = notificationAction ?: ExpenseNotification.ACTION_OPEN
+        val actionKey = "$transactionId:$action"
+        if (actionKey == handledNotificationAction) return@LaunchedEffect
+
+        val transaction = transactions.firstOrNull { it.id == transactionId } ?: return@LaunchedEffect
+        handledNotificationAction = actionKey
+        if (action == ExpenseNotification.ACTION_NOT_EXPENSE) {
+            transactionRepository.updateTransaction(
+                transaction.copy(
+                    isCounted = false,
+                    isReviewed = true,
+                ),
+            )
+            NotificationManagerCompat.from(context).cancel((transactionId % Int.MAX_VALUE).toInt())
+        } else {
+            selectedTransactionForDetail = transaction
+            if (action == ExpenseNotification.ACTION_EDIT_CATEGORY) {
+                categoryPickerTransactionId = transactionId
+            }
+            if (action == ExpenseNotification.ACTION_SHOW_SMS) {
+                currentDestination = AppDestination.TRANSACTIONS
+            }
+        }
+    }
 
     var isPrivacyMode by rememberSaveable { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
     val onTogglePrivacyMode = {
@@ -355,6 +392,7 @@ fun MainAppShell(
                 transaction = txn,
                 allTransactions = transactions,
                 accounts = accounts,
+                openCategoryPickerOnStart = categoryPickerTransactionId == txn.id,
                 onBack = { selectedTransactionForDetail = null },
                 onNavigateToTransaction = { txnId ->
                     selectedTransactionForDetail = transactions.find { it.id == txnId }

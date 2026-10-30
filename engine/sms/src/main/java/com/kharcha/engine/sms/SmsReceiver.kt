@@ -150,7 +150,34 @@ class SmsReceiver : BroadcastReceiver() {
                                 sender = sender,
                                 isCounted = isCounted,
                             )
+                        val alreadySaved =
+                            repo.getTransactionsSync().any {
+                                it.smsHash == txn.smsHash || it.id == txn.id
+                            }
                         repo.insertTransaction(txn)
+                        if (!alreadySaved && txn.type == TransactionType.Expense && txn.isCounted) {
+                            val accountDescription =
+                                if (!txn.accountLast4.isNullOrBlank()) {
+                                    context.getString(
+                                        R.string.expense_notification_account,
+                                        txn.bankName ?: txn.channel?.name.orEmpty(),
+                                        txn.accountLast4,
+                                    )
+                                } else {
+                                    txn.bankName ?: txn.channel?.name.orEmpty()
+                                }
+                            val preferences = DefaultUserPreferences(context)
+                            ExpenseNotification.forApplication(context).show(
+                                transaction = txn,
+                                merchant = txn.merchantNormalised
+                                    ?: txn.merchantRaw
+                                    ?: context.getString(R.string.expense_notification_unknown_merchant),
+                                categoryName = txn.categorySource
+                                    ?: context.getString(R.string.expense_notification_uncategorised),
+                                accountDescription = accountDescription,
+                                hideAmount = preferences.isPrivacyModeEnabled,
+                            )
+                        }
                     }
                 } catch (_: Throwable) {
                     // Fail gracefully

@@ -57,6 +57,10 @@ import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.component.SearchField
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
+import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.core.model.isCounted
@@ -120,7 +124,7 @@ fun SearchScreen(
                         id = tx.id,
                         sender = tx.channel?.name ?: "BANK-ALERT",
                         dateEpoch = tx.dateTime,
-                        body = tx.note ?: "Txn of ₹${tx.amount / 100} at $store ref $ref",
+                        body = tx.smsBody ?: "Txn of ₹${tx.amount / 100} at $store ref $ref",
                         isParsed = tx.isReviewed,
                         transaction = tx,
                     )
@@ -329,6 +333,10 @@ fun SearchTransactionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isPrivacy = LocalPrivacyMode.current
+    val incomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
+    val isIncomeMasked = incomeHidden && transaction.type == TransactionType.Income
     val isTransfer = transaction.isTransfer
     val isDebit = transaction.type == TransactionType.Expense
     val arrowGlyph = when {
@@ -377,7 +385,7 @@ fun SearchTransactionRow(
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = "$arrowGlyph ${MoneyFormatter.formatMinorUnits(transaction.amount)}",
+                text = "$arrowGlyph ${if (isPrivacy || isIncomeMasked) "₹ ••••••" else MoneyFormatter.formatMinorUnits(transaction.amount)}",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = when {
@@ -385,6 +393,7 @@ fun SearchTransactionRow(
                     isDebit -> MaterialTheme.financialColors.textPrimary
                     else -> MaterialTheme.financialColors.limeAccent
                 },
+                modifier = if (isIncomeMasked && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
             )
             Text(
                 text = relativeDate,

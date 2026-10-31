@@ -20,6 +20,7 @@ data class Transaction(
     val upiId: String? = null,
     val balanceAfter: Long? = null,
     val note: String? = null,
+    val smsBody: String? = null,
     val isReviewed: Boolean = false,
     val linkedTransactionId: Long? = null,
     val latitude: Double? = null,

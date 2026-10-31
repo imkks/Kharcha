@@ -87,7 +87,7 @@ fun LinkTransactionSheet(
                     if (isLinkingToRefund) {
                         candidate.type == TransactionType.Income &&
                             (candidate.categorySource.equals("Refund", ignoreCase = true) ||
-                                TransactionClassifierHelper.isRefundNarrative(candidate.note))
+                                TransactionClassifierHelper.isRefundNarrative(candidate.smsBody ?: candidate.note))
                     } else {
                         candidate.type == TransactionType.Expense
                     }
@@ -104,7 +104,7 @@ fun LinkTransactionSheet(
                 eligibleCandidates.filter {
                     val mNorm = it.merchantNormalised?.lowercase() ?: ""
                     val mRaw = it.merchantRaw?.lowercase() ?: ""
-                    val note = it.note?.lowercase() ?: ""
+                    val note = (it.smsBody ?: it.note)?.lowercase() ?: ""
                     val amountStr = (it.amount / 100).toString()
                     mNorm.contains(q) || mRaw.contains(q) || note.contains(q) || amountStr.contains(q)
                 }

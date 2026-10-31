@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -30,6 +31,42 @@ class DefaultTransactionRepositoryTest {
         every { context.filesDir } returns filesDir
         repository = DefaultTransactionRepository(context, testDispatcher)
     }
+
+    @Test
+    fun migratesLegacySmsNoteIntoSeparateSmsBodyField() {
+        val body = "Paid Rs 45 at Cafe"
+        val file = java.io.File(context.filesDir, "transactions.json")
+        file.writeText(
+            """[{"id":7,"smsHash":"legacy-hash","accountId":1,"type":"Expense","amount":4500,"currency":"INR","dateTime":1000,"note":"$body"}]""",
+        )
+
+        val restored = DefaultTransactionRepository(context, testDispatcher)
+        val transaction = restored.getTransactionsSync().single()
+
+        assertNull(transaction.note)
+        assertEquals(body, transaction.smsBody)
+    }
+
+    @Test
+    fun preservesUserNoteAndSmsBodyAsSeparateFieldsOnDisk() =
+        runTest(testDispatcher) {
+            val transaction =
+                Transaction(
+                    id = 8L,
+                    smsHash = "new-hash",
+                    amount = 4500L,
+                    type = TransactionType.Expense,
+                    dateTime = 1000L,
+                    note = "Team lunch",
+                    smsBody = "Paid Rs 45 at Cafe",
+                )
+            repository.insertTransaction(transaction)
+            testScheduler.advanceUntilIdle()
+
+            val restored = DefaultTransactionRepository(context, testDispatcher).getTransactionsSync().single()
+            assertEquals("Team lunch", restored.note)
+            assertEquals("Paid Rs 45 at Cafe", restored.smsBody)
+        }
 
     @Test
     fun deduplicatesExactReferenceNumber() =

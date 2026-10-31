@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="split_records_title">Splits</string>
+    <string name="split_records_empty_title">Your local split records</string>
+    <string name="split_records_empty_body">Split an expense from its transaction details. Saved splits stay on this device.</string>
+    <string name="split_records_unknown_merchant">Expense</string>
     <string name="transactions_title">Transactions</string>
     <string name="transactions_search_hint">Search transactions…</string>
     <string name="transactions_filter_all">All</string>
@@ -179,6 +183,7 @@
     <string name="split_share_action">Share via WhatsApp / SMS</string>
     <string name="split_share_chooser_title">Share split details</string>
     <string name="split_save_action">Save Split</string>
+    <string name="split_pick_contact">Choose a local contact</string>
     <string name="split_default_you">You</string>
     <string name="split_default_person">Person %1$d</string>
     <string name="split_active_badge">%1$d people • %2$s each</string>
@@ -271,6 +276,7 @@
     <string name="weekly_summary_spent_this_week">Spent this week</string>
     <string name="weekly_summary_daily_target">Spend %1$s per day to stay on track.</string>
     <string name="weekly_summary_top_spends">Top spends</string>
+    <string name="weekly_summary_top_locations">Top locations</string>
     <string name="weekly_summary_dues_coming_up">Dues coming up</string>
     <string name="weekly_summary_no_dues">No upcoming dues in the next 7 days</string>
     <string name="weekly_summary_rate_week">Rate your week</string>

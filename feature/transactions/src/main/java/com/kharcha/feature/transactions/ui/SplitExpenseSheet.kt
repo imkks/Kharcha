@@ -1,6 +1,8 @@
 package com.kharcha.feature.transactions.ui
 
-import android.content.Intent
+import android.provider.ContactsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,6 +62,7 @@ fun SplitExpenseSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
+    var selectedParticipantIndex by remember { mutableIntStateOf(0) }
 
     val defaultYou = stringResource(id = R.string.split_default_you)
 
@@ -79,6 +80,26 @@ fun SplitExpenseSheet(
             add(defaultYou)
             for (i in 2..participantCount) {
                 add("Person $i")
+            }
+        }
+    }
+
+    val contactPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { contactUri ->
+        if (contactUri != null) {
+            runCatching {
+                val contact = context.contentResolver.query(
+                    contactUri,
+                    arrayOf(ContactsContract.Contacts.DISPLAY_NAME),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                }
+                contact?.takeIf(String::isNotBlank)?.let { name ->
+                    val index = selectedParticipantIndex.coerceIn(0, participantNames.lastIndex)
+                    participantNames[index] = name
+                }
             }
         }
     }
@@ -264,6 +285,17 @@ fun SplitExpenseSheet(
                             shape = RoundedCornerShape(12.dp),
                         )
 
+                        IconButton(onClick = {
+                            selectedParticipantIndex = index
+                            contactPicker.launch(null)
+                        }) {
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_category_shared),
+                                contentDescription = stringResource(id = R.string.split_pick_contact),
+                                tint = MaterialTheme.financialColors.textSecondary,
+                            )
+                        }
+
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -280,40 +312,6 @@ fun SplitExpenseSheet(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
-
-            // Action: Share via WhatsApp / SMS
-            OutlinedButton(
-                onClick = {
-                    val shareAmount = if (shares.size > 1) shares[1].amountMinor else shares.first().amountMinor
-                    val message = SplitExpenseCalculator.formatShareMessage(
-                        merchant = merchantName,
-                        totalAmountMinor = totalAmountMinor,
-                        shareAmountMinor = shareAmount,
-                    )
-                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, message)
-                    }
-                    val chooser = Intent.createChooser(
-                        sendIntent,
-                        context.getString(R.string.split_share_chooser_title),
-                    )
-                    context.startActivity(chooser)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(id = R.string.split_share_action),
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
 
             // Action: Save Split
             Button(

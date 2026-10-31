@@ -56,6 +56,9 @@ import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
@@ -387,6 +390,8 @@ fun EntityTransactionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val incomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
     val categoryName = transaction.categorySource ?: "Other"
     val merchantDisplay =
         transaction.merchantNormalised
@@ -414,7 +419,8 @@ fun EntityTransactionRow(
         }
 
     val amountFormatted =
-        if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(transaction.amount)
+        if (isPrivacy || (incomeHidden && transaction.type == TransactionType.Income)) "₹ ••••••" else MoneyFormatter.formatMinorUnits(transaction.amount)
+    val isIncomeMasked = incomeHidden && transaction.type == TransactionType.Income
 
     val isCounted = transaction.isCounted
 
@@ -498,6 +504,7 @@ fun EntityTransactionRow(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
+                    modifier = if (isIncomeMasked && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(

@@ -9,8 +9,6 @@
     <string name="settings_weekly_summary_title">Weekly summary</string>
     <string name="settings_export_statement_title">Export statement</string>
     <string name="settings_report_sms_title">Report undetected SMS</string>
-    <string name="settings_launch_money_manager_title">Launch in Money Manager</string>
-    <string name="settings_launch_money_manager_subtitle">Note: When enabled, Money Manager will be set as the default screen to launch when the app is opened.</string>
     <string name="settings_link_accounts_title">Link accounts</string>
     <string name="settings_link_accounts_subtitle">Fix duplicate or redundant accounts and cards</string>
     <string name="settings_link_accounts_dialog_desc">Select accounts you want to link with %1$s. To unlink deselect the account.</string>
@@ -37,7 +35,7 @@
     <string name="settings_app_lock_title">App lock setting</string>
     <string name="settings_app_lock_desc">Lock the app with your device fingerprint</string>
     <string name="settings_hide_income_title">Hide income</string>
-    <string name="settings_hide_income_desc">Your income is hidden and is revealed only once you unlock</string>
+    <string name="settings_hide_income_desc">Tap a masked income amount and verify your fingerprint to reveal it for this session.</string>
     <string name="settings_backup_title">Backup</string>
     <string name="settings_security_title">Security</string>
     <string name="settings_account_settings_title">Account settings</string>
@@ -53,6 +51,17 @@
     <string name="settings_section_security">Security &amp; Privacy</string>
     <string name="settings_section_about">About</string>
     <string name="settings_section_accounts">Accounts &amp; Cards</string>
+    <string name="settings_section_notifications">Notifications &amp; Reminders</string>
+    <string name="settings_section_sms">SMS &amp; Inbox</string>
+    <string name="settings_notification_permission_title">Notification permission</string>
+    <string name="settings_notification_permission_allowed">Allowed</string>
+    <string name="settings_notification_permission_blocked">Tap to enable notifications</string>
+    <string name="settings_summary_channel_title">Spend summary alerts</string>
+    <string name="settings_summary_channel_allowed">Enabled in Android settings</string>
+    <string name="settings_summary_channel_blocked">Blocked in Android settings — tap to change</string>
+    <string name="settings_exact_summary_time_title">Deliver summaries at the selected time</string>
+    <string name="settings_exact_summary_time_allowed">Exact alarm access is enabled</string>
+    <string name="settings_exact_summary_time_blocked">Tap to allow exact delivery; otherwise Android may delay it</string>
     <string name="settings_manage_accounts_title">Manage &amp; Link Accounts</string>
     <string name="settings_manage_accounts_subtitle">%1$d linked accounts &amp; cards</string>
     <string name="settings_add_account">+ Add / Link Account</string>

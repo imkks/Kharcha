@@ -74,6 +74,9 @@ import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
@@ -224,6 +227,11 @@ private fun ReviewCardContent(
 ) {
     val haptic = LocalHapticFeedback.current
     val isPrivacy = LocalPrivacyMode.current
+    val isIncomeHidden =
+        LocalIncomeHidden.current?.value == true &&
+            LocalIncomeRevealed.current?.value != true &&
+            transaction.type == TransactionType.Income
+    val revealIncome = LocalIncomeReveal.current
     val scrollState = rememberScrollState()
 
     val merchantDisplay =
@@ -281,7 +289,7 @@ private fun ReviewCardContent(
                     }
 
                 val amountFormatted =
-                    if (isPrivacy) {
+                    if (isPrivacy || isIncomeHidden) {
                         "₹ ••••••"
                     } else {
                         when (transaction.type) {
@@ -297,6 +305,7 @@ private fun ReviewCardContent(
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
                     color = amountColor,
+                    modifier = if (isIncomeHidden && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -338,7 +347,7 @@ private fun ReviewCardContent(
                 }
 
                 // Raw SMS Snippet if present
-                val rawSms = transaction.note
+                val rawSms = transaction.smsBody
                 if (!rawSms.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Surface(

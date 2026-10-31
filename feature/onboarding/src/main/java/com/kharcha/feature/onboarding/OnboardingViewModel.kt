@@ -260,7 +260,7 @@ class OnboardingViewModel
                                     refNumber = parsedTxn.refNumber,
                                     upiId = parsedTxn.upiId,
                                     balanceAfter = parsedTxn.balanceAfterMinor,
-                                    note = sms.body.trim(),
+                                    smsBody = sms.body.trim(),
                                     parseConfidence = parsedTxn.confidence,
                                     isReviewed = isReviewed,
                                     templateId = parsedTxn.templateId ?: "generic_fallback",

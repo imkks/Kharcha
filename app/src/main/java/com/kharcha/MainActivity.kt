@@ -1,8 +1,13 @@
 package com.kharcha
 
 import android.os.Bundle
+import android.os.Build
+import android.app.KeyguardManager
 import android.view.WindowManager
+import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import com.kharcha.core.common.security.AuthenticatorPromptMode
+import com.kharcha.core.common.security.authenticatorPromptMode
 import androidx.fragment.app.FragmentActivity
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -245,14 +250,25 @@ class MainActivity : FragmentActivity() {
                     }
                 },
             )
-            prompt.authenticate(
-                BiometricPrompt.PromptInfo.Builder()
-                    .setTitle(getString(R.string.app_lock_title))
-                    .setSubtitle(getString(R.string.app_lock_subtitle))
+            val hasDeviceCredential = getSystemService(KeyguardManager::class.java)?.isDeviceSecure == true
+            val authMode = authenticatorPromptMode(Build.VERSION.SDK_INT, hasDeviceCredential)
+            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                .setTitle(getString(R.string.app_lock_title))
+                .setSubtitle(getString(R.string.app_lock_subtitle))
+            if (authMode == AuthenticatorPromptMode.BIOMETRIC_WITH_DEVICE_CREDENTIAL) {
+                promptInfo.setAllowedAuthenticators(
+                    BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                )
+            } else if (authMode == AuthenticatorPromptMode.LEGACY_DEVICE_CREDENTIAL_FALLBACK) {
+                @Suppress("DEPRECATION")
+                promptInfo.setDeviceCredentialAllowed(true)
+            } else {
+                promptInfo
                     .setNegativeButtonText(getString(R.string.app_lock_cancel))
-                    .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
-                    .build(),
-            )
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            }
+            prompt.authenticate(promptInfo.build())
         } catch (_: IllegalArgumentException) {
             onError()
         } catch (_: IllegalStateException) {
@@ -266,21 +282,21 @@ private fun AppLockScreen(hasError: Boolean, onUnlock: () -> Unit) {
     androidx.compose.runtime.LaunchedEffect(Unit) {
         onUnlock()
     }
-    androidx.compose.foundation.layout.Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = androidx.compose.ui.Alignment.Center,
     ) {
-        Text(text = stringResource(R.string.app_lock_title), style = MaterialTheme.typography.headlineSmall)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = stringResource(R.string.app_lock_subtitle), style = MaterialTheme.typography.bodyMedium)
         if (hasError) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(text = stringResource(R.string.app_lock_error), style = MaterialTheme.typography.bodySmall)
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        androidx.compose.material3.Button(onClick = onUnlock) {
-            Text(text = stringResource(R.string.app_lock_unlock))
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            ) {
+                Text(text = stringResource(R.string.app_lock_error), style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.material3.Button(onClick = onUnlock) {
+                    Text(text = stringResource(R.string.app_lock_retry))
+                }
+            }
         }
     }
 }

@@ -1,12 +1,16 @@
 package com.kharcha.feature.settings.ui
 
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.app.TimePickerDialog
+import android.os.Build
 import android.provider.Settings
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import com.kharcha.core.common.security.AuthenticatorPromptMode
+import com.kharcha.core.common.security.authenticatorPromptMode
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -1716,7 +1720,10 @@ fun MoreScreen(
                             userPreferences.isAppLockEnabled = false
                         } else {
                             val activity = context.findFragmentActivity()
-                            val available = BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
+                            val hasDeviceCredential = context.getSystemService(KeyguardManager::class.java)?.isDeviceSecure == true
+                            val authMode = authenticatorPromptMode(Build.VERSION.SDK_INT, hasDeviceCredential)
+                            val hasBiometric = BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
+                            val available = hasDeviceCredential || hasBiometric
                             if (activity != null && available) {
                                 val prompt = BiometricPrompt(activity, activity.mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
                                     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
@@ -1724,12 +1731,23 @@ fun MoreScreen(
                                         userPreferences.isAppLockEnabled = true
                                     }
                                 })
-                                prompt.authenticate(BiometricPrompt.PromptInfo.Builder()
+                                val promptInfo = BiometricPrompt.PromptInfo.Builder()
                                     .setTitle(context.getString(R.string.settings_app_lock_title))
                                     .setSubtitle(context.getString(R.string.settings_app_lock_desc))
-                                    .setNegativeButtonText(context.getString(R.string.settings_cancel))
-                                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-                                    .build())
+                                if (authMode == AuthenticatorPromptMode.BIOMETRIC_WITH_DEVICE_CREDENTIAL) {
+                                    promptInfo.setAllowedAuthenticators(
+                                        BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                                            BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                                    )
+                                } else if (authMode == AuthenticatorPromptMode.LEGACY_DEVICE_CREDENTIAL_FALLBACK) {
+                                    @Suppress("DEPRECATION")
+                                    promptInfo.setDeviceCredentialAllowed(true)
+                                } else {
+                                    promptInfo
+                                        .setNegativeButtonText(context.getString(R.string.settings_cancel))
+                                        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                                }
+                                prompt.authenticate(promptInfo.build())
                             }
                         }
                     }

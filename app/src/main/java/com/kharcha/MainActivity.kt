@@ -54,6 +54,10 @@ import com.kharcha.core.designsystem.component.AxioNavItem
 import com.kharcha.core.designsystem.component.KharchaPillSnackbar
 import com.kharcha.core.designsystem.theme.KharchaTheme
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalPrivacyModeState
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.Transaction
@@ -76,6 +80,7 @@ import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import com.kharcha.feature.transactions.ui.TransactionsSubTab
 import com.kharcha.feature.transactions.ui.WeeklySummaryScreen
+import com.kharcha.feature.transactions.ui.SplitRecordsScreen
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.YearMonth
 import javax.inject.Inject
@@ -92,13 +97,22 @@ enum class AppDestination(
 ) {
     TRANSACTIONS(R.string.nav_transactions, DesignR.drawable.ic_category_transfer),
     HOME(R.string.nav_home, DesignR.drawable.ic_bar_chart),
+    SPLITS(R.string.nav_splits, DesignR.drawable.ic_split),
     INSIGHTS(R.string.nav_insights, DesignR.drawable.ic_trending_up),
     MORE(R.string.nav_more, DesignR.drawable.ic_settings),
 }
 
+private val bottomDestinations = listOf(
+    AppDestination.TRANSACTIONS,
+    AppDestination.HOME,
+    AppDestination.SPLITS,
+    AppDestination.INSIGHTS,
+)
+
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
     private var appUnlockState: MutableState<Boolean>? = null
+    private var incomeRevealState: MutableState<Boolean>? = null
     @Inject
     lateinit var transactionRepository: TransactionRepository
 
@@ -120,11 +134,16 @@ class MainActivity : FragmentActivity() {
                         mutableStateOf(userPreferences.isOnboardingCompleted)
                     }
                     val appUnlockedState = rememberSaveable {
-                        mutableStateOf(!userPreferences.isAppLockEnabled && !userPreferences.isIncomeHidden)
+                        mutableStateOf(!userPreferences.isAppLockEnabled)
                     }
                     var appLockError by rememberSaveable { mutableStateOf(false) }
+                    val incomeHiddenState = rememberSaveable { mutableStateOf(userPreferences.isIncomeHidden) }
+                    val incomeRevealedState = rememberSaveable { mutableStateOf(false) }
+                    val privacyModeState = rememberSaveable { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
                     appUnlockState = appUnlockedState
+                    incomeRevealState = incomeRevealedState
                     var isAppUnlocked by appUnlockedState
+                    var isIncomeRevealed by incomeRevealedState
 
                     if (!isOnboardingCompleted) {
                         OnboardingRoute(
@@ -133,7 +152,7 @@ class MainActivity : FragmentActivity() {
                                 isOnboardingCompleted = true
                             },
                         )
-                    } else if ((userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) && !isAppUnlocked) {
+                    } else if (userPreferences.isAppLockEnabled && !isAppUnlocked) {
                         AppLockScreen(
                             hasError = appLockError,
                             onUnlock = {
@@ -147,6 +166,20 @@ class MainActivity : FragmentActivity() {
                             },
                         )
                     } else {
+                        CompositionLocalProvider(
+                            LocalIncomeHidden provides incomeHiddenState,
+                            LocalIncomeRevealed provides incomeRevealedState,
+                            LocalIncomeReveal provides {
+                                if (!isIncomeRevealed) {
+                                    authenticateWithBiometric(
+                                        onAuthenticated = { isIncomeRevealed = true },
+                                        onError = {},
+                                    )
+                                }
+                            },
+                            LocalPrivacyModeState provides privacyModeState,
+                            LocalPrivacyMode provides privacyModeState.value,
+                        ) {
                         MainAppShell(
                             transactionRepository = transactionRepository,
                             userPreferences = userPreferences,
@@ -154,6 +187,7 @@ class MainActivity : FragmentActivity() {
                                 intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
                                     .takeIf { it >= 0L },
                             notificationAction = intent.getStringExtra(ExpenseNotification.EXTRA_ACTION),
+                            openWeeklySummary = intent.getBooleanExtra(SummaryNotificationWorker.EXTRA_OPEN_WEEKLY_SUMMARY, false),
                             onRescanSmsInbox = { windowCode ->
                                 WorkManager.getInstance(applicationContext).enqueueUniqueWork(
                                     "sms_inbox_rescan",
@@ -168,6 +202,7 @@ class MainActivity : FragmentActivity() {
                                 )
                             },
                         )
+                        }
                     }
                 }
             }
@@ -175,6 +210,7 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onStop() {
+        incomeRevealState?.value = false
         if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
             appUnlockState?.value = false
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -227,6 +263,9 @@ class MainActivity : FragmentActivity() {
 
 @Composable
 private fun AppLockScreen(hasError: Boolean, onUnlock: () -> Unit) {
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        onUnlock()
+    }
     androidx.compose.foundation.layout.Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -253,6 +292,7 @@ fun MainAppShell(
     onRescanSmsInbox: (String) -> Unit,
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
+    openWeeklySummary: Boolean = false,
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
@@ -276,7 +316,7 @@ fun MainAppShell(
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
     var showSearchScreen by rememberSaveable { mutableStateOf(false) }
     var showReportSmsScreen by rememberSaveable { mutableStateOf(false) }
-    var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(false) }
+    var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(openWeeklySummary) }
     var showSetBudgetSheet by rememberSaveable { mutableStateOf(false) }
     var showSplitInfoDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
@@ -313,10 +353,11 @@ fun MainAppShell(
         }
     }
 
-    var isPrivacyMode by rememberSaveable { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
+    val privacyModeState = LocalPrivacyModeState.current
+    val isPrivacyMode = privacyModeState?.value ?: userPreferences.isPrivacyModeEnabled
     val onTogglePrivacyMode = {
         val newMode = !isPrivacyMode
-        isPrivacyMode = newMode
+        privacyModeState?.value = newMode
         userPreferences.isPrivacyModeEnabled = newMode
     }
 
@@ -352,17 +393,17 @@ fun MainAppShell(
                 },
                 bottomBar = {
                     val navItems =
-                        AppDestination.entries.map { dest ->
+                        bottomDestinations.map { dest ->
                             AxioNavItem(
                                 icon = painterResource(id = dest.iconRes),
                                 contentDescription = stringResource(id = dest.labelRes),
                             )
                         }
-                    val selectedIndex = AppDestination.entries.indexOf(currentDestination).coerceAtLeast(0)
+                    val selectedIndex = bottomDestinations.indexOf(currentDestination)
                     AxioBottomNavBar(
                         selectedIndex = selectedIndex,
                         onItemSelected = { index ->
-                            currentDestination = AppDestination.entries[index]
+                            currentDestination = bottomDestinations[index]
                         },
                         items = navItems,
                     )
@@ -895,6 +936,13 @@ fun BoxDestinationContent(
                     onSubTabChange(TransactionsSubTab.TRANSACTIONS)
                     onNavigateToTransactions()
                 },
+                modifier = modifier,
+            )
+        }
+        AppDestination.SPLITS -> {
+            SplitRecordsScreen(
+                transactions = transactions,
+                onTransactionClick = onTransactionClick,
                 modifier = modifier,
             )
         }

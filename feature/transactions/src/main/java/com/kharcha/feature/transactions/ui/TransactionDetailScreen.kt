@@ -105,6 +105,9 @@ import com.kharcha.core.designsystem.component.CategoryIconHelper
 import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
 import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
@@ -184,6 +187,8 @@ fun TransactionDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val isPrivacy = LocalPrivacyMode.current
+    val incomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
 
     var receiptFile by remember(transaction.id) {
         mutableStateOf(ReceiptAttachmentHelper.getReceiptFile(context, transaction.id))
@@ -465,14 +470,14 @@ fun TransactionDetailScreen(
                         Spacer(modifier = Modifier.height(24.dp))
 
                         // Amount with directional arrow
+                        val isCredit = selectedType.isCredit
+                        val isIncomeMasked = incomeHidden && isCredit
                         val displayAmount =
-                            if (isPrivacy) {
+                            if (isPrivacy || isIncomeMasked) {
                                 "₹ ••••••"
                             } else {
                                 MoneyFormatter.formatMinorUnits(transaction.amount)
                             }
-
-                        val isCredit = selectedType.isCredit
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -491,6 +496,7 @@ fun TransactionDetailScreen(
                                 style = MaterialTheme.typography.displayMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
+                                modifier = if (isIncomeMasked && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                             )
                         }
 

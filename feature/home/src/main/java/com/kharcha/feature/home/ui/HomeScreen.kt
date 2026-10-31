@@ -68,6 +68,9 @@ import com.kharcha.core.designsystem.component.PromoCard
 import com.kharcha.core.designsystem.component.SpendRing
 import com.kharcha.core.designsystem.component.TagChip
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
@@ -184,6 +187,8 @@ fun HomeScreen(
         }
 
     val isPrivacy = LocalPrivacyMode.current
+    val isIncomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
     val greetingUser = userName?.takeIf(String::isNotBlank) ?: stringResource(id = R.string.home_default_user)
 
     // Data models for Section 7.1 continuous scrolling feed
@@ -452,7 +457,7 @@ fun HomeScreen(
                         ) {
                             Text(
                                 text =
-                                    if (isPrivacy) {
+                                    if (isPrivacy || isIncomeHidden) {
                                         "₹ ••••••"
                                     } else {
                                         MoneyFormatter.formatMinorUnits(incomeThisMonth)
@@ -460,6 +465,7 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.financialColors.textPrimary,
+                                modifier = if (isIncomeHidden && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(

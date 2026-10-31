@@ -448,6 +448,7 @@ fun SmsSearchCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Body with lime bold highlight for search match
+            val highlightColor = MaterialTheme.financialColors.limeAccent
             val annotatedBody =
                 remember(sms.body, highlightQuery) {
                     buildAnnotatedString {
@@ -468,7 +469,7 @@ fun SmsSearchCard(
                                 withStyle(
                                     style =
                                         SpanStyle(
-                                            color = Color(0xFFA8E04A),
+                                            color = highlightColor,
                                             fontWeight = FontWeight.Bold,
                                         ),
                                 ) {

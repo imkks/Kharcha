@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -143,6 +144,9 @@ fun HomeScreen(
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    showLocationPermissionAlert: Boolean = false,
+    onCheckLocationPermission: () -> Unit = {},
+    onDismissLocationPermissionAlert: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val currentYearMonth = remember { YearMonth.now() }
@@ -636,6 +640,15 @@ fun HomeScreen(
                             )
                         }
                     }
+                }
+            }
+
+            if (showLocationPermissionAlert) {
+                item {
+                    LocationPermissionAlertCard(
+                        onCheckNow = onCheckLocationPermission,
+                        onDismiss = onDismissLocationPermissionAlert,
+                    )
                 }
             }
 
@@ -1272,6 +1285,69 @@ fun HomeScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocationPermissionAlertCard(
+    onCheckNow: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.financialColors.cardBackground),
+        border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Surface(
+                modifier = Modifier.padding(top = 2.dp).size(40.dp),
+                shape = CircleShape,
+                color = MaterialTheme.financialColors.warningContainer,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.financialColors.warning,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.home_permission_alert_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.financialColors.textPrimary,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.home_permission_alert_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.financialColors.textSecondary,
+                )
+                Text(
+                    text = stringResource(R.string.home_permission_alert_action),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.financialColors.limeAccent,
+                    modifier = Modifier.align(Alignment.End).clickable(onClick = onCheckNow).padding(top = 12.dp),
+                )
+            }
+            IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.home_permission_alert_dismiss),
+                    tint = MaterialTheme.financialColors.textSecondary,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
     }

@@ -2,7 +2,12 @@ package com.kharcha
 
 import android.os.Bundle
 import android.os.Build
+import android.Manifest
 import android.app.KeyguardManager
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import android.view.WindowManager
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -50,6 +55,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionRepository
@@ -122,6 +128,7 @@ class MainActivity : FragmentActivity() {
     private var appLockErrorState: MutableState<Boolean>? = null
     private var appUnlockRetryState: MutableState<Int>? = null
     private var incomeRevealState: MutableState<Boolean>? = null
+    private var locationPermissionIssueState: MutableState<LocationPermissionIssue?>? = null
     private var retryAppUnlockOnResume = false
     private var appLockResumeGeneration = 0L
     @Inject
@@ -154,6 +161,10 @@ class MainActivity : FragmentActivity() {
                     val incomeHiddenState = rememberSaveable { mutableStateOf(userPreferences.isIncomeHidden) }
                     val incomeRevealedState = rememberSaveable { mutableStateOf(false) }
                     val privacyModeState = rememberSaveable { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
+                    val locationPermissionIssue = remember {
+                        mutableStateOf(currentLocationPermissionIssue())
+                    }
+                    locationPermissionIssueState = locationPermissionIssue
                     appUnlockState = appUnlockedState
                     appLockErrorState = appLockErrorRemembered
                     appUnlockRetryState = appUnlockRetryRemembered
@@ -205,6 +216,7 @@ class MainActivity : FragmentActivity() {
                                     .takeIf { it >= 0L },
                             notificationAction = intent.getStringExtra(ExpenseNotification.EXTRA_ACTION),
                             openWeeklySummary = intent.getBooleanExtra(SummaryNotificationWorker.EXTRA_OPEN_WEEKLY_SUMMARY, false),
+                            locationPermissionIssue = locationPermissionIssue.value,
                             onRescanSmsInbox = { windowCode ->
                                 WorkManager.getInstance(applicationContext).enqueueUniqueWork(
                                     "sms_inbox_rescan",
@@ -239,6 +251,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        locationPermissionIssueState?.value = currentLocationPermissionIssue()
         if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         } else {
@@ -262,6 +275,23 @@ class MainActivity : FragmentActivity() {
                 }
             }, APP_UNLOCK_RESUME_RETRY_DELAY_MS)
         }
+    }
+
+    private fun currentLocationPermissionIssue(): LocationPermissionIssue? {
+        val hasForegroundLocation =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        val hasBackgroundLocation =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        return locationPermissionIssue(
+            sdkInt = Build.VERSION.SDK_INT,
+            hasForegroundAccess = hasForegroundLocation,
+            hasBackgroundAccess = hasBackgroundLocation,
+        )
     }
 
     private fun authenticateWithBiometric(
@@ -349,6 +379,7 @@ fun MainAppShell(
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
     openWeeklySummary: Boolean = false,
+    locationPermissionIssue: LocationPermissionIssue? = null,
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
@@ -381,6 +412,16 @@ fun MainAppShell(
     var transactionsIsAllMonthsSelected by remember { mutableStateOf(false) }
     var transactionsSubTab by remember { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
     var handledNotificationAction by rememberSaveable { mutableStateOf("") }
+    var showLocationPermissionDialog by rememberSaveable { mutableStateOf(false) }
+    var dismissedLocationPermissionIssue by rememberSaveable { mutableStateOf("") }
+    val locationPermissionIssueKey = locationPermissionIssue?.name.orEmpty()
+
+    LaunchedEffect(locationPermissionIssueKey) {
+        if (locationPermissionIssueKey.isEmpty()) {
+            dismissedLocationPermissionIssue = ""
+            showLocationPermissionDialog = false
+        }
+    }
 
     LaunchedEffect(notificationTransactionId, notificationAction, transactions) {
         val transactionId = notificationTransactionId ?: return@LaunchedEffect
@@ -471,6 +512,12 @@ fun MainAppShell(
                     transactions = transactions,
                     accounts = accounts,
                     userPreferences = userPreferences,
+                    showLocationPermissionAlert =
+                        locationPermissionIssue != null && dismissedLocationPermissionIssue != locationPermissionIssueKey,
+                    onCheckLocationPermission = { showLocationPermissionDialog = true },
+                    onDismissLocationPermissionAlert = {
+                        dismissedLocationPermissionIssue = locationPermissionIssueKey
+                    },
                     onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
                     onNavigateToHome = { currentDestination = AppDestination.HOME },
                     onReviewClick = { showReviewQueue = true },
@@ -864,6 +911,39 @@ fun MainAppShell(
             },
         )
     }
+
+    if (showLocationPermissionDialog && locationPermissionIssue != null) {
+        val messageRes =
+            if (locationPermissionIssue == LocationPermissionIssue.BACKGROUND_ACCESS) {
+                R.string.location_permission_background_message
+            } else {
+                R.string.location_permission_foreground_message
+            }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showLocationPermissionDialog = false },
+            title = { Text(text = stringResource(R.string.location_permission_title)) },
+            text = { Text(text = stringResource(messageRes)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showLocationPermissionDialog = false
+                        val settingsIntent =
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                        context.startActivity(settingsIntent)
+                    },
+                ) {
+                    Text(text = stringResource(R.string.location_permission_open_settings))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showLocationPermissionDialog = false }) {
+                    Text(text = stringResource(R.string.location_permission_cancel))
+                }
+            },
+        )
+    }
 }
 }
 
@@ -873,6 +953,9 @@ fun BoxDestinationContent(
     transactions: List<Transaction>,
     accounts: List<Account> = emptyList(),
     userPreferences: UserPreferences,
+    showLocationPermissionAlert: Boolean = false,
+    onCheckLocationPermission: () -> Unit = {},
+    onDismissLocationPermissionAlert: () -> Unit = {},
     onNavigateToTransactions: () -> Unit,
     onNavigateToHome: () -> Unit = {},
     onReviewClick: () -> Unit,
@@ -924,6 +1007,9 @@ fun BoxDestinationContent(
                 transactions = transactions,
                 accounts = accounts,
                 userName = userPreferences.userName,
+                showLocationPermissionAlert = showLocationPermissionAlert,
+                onCheckLocationPermission = onCheckLocationPermission,
+                onDismissLocationPermissionAlert = onDismissLocationPermissionAlert,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onSeeAllClick = onNavigateToTransactions,
                 onIncomeClick = onIncomeClick,

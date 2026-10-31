@@ -9,8 +9,6 @@
     <string name="settings_weekly_summary_title">Weekly summary</string>
     <string name="settings_export_statement_title">Export statement</string>
     <string name="settings_report_sms_title">Report undetected SMS</string>
-    <string name="settings_launch_money_manager_title">Launch in Money Manager</string>
-    <string name="settings_launch_money_manager_subtitle">Note: When enabled, Money Manager will be set as the default screen to launch when the app is opened.</string>
     <string name="settings_link_accounts_title">Link accounts</string>
     <string name="settings_link_accounts_subtitle">Fix duplicate or redundant accounts and cards</string>
     <string name="settings_link_accounts_dialog_desc">Select accounts you want to link with %1$s. To unlink deselect the account.</string>

@@ -206,10 +206,6 @@ fun MoreScreen(
     var rulesRevision by remember { mutableIntStateOf(0) }
     val rules = remember(rulesRevision, showRulesDialog) { userPreferences.getMerchantCategoryRules() }
 
-    var isMoneyManagerDefault by remember {
-        mutableStateOf(userPreferences.isLaunchInMoneyManagerEnabled)
-    }
-
     if (showManageAccountsPage) {
         BackHandler { showManageAccountsPage = false }
         ManageAccountsScreenView(
@@ -247,11 +243,6 @@ fun MoreScreen(
         PreferencesScreenView(
             accounts = accounts,
             userPreferences = userPreferences,
-            isMoneyManagerDefault = isMoneyManagerDefault,
-            onToggleMoneyManagerDefault = {
-                isMoneyManagerDefault = it
-                userPreferences.isLaunchInMoneyManagerEnabled = it
-            },
             onManageAccountsClick = { showManageAccountsPage = true },
             onLinkAccountsClick = { showLinkAccountsPage = true },
             onSpendCategoriesClick = { showSpendCategoriesSheet = true },
@@ -400,28 +391,28 @@ fun MoreScreen(
                         Column {
                             SettingsNavRow(
                                 iconRes = DesignR.drawable.ic_settings,
-                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_preferences_title),
                                 onClick = { showPreferencesScreen = true },
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
                                 iconRes = DesignR.drawable.ic_bar_chart,
-                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_weekly_summary_title),
                                 onClick = onWeeklySummaryClick,
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
                                 iconRes = DesignR.drawable.ic_copy,
-                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_export_statement_title),
                                 onClick = { showExportDialog = true },
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
                                 iconRes = DesignR.drawable.ic_arrow_outward,
-                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_report_sms_title),
                                 onClick = onReportSmsClick,
                             )
@@ -1982,8 +1973,6 @@ private fun SettingsValueRow(title: String, value: String, onClick: () -> Unit) 
 private fun PreferencesScreenView(
     accounts: List<Account>,
     userPreferences: UserPreferences,
-    isMoneyManagerDefault: Boolean,
-    onToggleMoneyManagerDefault: (Boolean) -> Unit,
     onManageAccountsClick: () -> Unit,
     onLinkAccountsClick: () -> Unit,
     onSpendCategoriesClick: () -> Unit,
@@ -2047,56 +2036,6 @@ private fun PreferencesScreenView(
                     border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
                 ) {
                     Column {
-                        SettingsGroupHeading(stringResource(R.string.settings_section_general))
-                        // 1. Launch in Money Manager Row (Screenshot 4)
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onToggleMoneyManagerDefault(!isMoneyManagerDefault) }
-                                    .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = DesignR.drawable.ic_bar_chart),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.financialColors.textSecondary,
-                                    modifier = Modifier.size(22.dp),
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    Text(
-                                        text = stringResource(id = R.string.settings_launch_money_manager_title),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color.White,
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = stringResource(id = R.string.settings_launch_money_manager_subtitle),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.financialColors.textSecondary,
-                                    )
-                                }
-                            }
-                            Switch(
-                                checked = isMoneyManagerDefault,
-                                onCheckedChange = onToggleMoneyManagerDefault,
-                                colors =
-                                    SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = MaterialTheme.financialColors.limeAccent,
-                                    ),
-                            )
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
-
                         SettingsGroupHeading(stringResource(R.string.settings_section_accounts))
                         // 2. Manage accounts
                         SettingsNavRow(

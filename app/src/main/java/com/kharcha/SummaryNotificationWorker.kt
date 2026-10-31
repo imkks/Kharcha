@@ -1,0 +1,124 @@
+package com.kharcha
+
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import androidx.hilt.work.HiltWorker
+import androidx.work.CoroutineWorker
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import com.kharcha.core.common.TransactionRepository
+import com.kharcha.core.common.UserPreferences
+import com.kharcha.core.model.TransactionType
+import com.kharcha.core.common.MoneyFormatter
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
+
+@HiltWorker
+class SummaryNotificationWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val repository: TransactionRepository,
+    private val preferences: UserPreferences,
+) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        val weekly = inputData.getBoolean(KEY_WEEKLY, false)
+        val enabled = if (weekly) preferences.isWeeklySummaryEnabled else preferences.isDailySummaryEnabled
+        if (enabled) publishSummary(weekly)
+        schedule(applicationContext, weekly, preferences)
+        return Result.success()
+    }
+
+    private fun publishSummary(weekly: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return
+        val now = System.currentTimeMillis()
+        val days = if (weekly) 7 else 1
+        val start = now - TimeUnit.DAYS.toMillis(days.toLong())
+        val total = repository.getTransactionsSync()
+            .asSequence()
+            .filter { it.dateTime in start..now && it.type == TransactionType.Expense && it.isCounted }
+            .sumOf { it.amount }
+        val manager = applicationContext.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, applicationContext.getString(R.string.summary_notification_channel), NotificationManager.IMPORTANCE_DEFAULT),
+        )
+        val openIntent = applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)
+        val pendingIntent = openIntent?.let {
+            PendingIntent.getActivity(applicationContext, if (weekly) 102 else 101, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        }
+        val title = applicationContext.getString(if (weekly) R.string.weekly_summary_notification_title else R.string.daily_summary_notification_title)
+        val message = applicationContext.getString(R.string.summary_notification_body, MoneyFormatter.formatMinorUnits(total))
+        NotificationManagerCompat.from(applicationContext).notify(
+            if (weekly) WEEKLY_NOTIFICATION_ID else DAILY_NOTIFICATION_ID,
+            NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .build(),
+        )
+    }
+
+    companion object {
+        private const val KEY_WEEKLY = "weekly"
+        private const val CHANNEL_ID = "spend_summaries"
+        private const val DAILY_NOTIFICATION_ID = 21001
+        private const val WEEKLY_NOTIFICATION_ID = 21002
+        private const val DAILY_WORK = "daily_spend_summary"
+        private const val WEEKLY_WORK = "weekly_spend_summary"
+
+        fun scheduleAll(context: Context, preferences: UserPreferences) {
+            schedule(context, weekly = false, preferences)
+            schedule(context, weekly = true, preferences)
+        }
+
+        fun schedule(context: Context, weekly: Boolean, preferences: UserPreferences) {
+            val minuteOfDay = if (weekly) preferences.weeklySummaryMinuteOfDay else preferences.dailySummaryMinuteOfDay
+            val delay = millisUntilNextRun(minuteOfDay)
+            val request = OneTimeWorkRequestBuilder<SummaryNotificationWorker>()
+                .setInputData(Data.Builder().putBoolean(KEY_WEEKLY, weekly).build())
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                if (weekly) WEEKLY_WORK else DAILY_WORK,
+                ExistingWorkPolicy.REPLACE,
+                request,
+            )
+        }
+
+        internal fun millisUntilNextRun(
+            minuteOfDay: Int,
+            weekly: Boolean = false,
+            now: Calendar = Calendar.getInstance(),
+        ): Long {
+            val next = now.clone() as Calendar
+            next.set(Calendar.HOUR_OF_DAY, minuteOfDay.coerceIn(0, 1439) / 60)
+            next.set(Calendar.MINUTE, minuteOfDay.coerceIn(0, 1439) % 60)
+            next.set(Calendar.SECOND, 0)
+            next.set(Calendar.MILLISECOND, 0)
+            if (weekly) {
+                val daysUntilSunday = (Calendar.SUNDAY - next.get(Calendar.DAY_OF_WEEK) + 7) % 7
+                next.add(Calendar.DAY_OF_YEAR, daysUntilSunday)
+                if (next.timeInMillis <= now.timeInMillis) next.add(Calendar.DAY_OF_YEAR, 7)
+            } else if (next.timeInMillis <= now.timeInMillis) {
+                next.add(Calendar.DAY_OF_YEAR, 1)
+            }
+            return (next.timeInMillis - now.timeInMillis).coerceAtLeast(1L)
+        }
+    }
+}

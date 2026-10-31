@@ -1,7 +1,13 @@
 package com.kharcha
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import android.view.WindowManager
+import androidx.biometric.BiometricPrompt
+import androidx.fragment.app.FragmentActivity
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +60,7 @@ import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
 import com.kharcha.engine.sms.ExpenseNotification
+import com.kharcha.engine.sms.ImportWorker
 import com.kharcha.feature.home.ui.HomeScreen
 import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
@@ -89,7 +97,8 @@ enum class AppDestination(
 }
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+    private var appUnlockState: MutableState<Boolean>? = null
     @Inject
     lateinit var transactionRepository: TransactionRepository
 
@@ -98,6 +107,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         setContent {
             KharchaTheme {
                 Surface(
@@ -107,12 +119,31 @@ class MainActivity : ComponentActivity() {
                     var isOnboardingCompleted by rememberSaveable {
                         mutableStateOf(userPreferences.isOnboardingCompleted)
                     }
+                    val appUnlockedState = rememberSaveable {
+                        mutableStateOf(!userPreferences.isAppLockEnabled && !userPreferences.isIncomeHidden)
+                    }
+                    var appLockError by rememberSaveable { mutableStateOf(false) }
+                    appUnlockState = appUnlockedState
+                    var isAppUnlocked by appUnlockedState
 
                     if (!isOnboardingCompleted) {
                         OnboardingRoute(
                             onOnboardingComplete = {
                                 userPreferences.isOnboardingCompleted = true
                                 isOnboardingCompleted = true
+                            },
+                        )
+                    } else if ((userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) && !isAppUnlocked) {
+                        AppLockScreen(
+                            hasError = appLockError,
+                            onUnlock = {
+                                authenticateWithBiometric(
+                                    onAuthenticated = {
+                                        isAppUnlocked = true
+                                        appLockError = false
+                                    },
+                                    onError = { appLockError = true },
+                                )
                             },
                         )
                     } else {
@@ -123,14 +154,94 @@ class MainActivity : ComponentActivity() {
                                 intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
                                     .takeIf { it >= 0L },
                             notificationAction = intent.getStringExtra(ExpenseNotification.EXTRA_ACTION),
-                            onResetOnboarding = {
-                                userPreferences.isOnboardingCompleted = false
-                                isOnboardingCompleted = false
+                            onRescanSmsInbox = { windowCode ->
+                                WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                                    "sms_inbox_rescan",
+                                    ExistingWorkPolicy.KEEP,
+                                    OneTimeWorkRequestBuilder<ImportWorker>()
+                                        .setInputData(
+                                            workDataOf(
+                                                ImportWorker.KEY_FORCE_RESCAN to true,
+                                                ImportWorker.KEY_SINCE_TIMESTAMP to ImportWorker.rescanSinceTimestamp(windowCode),
+                                            ),
+                                        ).build(),
+                                )
                             },
                         )
                     }
                 }
             }
+        }
+    }
+
+    override fun onStop() {
+        if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
+            appUnlockState?.value = false
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
+    private fun authenticateWithBiometric(
+        onAuthenticated: () -> Unit,
+        onError: () -> Unit,
+    ) {
+        try {
+            val prompt = BiometricPrompt(
+                this,
+                mainExecutor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        onAuthenticated()
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        onError()
+                    }
+                },
+            )
+            prompt.authenticate(
+                BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(getString(R.string.app_lock_title))
+                    .setSubtitle(getString(R.string.app_lock_subtitle))
+                    .setNegativeButtonText(getString(R.string.app_lock_cancel))
+                    .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                    .build(),
+            )
+        } catch (_: IllegalArgumentException) {
+            onError()
+        } catch (_: IllegalStateException) {
+            onError()
+        }
+    }
+}
+
+@Composable
+private fun AppLockScreen(hasError: Boolean, onUnlock: () -> Unit) {
+    androidx.compose.foundation.layout.Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+    ) {
+        Text(text = stringResource(R.string.app_lock_title), style = MaterialTheme.typography.headlineSmall)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = stringResource(R.string.app_lock_subtitle), style = MaterialTheme.typography.bodyMedium)
+        if (hasError) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = stringResource(R.string.app_lock_error), style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        androidx.compose.material3.Button(onClick = onUnlock) {
+            Text(text = stringResource(R.string.app_lock_unlock))
         }
     }
 }
@@ -139,7 +250,7 @@ class MainActivity : ComponentActivity() {
 fun MainAppShell(
     transactionRepository: TransactionRepository,
     userPreferences: UserPreferences,
-    onResetOnboarding: () -> Unit,
+    onRescanSmsInbox: (String) -> Unit,
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
 ) {
@@ -295,7 +406,7 @@ fun MainAppShell(
                             transactionRepository.updateTransactions(updatedList)
                         }
                     },
-                    onResetOnboarding = onResetOnboarding,
+                    onRescanSmsInbox = onRescanSmsInbox,
                     onPrivacyToggle = onTogglePrivacyMode,
                     onCategoriseUnknown = { showReviewQueue = true },
                     transactionsFilter = transactionsFilter,
@@ -381,6 +492,9 @@ fun MainAppShell(
                     onAccountClick = { selectedAccountForDetail = it },
                     onProfileClick = { currentDestination = AppDestination.MORE },
                     onDuesClick = { currentDestination = AppDestination.INSIGHTS },
+                    onNotificationSettingsChanged = {
+                        SummaryNotificationWorker.scheduleAll(context, userPreferences)
+                    },
                     onSplitClick = { showSplitInfoDialog = true },
                 )
             }
@@ -674,7 +788,7 @@ fun BoxDestinationContent(
     onRestoreTransaction: (Transaction) -> Unit = {},
     onReviewTransaction: (Transaction) -> Unit = {},
     onUpdateTransactions: (List<Transaction>) -> Unit = {},
-    onResetOnboarding: () -> Unit,
+    onRescanSmsInbox: (String) -> Unit,
     onPrivacyToggle: () -> Unit,
     onCategoriseUnknown: () -> Unit = {},
     transactionsFilter: TransactionFilter = TransactionFilter(),
@@ -698,6 +812,7 @@ fun BoxDestinationContent(
     onSplitClick: () -> Unit = {},
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
+    onNotificationSettingsChanged: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((Long, Set<Long>) -> Unit)? = null,
@@ -711,6 +826,7 @@ fun BoxDestinationContent(
             HomeScreen(
                 transactions = transactions,
                 accounts = accounts,
+                userName = userPreferences.userName,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onSeeAllClick = onNavigateToTransactions,
                 onIncomeClick = onIncomeClick,
@@ -787,7 +903,7 @@ fun BoxDestinationContent(
                 transactions = transactions,
                 accounts = accounts,
                 userPreferences = userPreferences,
-                onResetOnboarding = onResetOnboarding,
+                onRescanSmsInbox = onRescanSmsInbox,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 onSaveAccount = onSaveAccount,
                 onMergeAccounts = onMergeAccounts,
@@ -797,6 +913,7 @@ fun BoxDestinationContent(
                 onReportSmsClick = onReportSmsClick,
                 onAccountClick = onAccountClick,
                 onTransactionClick = onTransactionClick,
+                onNotificationSettingsChanged = onNotificationSettingsChanged,
                 modifier = modifier,
             )
         }

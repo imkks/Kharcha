@@ -31,15 +31,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.axio_chart_blue
+import com.kharcha.core.designsystem.theme.axio_lime_accent
+import com.kharcha.core.designsystem.theme.axio_pale_lime
+import com.kharcha.core.designsystem.theme.axio_text_secondary
 
 fun getChannelColor(channelName: String): Color {
     return when (channelName.uppercase()) {
-        "UPI" -> Color(0xFF0F766E)
-        "CARD" -> Color(0xFF2563EB)
+        "UPI" -> axio_lime_accent
+        "CARD" -> axio_chart_blue
         "ATM" -> Color(0xFFD97706)
-        "NEFT", "IMPS" -> Color(0xFF7C3AED)
-        "WALLET" -> Color(0xFF059669)
-        else -> Color(0xFF64748B)
+        "NEFT", "IMPS" -> axio_pale_lime
+        "WALLET" -> axio_chart_blue
+        else -> axio_text_secondary
     }
 }
 

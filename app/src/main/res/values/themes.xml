@@ -1,3 +1,10 @@
 <resources>
-    <style name="Theme.Kharcha" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Kharcha" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorAccent">@color/kharcha_accent</item>
+        <item name="android:windowBackground">@color/kharcha_background</item>
+        <item name="android:statusBarColor">@color/kharcha_background</item>
+        <item name="android:navigationBarColor">@color/kharcha_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
 </resources>

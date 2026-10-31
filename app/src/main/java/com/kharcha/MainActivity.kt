@@ -9,6 +9,7 @@ import androidx.biometric.BiometricPrompt
 import com.kharcha.core.common.security.AuthenticatorPromptMode
 import com.kharcha.core.common.security.authenticatorPromptMode
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -38,6 +39,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -117,7 +119,11 @@ private val bottomDestinations = listOf(
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
     private var appUnlockState: MutableState<Boolean>? = null
+    private var appLockErrorState: MutableState<Boolean>? = null
+    private var appUnlockRetryState: MutableState<Int>? = null
     private var incomeRevealState: MutableState<Boolean>? = null
+    private var retryAppUnlockOnResume = false
+    private var appLockResumeGeneration = 0L
     @Inject
     lateinit var transactionRepository: TransactionRepository
 
@@ -141,11 +147,16 @@ class MainActivity : FragmentActivity() {
                     val appUnlockedState = rememberSaveable {
                         mutableStateOf(!userPreferences.isAppLockEnabled)
                     }
-                    var appLockError by rememberSaveable { mutableStateOf(false) }
+                    val appLockErrorRemembered = rememberSaveable { mutableStateOf(false) }
+                    val appUnlockRetryRemembered = rememberSaveable { mutableIntStateOf(0) }
+                    var appLockError by appLockErrorRemembered
+                    var appUnlockRetryToken by appUnlockRetryRemembered
                     val incomeHiddenState = rememberSaveable { mutableStateOf(userPreferences.isIncomeHidden) }
                     val incomeRevealedState = rememberSaveable { mutableStateOf(false) }
                     val privacyModeState = rememberSaveable { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
                     appUnlockState = appUnlockedState
+                    appLockErrorState = appLockErrorRemembered
+                    appUnlockRetryState = appUnlockRetryRemembered
                     incomeRevealState = incomeRevealedState
                     var isAppUnlocked by appUnlockedState
                     var isIncomeRevealed by incomeRevealedState
@@ -160,6 +171,7 @@ class MainActivity : FragmentActivity() {
                     } else if (userPreferences.isAppLockEnabled && !isAppUnlocked) {
                         AppLockScreen(
                             hasError = appLockError,
+                            unlockRequestKey = appUnlockRetryToken,
                             onUnlock = {
                                 authenticateWithBiometric(
                                     onAuthenticated = {
@@ -220,6 +232,8 @@ class MainActivity : FragmentActivity() {
             appUnlockState?.value = false
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
+        if (userPreferences.isAppLockEnabled) retryAppUnlockOnResume = true
+        appLockResumeGeneration += 1
         super.onStop()
     }
 
@@ -229,6 +243,24 @@ class MainActivity : FragmentActivity() {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        if (retryAppUnlockOnResume) {
+            retryAppUnlockOnResume = false
+            val resumeGeneration = ++appLockResumeGeneration
+            window.decorView.postDelayed({
+                if (resumeGeneration != appLockResumeGeneration || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    return@postDelayed
+                }
+                val shouldRetry = shouldRetryAppUnlock(
+                    appLockEnabled = userPreferences.isAppLockEnabled,
+                    isAppUnlocked = appUnlockState?.value != false,
+                    stoppedWhileLocked = true,
+                )
+                if (shouldRetry) {
+                    appLockErrorState?.value = false
+                    appUnlockRetryState?.value = (appUnlockRetryState?.value ?: 0) + 1
+                }
+            }, APP_UNLOCK_RESUME_RETRY_DELAY_MS)
         }
     }
 
@@ -278,8 +310,8 @@ class MainActivity : FragmentActivity() {
 }
 
 @Composable
-private fun AppLockScreen(hasError: Boolean, onUnlock: () -> Unit) {
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+private fun AppLockScreen(hasError: Boolean, unlockRequestKey: Int, onUnlock: () -> Unit) {
+    androidx.compose.runtime.LaunchedEffect(unlockRequestKey) {
         onUnlock()
     }
     Box(
@@ -300,6 +332,14 @@ private fun AppLockScreen(hasError: Boolean, onUnlock: () -> Unit) {
         }
     }
 }
+
+internal fun shouldRetryAppUnlock(
+    appLockEnabled: Boolean,
+    isAppUnlocked: Boolean,
+    stoppedWhileLocked: Boolean,
+): Boolean = appLockEnabled && stoppedWhileLocked && !isAppUnlocked
+
+private const val APP_UNLOCK_RESUME_RETRY_DELAY_MS = 300L
 
 @Composable
 fun MainAppShell(

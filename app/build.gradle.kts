@@ -13,6 +13,8 @@ android {
     val releaseKeystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
     val releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
     val releaseKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+        ?.takeIf { it.isNotBlank() }
+        ?: releaseKeystorePassword
     val hasReleaseSigning = listOf(
         releaseKeystorePath,
         releaseKeystorePassword,

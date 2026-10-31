@@ -17,3 +17,5 @@ build
 .cxx
 local.properties
 /pennywise_source/
+*.jks
+*.keystore

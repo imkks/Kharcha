@@ -108,10 +108,10 @@ enum class AppDestination(
 }
 
 private val bottomDestinations = listOf(
-    AppDestination.TRANSACTIONS,
     AppDestination.HOME,
-    AppDestination.SPLITS,
+    AppDestination.TRANSACTIONS,
     AppDestination.INSIGHTS,
+    AppDestination.SPLITS,
 )
 
 @AndroidEntryPoint

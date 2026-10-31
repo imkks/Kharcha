@@ -276,6 +276,7 @@
     <string name="weekly_summary_spent_this_week">Spent this week</string>
     <string name="weekly_summary_daily_target">Spend %1$s per day to stay on track.</string>
     <string name="weekly_summary_top_spends">Top spends</string>
+    <string name="weekly_summary_top_locations">Top locations</string>
     <string name="weekly_summary_dues_coming_up">Dues coming up</string>
     <string name="weekly_summary_no_dues">No upcoming dues in the next 7 days</string>
     <string name="weekly_summary_rate_week">Rate your week</string>

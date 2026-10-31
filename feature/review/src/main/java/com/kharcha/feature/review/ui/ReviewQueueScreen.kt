@@ -347,7 +347,7 @@ private fun ReviewCardContent(
                 }
 
                 // Raw SMS Snippet if present
-                val rawSms = transaction.note
+                val rawSms = transaction.smsBody
                 if (!rawSms.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Surface(

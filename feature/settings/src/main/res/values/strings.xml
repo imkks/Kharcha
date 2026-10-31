@@ -58,6 +58,12 @@
     <string name="settings_notification_permission_title">Notification permission</string>
     <string name="settings_notification_permission_allowed">Allowed</string>
     <string name="settings_notification_permission_blocked">Tap to enable notifications</string>
+    <string name="settings_summary_channel_title">Spend summary alerts</string>
+    <string name="settings_summary_channel_allowed">Enabled in Android settings</string>
+    <string name="settings_summary_channel_blocked">Blocked in Android settings — tap to change</string>
+    <string name="settings_exact_summary_time_title">Deliver summaries at the selected time</string>
+    <string name="settings_exact_summary_time_allowed">Exact alarm access is enabled</string>
+    <string name="settings_exact_summary_time_blocked">Tap to allow exact delivery; otherwise Android may delay it</string>
     <string name="settings_manage_accounts_title">Manage &amp; Link Accounts</string>
     <string name="settings_manage_accounts_subtitle">%1$d linked accounts &amp; cards</string>
     <string name="settings_add_account">+ Add / Link Account</string>

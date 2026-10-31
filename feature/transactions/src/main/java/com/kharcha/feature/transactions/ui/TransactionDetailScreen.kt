@@ -677,8 +677,8 @@ fun TransactionDetailScreen(
                 val isRefundLink =
                     selectedCategory.equals("Refund", ignoreCase = true) ||
                         linkedTxn.categorySource.equals("Refund", ignoreCase = true) ||
-                        TransactionClassifierHelper.isRefundNarrative(linkedTxn.note) ||
-                        TransactionClassifierHelper.isRefundNarrative(transaction.note)
+                        TransactionClassifierHelper.isRefundNarrative(linkedTxn.smsBody ?: linkedTxn.note) ||
+                        TransactionClassifierHelper.isRefundNarrative(transaction.smsBody ?: transaction.note)
 
                 item {
                     val linkedMerchant =
@@ -804,7 +804,7 @@ fun TransactionDetailScreen(
                     selectedCategory.equals("A/C Transfer", ignoreCase = true)
                 if (isTransferCard) {
                     val targetCard =
-                        TransactionClassifierHelper.extractTargetCardLast4(transaction.note ?: "")
+                        TransactionClassifierHelper.extractTargetCardLast4(transaction.smsBody ?: transaction.note.orEmpty())
                     if (targetCard != null) {
                         item {
                             Card(
@@ -1281,7 +1281,7 @@ fun TransactionDetailScreen(
             }
 
             // 6. Original Full SMS Message Card (Exact verbatim message)
-            val rawSms = transaction.note?.takeIf { it.isNotBlank() }
+            val rawSms = transaction.smsBody?.takeIf { it.isNotBlank() }
             if (!rawSms.isNullOrBlank()) {
                 item {
                     Card(
@@ -1401,30 +1401,19 @@ fun TransactionDetailScreen(
                                 transaction.latitude,
                                 transaction.longitude,
                                 transaction.locationLabel,
-                                rawSms,
-                                noteText,
                                 merchantName,
                             ) {
                                 LocationHelper.extractLocation(
                                     latitude = transaction.latitude,
                                     longitude = transaction.longitude,
                                     locationLabel = transaction.locationLabel,
-                                    rawSms = rawSms,
-                                    note = noteText,
                                     merchantName = merchantName,
                                 )
                             }
 
                         if (txnLocation != null) {
                             Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable {
-                                            LocationHelper.openInGoogleMaps(context, txnLocation)
-                                        }
-                                        .padding(vertical = 4.dp),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -1441,29 +1430,9 @@ fun TransactionDetailScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                    Text(
-                                        text = stringResource(id = R.string.detail_location_open_maps),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.financialColors.income,
-                                    )
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .size(38.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(
-                                                MaterialTheme.financialColors.income.copy(alpha = 0.15f),
-                                            ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = DesignR.drawable.ic_location),
-                                        contentDescription = stringResource(id = R.string.detail_location_open_maps),
-                                        tint = MaterialTheme.financialColors.income,
-                                        modifier = Modifier.size(20.dp),
-                                    )
+                                TextButton(onClick = { LocationHelper.openInGoogleMaps(context, txnLocation) }) {
+                                    Text(text = stringResource(id = R.string.detail_location_action))
                                 }
                             }
 
@@ -1915,8 +1884,8 @@ fun TransactionDetailScreen(
                 val isRefund =
                     !isTransfer && (selectedCategory.equals("Refund", ignoreCase = true) ||
                         candidate.categorySource.equals("Refund", ignoreCase = true) ||
-                        TransactionClassifierHelper.isRefundNarrative(candidate.note) ||
-                        TransactionClassifierHelper.isRefundNarrative(transaction.note))
+                        TransactionClassifierHelper.isRefundNarrative(candidate.smsBody ?: candidate.note) ||
+                        TransactionClassifierHelper.isRefundNarrative(transaction.smsBody ?: transaction.note))
                 onLinkTransactions?.invoke(transaction.id, candidate.id, isRefund)
                 showLinkSheet = false
             },

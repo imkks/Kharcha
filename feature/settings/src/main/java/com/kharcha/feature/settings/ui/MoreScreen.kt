@@ -1,14 +1,18 @@
 package com.kharcha.feature.settings.ui
 
 import android.app.KeyguardManager
+import android.app.NotificationManager
+import android.app.AlarmManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.net.Uri
 import android.app.TimePickerDialog
 import android.os.Build
 import android.provider.Settings
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import com.kharcha.core.common.NotificationChannels
 import com.kharcha.core.common.security.AuthenticatorPromptMode
 import com.kharcha.core.common.security.authenticatorPromptMode
 import androidx.fragment.app.FragmentActivity
@@ -1645,6 +1649,14 @@ fun MoreScreen(
         var billReminders by remember { mutableStateOf(userPreferences.isBillReminderEnabled) }
         val context = LocalContext.current
         val notificationsAllowed = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val summaryChannelAllowed =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                context.getSystemService(NotificationManager::class.java)
+                    ?.getNotificationChannel(NotificationChannels.SPEND_SUMMARIES)
+                    ?.importance != NotificationManager.IMPORTANCE_NONE
+        val exactSummaryTimeAllowed =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                context.getSystemService(AlarmManager::class.java)?.canScheduleExactAlarms() == true
         fun timeLabel(minutes: Int): String = String.format(Locale.getDefault(), "%02d:%02d", minutes / 60, minutes % 60)
         AlertDialog(
             onDismissRequest = { showNotificationsDialog = false },
@@ -1668,6 +1680,35 @@ fun MoreScreen(
                             Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                                 .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
                         )
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        SettingsValueRow(
+                            title = stringResource(R.string.settings_exact_summary_time_title),
+                            value = stringResource(
+                                if (exactSummaryTimeAllowed) R.string.settings_exact_summary_time_allowed
+                                else R.string.settings_exact_summary_time_blocked,
+                            ),
+                        ) {
+                            context.startActivity(
+                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                    .setData(Uri.parse("package:${context.packageName}")),
+                            )
+                        }
+                    }
+                    SettingsValueRow(
+                        title = stringResource(R.string.settings_summary_channel_title),
+                        value = stringResource(
+                            if (summaryChannelAllowed) R.string.settings_summary_channel_allowed
+                            else R.string.settings_summary_channel_blocked,
+                        ),
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            context.startActivity(
+                                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    .putExtra(Settings.EXTRA_CHANNEL_ID, NotificationChannels.SPEND_SUMMARIES),
+                            )
+                        }
                     }
                     SettingsToggleRow(stringResource(R.string.settings_hide_sms_title), stringResource(R.string.settings_hide_sms_desc), hideSmsNotifications) {
                         if (it) {

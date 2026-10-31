@@ -138,7 +138,7 @@ class SmsReceiver : BroadcastReceiver() {
                                 refNumber = parsed.refNumber,
                                 upiId = parsed.upiId,
                                 balanceAfter = parsed.balanceAfterMinor,
-                                note = body.trim(),
+                                smsBody = body.trim(),
                                 parseConfidence = parsed.confidence,
                                 isReviewed = isUserCategorized,
                                 latitude = capturedLocation?.latitude,

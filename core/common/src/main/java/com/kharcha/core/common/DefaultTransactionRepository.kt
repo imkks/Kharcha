@@ -255,8 +255,15 @@ class DefaultTransactionRepository(
             if (text.isBlank()) return
             val jsonArray = JSONArray(text)
             val list = mutableListOf<Transaction>()
+            var migratedSmsNotes = false
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
+                if (obj.has("smsHash") && !obj.isNull("smsHash") &&
+                    (!obj.has("smsBody") || obj.isNull("smsBody")) &&
+                    obj.has("note") && !obj.isNull("note")
+                ) {
+                    migratedSmsNotes = true
+                }
                 list.add(jsonToTransaction(obj))
             }
             val deduplicated = deduplicateList(list).toMutableList()
@@ -264,7 +271,7 @@ class DefaultTransactionRepository(
             reconcileRefunds(deduplicated)
             val sorted = deduplicated.sortedByDescending { it.dateTime }
             _transactions.value = sorted
-            if (sorted.size < list.size) {
+            if (migratedSmsNotes || sorted.size < list.size) {
                 saveToDisk(sorted)
             }
         } catch (_: Exception) {
@@ -293,7 +300,9 @@ class DefaultTransactionRepository(
         val sameRef =
             !existing.refNumber.isNullOrBlank() && !txn.refNumber.isNullOrBlank() &&
                 existing.refNumber == txn.refNumber
-        val sameNote = !existing.note.isNullOrBlank() && existing.note == txn.note
+        val existingSmsText = existing.smsBody ?: existing.note
+        val txnSmsText = txn.smsBody ?: txn.note
+        val sameNote = !existingSmsText.isNullOrBlank() && existingSmsText == txnSmsText
 
         return sameMerchant || sameRef || sameNote
     }
@@ -330,7 +339,8 @@ class DefaultTransactionRepository(
                 if ((existing.templateId == null && txn.templateId != null) ||
                     (existing.bankName == null && txn.bankName != null) ||
                     (existing.accountLast4 == null && txn.accountLast4 != null) ||
-                    (existing.sender == null && txn.sender != null)
+                    (existing.sender == null && txn.sender != null) ||
+                    (existing.smsBody == null && txn.smsBody != null)
                 ) {
                     result[matchIdx] =
                         existing.copy(
@@ -338,6 +348,7 @@ class DefaultTransactionRepository(
                             bankName = existing.bankName ?: txn.bankName,
                             accountLast4 = existing.accountLast4 ?: txn.accountLast4,
                             sender = existing.sender ?: txn.sender,
+                            smsBody = existing.smsBody ?: txn.smsBody,
                         )
                 }
                 continue
@@ -375,8 +386,8 @@ class DefaultTransactionRepository(
                         t1.channel == Channel.CARD || t2.channel == Channel.CARD ||
                             t1.categorySource.equals("Transfer", ignoreCase = true) ||
                             t2.categorySource.equals("Transfer", ignoreCase = true) ||
-                            (t1.note?.contains("card", ignoreCase = true) == true) ||
-                            (t2.note?.contains("card", ignoreCase = true) == true)
+                            ((t1.smsBody ?: t1.note)?.contains("card", ignoreCase = true) == true) ||
+                            ((t2.smsBody ?: t2.note)?.contains("card", ignoreCase = true) == true)
                     val window = if (isCard) 7L * 24 * 60 * 60 * 1000L else 10 * 60 * 1000L
                     if (kotlin.math.abs(t1.dateTime - t2.dateTime) <= window) {
                         list[i] =
@@ -407,7 +418,7 @@ class DefaultTransactionRepository(
             val isRefundCandidate =
                 tRefund.type == TransactionType.Income &&
                     (tRefund.categorySource.equals("Refund", ignoreCase = true) ||
-                        TransactionClassifierHelper.isRefundNarrative(tRefund.note))
+                        TransactionClassifierHelper.isRefundNarrative(tRefund.smsBody ?: tRefund.note))
             if (!isRefundCandidate || tRefund.linkedTransactionId != null) continue
 
             for (j in list.indices) {
@@ -471,6 +482,7 @@ class DefaultTransactionRepository(
         obj.put("upiId", txn.upiId)
         obj.put("balanceAfter", txn.balanceAfter)
         obj.put("note", txn.note)
+        obj.put("smsBody", txn.smsBody)
         obj.put("categorySource", txn.categorySource)
         obj.put("isReviewed", txn.isReviewed)
         txn.linkedTransactionId?.let { obj.put("linkedTransactionId", it) }
@@ -570,7 +582,24 @@ class DefaultTransactionRepository(
             upiId = if (json.has("upiId") && !json.isNull("upiId")) json.getString("upiId") else null,
             balanceAfter =
                 if (json.has("balanceAfter") && !json.isNull("balanceAfter")) json.getLong("balanceAfter") else null,
-            note = if (json.has("note") && !json.isNull("note")) json.getString("note") else null,
+            note =
+                if (json.has("smsBody") && !json.isNull("smsBody")) {
+                    if (json.has("note") && !json.isNull("note")) json.getString("note") else null
+                } else if (json.has("smsHash") && !json.isNull("smsHash")) {
+                    null
+                } else if (json.has("note") && !json.isNull("note")) {
+                    json.getString("note")
+                } else {
+                    null
+                },
+            smsBody =
+                if (json.has("smsBody") && !json.isNull("smsBody")) {
+                    json.getString("smsBody")
+                } else if (json.has("smsHash") && !json.isNull("smsHash") && json.has("note") && !json.isNull("note")) {
+                    json.getString("note")
+                } else {
+                    null
+                },
             categorySource = resolvedCategory,
             isReviewed = json.optBoolean("isReviewed", false),
             linkedTransactionId =

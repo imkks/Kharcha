@@ -124,7 +124,7 @@ fun SearchScreen(
                         id = tx.id,
                         sender = tx.channel?.name ?: "BANK-ALERT",
                         dateEpoch = tx.dateTime,
-                        body = tx.note ?: "Txn of ₹${tx.amount / 100} at $store ref $ref",
+                        body = tx.smsBody ?: "Txn of ₹${tx.amount / 100} at $store ref $ref",
                         isParsed = tx.isReviewed,
                         transaction = tx,
                     )

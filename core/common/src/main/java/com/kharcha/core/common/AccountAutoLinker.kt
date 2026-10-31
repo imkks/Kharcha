@@ -77,7 +77,7 @@ object AccountAutoLinker {
         if (creditCards.isEmpty() || bankAccounts.isEmpty()) return emptyMap()
 
         for (txn in transactions) {
-            val text = (txn.note ?: txn.merchantRaw ?: "")
+            val text = (txn.smsBody ?: txn.note ?: txn.merchantRaw ?: "")
             if (text.isBlank()) continue
 
             var targetCardLast4: String? = null

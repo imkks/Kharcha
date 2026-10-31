@@ -1,5 +1,6 @@
 package com.kharcha.core.designsystem.component
 
+import android.Manifest
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -139,6 +140,36 @@ fun AddTransactionDialog(
     var showAddTagDialog by remember { mutableStateOf(false) }
     var newTagInput by remember { mutableStateOf("") }
     var receiptUri by remember { mutableStateOf<String?>(null) }
+    var pendingLocationSave by remember { mutableStateOf<Pair<Transaction, Boolean>?>(null) }
+
+    fun resetForm() {
+        amountInput = ""
+        payeeInput = ""
+        noteInput = ""
+        tagsList.clear()
+        receiptUri = null
+    }
+
+    val locationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestMultiplePermissions(),
+        ) {
+            val pending = pendingLocationSave ?: return@rememberLauncherForActivityResult
+            pendingLocationSave = null
+            val location = LocationCaptureHelper.getLastKnownLocation(context)
+            onSave(
+                pending.first.copy(
+                    latitude = location?.latitude,
+                    longitude = location?.longitude,
+                    locationLabel = location?.label,
+                ),
+            )
+            if (pending.second) {
+                resetForm()
+            } else {
+                onDismiss()
+            }
+        }
 
     val photoPickerLauncher =
         rememberLauncherForActivityResult(
@@ -197,7 +228,12 @@ fun AddTransactionDialog(
                 TransactionType.Income
             }
 
-        val location = LocationCaptureHelper.getLastKnownLocation(context)
+        val location =
+            if (txnType == TransactionType.Expense) {
+                LocationCaptureHelper.getLastKnownLocation(context)
+            } else {
+                null
+            }
 
         val noteTagsSuffix =
             if (tagsList.isNotEmpty()) {
@@ -234,6 +270,32 @@ fun AddTransactionDialog(
             locationLabel = location?.label,
             isReviewed = true,
         )
+    }
+
+    fun saveTransaction(
+        transaction: Transaction?,
+        addAnother: Boolean,
+    ) {
+        if (transaction == null) return
+        if (
+            transaction.type == TransactionType.Expense &&
+            !LocationCaptureHelper.hasLocationPermission(context)
+        ) {
+            pendingLocationSave = transaction to addAnother
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+        } else {
+            onSave(transaction)
+            if (addAnother) {
+                resetForm()
+            } else {
+                onDismiss()
+            }
+        }
     }
 
     Dialog(
@@ -277,22 +339,10 @@ fun AddTransactionDialog(
                 ) {
                     FormFooter(
                         onSaveAndAddAnother = {
-                            val txn = buildTransaction()
-                            if (txn != null) {
-                                onSave(txn)
-                                amountInput = ""
-                                payeeInput = ""
-                                noteInput = ""
-                                tagsList.clear()
-                                receiptUri = null
-                            }
+                            saveTransaction(buildTransaction(), addAnother = true)
                         },
                         onSave = {
-                            val txn = buildTransaction()
-                            if (txn != null) {
-                                onSave(txn)
-                                onDismiss()
-                            }
+                            saveTransaction(buildTransaction(), addAnother = false)
                         },
                         isSaveEnabled = isSaveEnabled,
                     )

@@ -31,6 +31,9 @@ class CsvExportHelperTest {
                     accountLast4 = "5625",
                     bankName = "HDFC",
                     sender = "VM-HDFCBK",
+                    latitude = 12.9716,
+                    longitude = 77.5946,
+                    locationLabel = "Indiranagar, Bengaluru",
                 ),
             )
 
@@ -49,6 +52,7 @@ class CsvExportHelperTest {
         assertTrue(lines[0].contains("linked_txn_id"))
         assertTrue(lines[0].contains("pipeline_steps"))
         assertTrue(lines[0].contains("sender"))
+        assertTrue(lines[0].contains("latitude,longitude,location_label"))
         assertTrue(lines[0].contains("balance_after_inr"))
 
         // Row values check
@@ -63,6 +67,9 @@ class CsvExportHelperTest {
         assertTrue(row.contains("HDFC"))
         assertTrue(row.contains("5625"))
         assertTrue(row.contains("VM-HDFCBK"))
+        assertTrue(row.contains("12.9716"))
+        assertTrue(row.contains("77.5946"))
+        assertTrue(row.contains("\"Indiranagar, Bengaluru\""))
         // Escaped fields containing comma
         assertTrue(row.contains("\"RAZ*Optick Labs, Inc\""))
         // Escaped quotes in raw note

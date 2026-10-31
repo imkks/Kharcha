@@ -116,6 +116,7 @@ object BankParserFactory {
         JordanIslamicBankParser(),  // Jordan Islamic Bank (Jordan) — JIB, Arabic SMS
         IslamicInternationalArabBankParser(),  // Islamic International Arab Bank (Jordan) — ARABIISLAMI
         BankAlEtihadParser(),  // Bank al Etihad (Jordan) — BankEtihad
+        OrangeMoneyJordanParser(),  // Orange Money mobile wallet (Jordan)
         SafwaIslamicBankParser(),  // Safwa Islamic Bank (Jordan)
         DhanlaxmiBankParser(),  // Dhanlaxmi Bank (India)
         DOPBankParser(),  // Department of Post (India)
@@ -170,6 +171,7 @@ object BankParserFactory {
         NationsTrustBankParser(),  // Nations Trust Bank (Sri Lanka)
         NationalSavingsBankParser(),  // National Savings Bank / NSB (Sri Lanka)
         NDBBankParser(),  // National Development Bank / NDB (Sri Lanka)
+        ComBankParser(),  // Commercial Bank of Ceylon (Sri Lanka)
         BRACBankParser(),  // BRAC Bank (Bangladesh) (#943)
         BkashParser(),  // bKash (Bangladesh) — mobile money
         AccessBankParser(),  // Access Bank (Nigeria)

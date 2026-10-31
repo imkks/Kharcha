@@ -9,6 +9,7 @@ import androidx.work.WorkManager
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
+import com.kharcha.core.common.CapturedLocation
 import com.kharcha.core.common.LocationCaptureHelper
 import com.kharcha.core.common.TransactionClassifierHelper
 import com.kharcha.core.model.Channel
@@ -45,6 +46,8 @@ class SmsReceiver : BroadcastReceiver() {
                 try {
                     val repo = DefaultTransactionRepository.getInstance(context)
                     val parser = TemplateLoader.createParser(context)
+                    var hasCapturedLiveLocation = false
+                    var capturedLiveLocation: CapturedLocation? = null
                     for (msg in messages) {
                         val sender = msg.displayOriginatingAddress ?: msg.originatingAddress ?: continue
                         val body = msg.displayMessageBody ?: msg.messageBody ?: continue
@@ -120,7 +123,16 @@ class SmsReceiver : BroadcastReceiver() {
                                 1L
                             }
 
-                        val capturedLocation = LocationCaptureHelper.getLastKnownLocation(context)
+                        val capturedLocation =
+                            if (type == TransactionType.Expense && isCounted) {
+                                if (!hasCapturedLiveLocation) {
+                                    capturedLiveLocation = LocationCaptureHelper.getLocationForLiveTransaction(context)
+                                    hasCapturedLiveLocation = true
+                                }
+                                capturedLiveLocation
+                            } else {
+                                null
+                            }
 
                         val txn =
                             Transaction(

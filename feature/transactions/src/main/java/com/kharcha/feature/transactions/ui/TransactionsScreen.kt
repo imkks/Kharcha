@@ -95,6 +95,9 @@ import com.kharcha.core.designsystem.component.SwipeableTransactionRow
 import com.kharcha.core.designsystem.component.TwoColumnDonutChart
 import com.kharcha.core.designsystem.component.buildCategorySlices
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AmountRangeFilter
@@ -1034,10 +1037,12 @@ fun HeroMonthSummary(
     onIncomeClick: (() -> Unit)? = null,
 ) {
     val isPrivacy = LocalPrivacyMode.current
+    val incomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
     val expenseFormatted =
         if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalExpenseMinor)
     val incomeFormatted =
-        if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalIncomeMinor)
+        if (isPrivacy || incomeHidden) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalIncomeMinor)
     val budgetFormatted =
         if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(monthlyBudgetMinor)
 
@@ -1084,6 +1089,7 @@ fun HeroMonthSummary(
                     text = incomeFormatted,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    modifier = if (incomeHidden && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                     color =
                         if (isIncomeSelected) {
                             MaterialTheme.financialColors.income

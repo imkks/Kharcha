@@ -54,6 +54,9 @@ import com.kharcha.core.designsystem.component.SelectAccountSheet
 import com.kharcha.core.designsystem.component.StickyActionPill
 import com.kharcha.core.designsystem.component.calculateMonthlyComparisonData
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
@@ -100,7 +103,10 @@ fun TrendsScreen(
     var showAccountSheet by remember { mutableStateOf(false) }
 
     // User Rule: the eye icon hide/reveal toggle is strictly for income (spends is always visible)
+    val incomeHiddenBySetting = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
     var isIncomeHidden by rememberSaveable { mutableStateOf(false) }
+    val shouldHideIncome = isIncomeHidden || incomeHiddenBySetting
+    val revealIncome = LocalIncomeReveal.current
 
     val accountFilteredTransactions =
         remember(transactions, selectedAccount) {
@@ -269,6 +275,7 @@ fun TrendsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.financialColors.limeAccent,
+                                modifier = if (incomeHiddenBySetting) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                             )
                         }
                     }
@@ -341,14 +348,14 @@ fun TrendsScreen(
                                     color = MaterialTheme.financialColors.textSecondary,
                                 )
                                 IconButton(
-                                    onClick = { isIncomeHidden = !isIncomeHidden },
+                                    onClick = { if (!incomeHiddenBySetting) isIncomeHidden = !isIncomeHidden },
                                     modifier = Modifier.size(20.dp),
                                 ) {
                                     Icon(
                                         painter =
                                             painterResource(
                                                 id =
-                                                    if (isIncomeHidden) {
+                                                    if (shouldHideIncome) {
                                                         DesignR.drawable.ic_visibility_off
                                                     } else {
                                                         DesignR.drawable.ic_visibility
@@ -363,7 +370,7 @@ fun TrendsScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text =
-                                    if (isIncomeHidden) {
+                                    if (shouldHideIncome) {
                                         "₹ ••••••"
                                     } else {
                                         MoneyFormatter.formatMinorUnits(selectedMonthIncomeMinor)

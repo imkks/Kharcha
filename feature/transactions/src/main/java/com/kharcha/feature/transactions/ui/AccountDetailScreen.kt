@@ -79,6 +79,9 @@ import com.kharcha.core.designsystem.component.SpendRing
 import com.kharcha.core.designsystem.component.SwipeableTransactionRow
 import com.kharcha.core.designsystem.component.buildCategorySlices
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Transaction
@@ -107,6 +110,8 @@ fun AccountDetailScreen(
     onSetBudgetClick: () -> Unit = {},
 ) {
     BackHandler { onBack() }
+    val isIncomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
 
     var selectedSubTab by rememberSaveable { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
     var showMenuOptionsSheet by remember { mutableStateOf(false) }
@@ -421,9 +426,10 @@ fun AccountDetailScreen(
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = MoneyFormatter.formatMinorUnits(monthIncomePaise),
+                                            text = if (isIncomeHidden) "₹ ••••••" else MoneyFormatter.formatMinorUnits(monthIncomePaise),
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
+                                            modifier = if (isIncomeHidden) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                                             color =
                                                 if (isIncomeSelected) {
                                                     MaterialTheme.financialColors.income

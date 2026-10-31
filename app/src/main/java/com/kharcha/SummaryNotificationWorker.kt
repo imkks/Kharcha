@@ -57,6 +57,7 @@ class SummaryNotificationWorker @AssistedInject constructor(
             NotificationChannel(CHANNEL_ID, applicationContext.getString(R.string.summary_notification_channel), NotificationManager.IMPORTANCE_DEFAULT),
         )
         val openIntent = applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)
+            ?.putExtra(EXTRA_OPEN_WEEKLY_SUMMARY, weekly)
         val pendingIntent = openIntent?.let {
             PendingIntent.getActivity(applicationContext, if (weekly) 102 else 101, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
@@ -81,6 +82,7 @@ class SummaryNotificationWorker @AssistedInject constructor(
         private const val WEEKLY_NOTIFICATION_ID = 21002
         private const val DAILY_WORK = "daily_spend_summary"
         private const val WEEKLY_WORK = "weekly_spend_summary"
+        const val EXTRA_OPEN_WEEKLY_SUMMARY = "open_weekly_summary"
 
         fun scheduleAll(context: Context, preferences: UserPreferences) {
             schedule(context, weekly = false, preferences)

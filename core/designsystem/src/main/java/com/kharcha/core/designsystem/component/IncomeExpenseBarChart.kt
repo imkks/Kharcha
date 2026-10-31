@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,9 @@ import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.R
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
@@ -126,6 +130,8 @@ fun IncomeExpenseBarChart(
     if (data.isEmpty()) return
 
     val isPrivacy = LocalPrivacyMode.current
+    val incomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
     var selectedIndex by remember { mutableStateOf(data.lastIndex) }
     val selectedData = data.getOrNull(selectedIndex) ?: data.last()
 
@@ -180,6 +186,8 @@ fun IncomeExpenseBarChart(
             SelectedMonthDetailStrip(
                 data = selectedData,
                 isPrivacy = isPrivacy,
+                incomeHidden = incomeHidden,
+                onRevealIncome = { revealIncome?.invoke() },
                 incomeColor = incomeColor,
                 expenseColor = expenseColor,
             )
@@ -222,7 +230,7 @@ fun IncomeExpenseBarChart(
 
                         // Income Bar (Left)
                         val incomeFrac = (item.incomeMinor.toFloat() / maxAmount.toFloat()).coerceIn(0f, 1f)
-                        val incomeBarHeight = incomeFrac * canvasHeight * progress
+                        val incomeBarHeight = if (incomeHidden) 0f else incomeFrac * canvasHeight * progress
                         if (incomeBarHeight > 0f) {
                             val incomeLeft = slotCenterX - barWidth - 2.dp.toPx()
                             drawRoundRect(
@@ -314,12 +322,14 @@ private fun LegendDot(
 private fun SelectedMonthDetailStrip(
     data: MonthlyComparisonBarData,
     isPrivacy: Boolean,
+    incomeHidden: Boolean,
+    onRevealIncome: () -> Unit,
     incomeColor: Color,
     expenseColor: Color,
     modifier: Modifier = Modifier,
 ) {
     val net = data.incomeMinor - data.expenseMinor
-    val incomeFormatted = if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(data.incomeMinor)
+    val incomeFormatted = if (isPrivacy || incomeHidden) "₹ ••••••" else MoneyFormatter.formatMinorUnits(data.incomeMinor)
     val expenseFormatted = if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(data.expenseMinor)
     val netFormatted =
         if (isPrivacy) {
@@ -349,6 +359,7 @@ private fun SelectedMonthDetailStrip(
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = incomeColor,
+                modifier = if (incomeHidden && !isPrivacy) Modifier.clickable(onClick = onRevealIncome) else Modifier,
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

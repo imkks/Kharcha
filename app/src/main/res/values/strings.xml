@@ -6,6 +6,7 @@
     <string name="app_lock_title">Unlock Kharcha</string>
     <string name="app_lock_subtitle">Verify your identity to view your finances.</string>
     <string name="app_lock_unlock">Unlock with fingerprint</string>
+    <string name="app_lock_retry">Try again</string>
     <string name="app_lock_cancel">Cancel</string>
     <string name="app_lock_error">Authentication was cancelled or unavailable. Try again.</string>
     <string name="app_name">Kharcha</string>
@@ -14,6 +15,7 @@
     <string name="nav_home">Home</string>
     <string name="nav_transactions">Transactions</string>
     <string name="nav_insights">Insights</string>
+    <string name="nav_splits">Splits</string>
     <string name="nav_more">More</string>
     <string name="fab_add_transaction">Add transaction</string>
     <string name="insights_coming_soon">Insights &amp; Analytics</string>

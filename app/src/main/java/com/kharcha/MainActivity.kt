@@ -2,12 +2,12 @@ package com.kharcha
 
 import android.os.Bundle
 import android.view.WindowManager
-import android.widget.Toast
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -122,6 +122,7 @@ class MainActivity : FragmentActivity() {
                     val appUnlockedState = rememberSaveable {
                         mutableStateOf(!userPreferences.isAppLockEnabled && !userPreferences.isIncomeHidden)
                     }
+                    var appLockError by rememberSaveable { mutableStateOf(false) }
                     appUnlockState = appUnlockedState
                     var isAppUnlocked by appUnlockedState
 
@@ -134,10 +135,15 @@ class MainActivity : FragmentActivity() {
                         )
                     } else if ((userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) && !isAppUnlocked) {
                         AppLockScreen(
+                            hasError = appLockError,
                             onUnlock = {
-                                authenticateWithBiometric {
-                                    isAppUnlocked = true
-                                }
+                                authenticateWithBiometric(
+                                    onAuthenticated = {
+                                        isAppUnlocked = true
+                                        appLockError = false
+                                    },
+                                    onError = { appLockError = true },
+                                )
                             },
                         )
                     } else {
@@ -148,13 +154,18 @@ class MainActivity : FragmentActivity() {
                                 intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
                                     .takeIf { it >= 0L },
                             notificationAction = intent.getStringExtra(ExpenseNotification.EXTRA_ACTION),
-                            onRescanSmsInbox = {
+                            onRescanSmsInbox = { windowCode ->
                                 WorkManager.getInstance(applicationContext).enqueueUniqueWork(
                                     "sms_inbox_rescan",
                                     ExistingWorkPolicy.KEEP,
-                                    OneTimeWorkRequestBuilder<ImportWorker>().build(),
+                                    OneTimeWorkRequestBuilder<ImportWorker>()
+                                        .setInputData(
+                                            workDataOf(
+                                                ImportWorker.KEY_FORCE_RESCAN to true,
+                                                ImportWorker.KEY_SINCE_TIMESTAMP to ImportWorker.rescanSinceTimestamp(windowCode),
+                                            ),
+                                        ).build(),
                                 )
-                                Toast.makeText(applicationContext, R.string.sms_rescan_started, Toast.LENGTH_SHORT).show()
                             },
                         )
                     }
@@ -180,31 +191,42 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun authenticateWithBiometric(onAuthenticated: () -> Unit) {
-        val prompt = BiometricPrompt(
-            this,
-            mainExecutor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    onAuthenticated()
-                }
-            },
-        )
-        prompt.authenticate(
-            BiometricPrompt.PromptInfo.Builder()
-                .setTitle(getString(R.string.app_lock_title))
-                .setSubtitle(getString(R.string.app_lock_subtitle))
-                .setAllowedAuthenticators(
-                    androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                        androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-                )
-                .build(),
-        )
+    private fun authenticateWithBiometric(
+        onAuthenticated: () -> Unit,
+        onError: () -> Unit,
+    ) {
+        try {
+            val prompt = BiometricPrompt(
+                this,
+                mainExecutor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        onAuthenticated()
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        onError()
+                    }
+                },
+            )
+            prompt.authenticate(
+                BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(getString(R.string.app_lock_title))
+                    .setSubtitle(getString(R.string.app_lock_subtitle))
+                    .setNegativeButtonText(getString(R.string.app_lock_cancel))
+                    .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                    .build(),
+            )
+        } catch (_: IllegalArgumentException) {
+            onError()
+        } catch (_: IllegalStateException) {
+            onError()
+        }
     }
 }
 
 @Composable
-private fun AppLockScreen(onUnlock: () -> Unit) {
+private fun AppLockScreen(hasError: Boolean, onUnlock: () -> Unit) {
     androidx.compose.foundation.layout.Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -213,6 +235,10 @@ private fun AppLockScreen(onUnlock: () -> Unit) {
         Text(text = stringResource(R.string.app_lock_title), style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = stringResource(R.string.app_lock_subtitle), style = MaterialTheme.typography.bodyMedium)
+        if (hasError) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = stringResource(R.string.app_lock_error), style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(modifier = Modifier.height(24.dp))
         androidx.compose.material3.Button(onClick = onUnlock) {
             Text(text = stringResource(R.string.app_lock_unlock))
@@ -224,7 +250,7 @@ private fun AppLockScreen(onUnlock: () -> Unit) {
 fun MainAppShell(
     transactionRepository: TransactionRepository,
     userPreferences: UserPreferences,
-    onRescanSmsInbox: () -> Unit,
+    onRescanSmsInbox: (String) -> Unit,
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
 ) {
@@ -762,7 +788,7 @@ fun BoxDestinationContent(
     onRestoreTransaction: (Transaction) -> Unit = {},
     onReviewTransaction: (Transaction) -> Unit = {},
     onUpdateTransactions: (List<Transaction>) -> Unit = {},
-    onRescanSmsInbox: () -> Unit,
+    onRescanSmsInbox: (String) -> Unit,
     onPrivacyToggle: () -> Unit,
     onCategoriseUnknown: () -> Unit = {},
     transactionsFilter: TransactionFilter = TransactionFilter(),

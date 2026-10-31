@@ -1,6 +1,7 @@
 package com.kharcha.feature.settings.ui
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.app.TimePickerDialog
 import android.provider.Settings
@@ -70,10 +71,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +92,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import kotlinx.coroutines.flow.flowOf
 import com.kharcha.core.common.AccountAutoLinker
 import com.kharcha.core.common.BankAccountMergeStore
 import com.kharcha.core.common.CsvExportHelper
@@ -111,7 +117,7 @@ import java.util.Locale
 fun MoreScreen(
     transactions: List<Transaction>,
     userPreferences: UserPreferences,
-    onRescanSmsInbox: () -> Unit,
+    onRescanSmsInbox: (String) -> Unit,
     modifier: Modifier = Modifier,
     onUpdateMonthlyBudget: (Long) -> Unit = {},
     accounts: List<Account> = emptyList(),
@@ -156,7 +162,16 @@ fun MoreScreen(
     var showManageTagsSheet by remember { mutableStateOf(false) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
     var showSecurityDialog by remember { mutableStateOf(false) }
+    var showRescanSmsDialog by remember { mutableStateOf(false) }
+    var selectedRescanWindow by rememberSaveable { mutableStateOf("90") }
     var currentUserName by remember { mutableStateOf(userPreferences.userName) }
+
+    val rescanWorkInfoFlow = remember(context) {
+        runCatching { WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(RESCAN_WORK_NAME) }
+            .getOrDefault(flowOf(emptyList()))
+    }
+    val rescanWorkInfos by rescanWorkInfoFlow.collectAsState(initial = emptyList())
+    val rescanWorkInfo = rescanWorkInfos.firstOrNull()
 
     var categoriesRevision by remember { mutableIntStateOf(0) }
     val customSpendCategories =
@@ -237,7 +252,7 @@ fun MoreScreen(
             onNotificationsClick = { showNotificationsDialog = true },
             onBackupClick = { showExportDialog = true },
             onSecurityClick = { showSecurityDialog = true },
-            onRescanSmsInbox = onRescanSmsInbox,
+            onRescanSmsClick = { showRescanSmsDialog = true },
             onBack = { showPreferencesScreen = false },
             modifier = modifier,
         )
@@ -1710,7 +1725,7 @@ fun MoreScreen(
                             appLock = false
                             userPreferences.isAppLockEnabled = false
                         } else {
-                            val activity = context as? FragmentActivity
+                            val activity = context.findFragmentActivity()
                             val available = BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
                             if (activity != null && available) {
                                 val prompt = BiometricPrompt(activity, activity.mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
@@ -1722,6 +1737,7 @@ fun MoreScreen(
                                 prompt.authenticate(BiometricPrompt.PromptInfo.Builder()
                                     .setTitle(context.getString(R.string.settings_app_lock_title))
                                     .setSubtitle(context.getString(R.string.settings_app_lock_desc))
+                                    .setNegativeButtonText(context.getString(R.string.settings_cancel))
                                     .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
                                     .build())
                             }
@@ -1732,7 +1748,7 @@ fun MoreScreen(
                             hideIncome = false
                             userPreferences.isIncomeHidden = false
                         } else {
-                            val activity = context as? FragmentActivity
+                            val activity = context.findFragmentActivity()
                             val available = BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
                             if (activity != null && available) {
                                 val prompt = BiometricPrompt(activity, activity.mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
@@ -1744,6 +1760,7 @@ fun MoreScreen(
                                 prompt.authenticate(BiometricPrompt.PromptInfo.Builder()
                                     .setTitle(context.getString(R.string.settings_hide_income_title))
                                     .setSubtitle(context.getString(R.string.settings_hide_income_desc))
+                                    .setNegativeButtonText(context.getString(R.string.settings_cancel))
                                     .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
                                     .build())
                             }
@@ -1760,6 +1777,61 @@ fun MoreScreen(
             confirmButton = {
                 TextButton(onClick = { showSecurityDialog = false }) {
                     Text(text = stringResource(id = R.string.settings_close))
+                }
+            },
+        )
+    }
+
+    if (showRescanSmsDialog) {
+        val isRescanActive = rescanWorkInfo?.state == WorkInfo.State.ENQUEUED || rescanWorkInfo?.state == WorkInfo.State.RUNNING
+        val progress = rescanWorkInfo?.progress?.getFloat("progress", 0f) ?: 0f
+        val processed = rescanWorkInfo?.progress?.getInt("processedCount", 0) ?: 0
+        AlertDialog(
+            onDismissRequest = { showRescanSmsDialog = false },
+            title = { Text(stringResource(R.string.settings_rescan_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.settings_rescan_window_prompt))
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("30", "90", "180", "all").forEach { code ->
+                            val label = when (code) {
+                                "30" -> stringResource(R.string.settings_rescan_window_30)
+                                "90" -> stringResource(R.string.settings_rescan_window_90)
+                                "180" -> stringResource(R.string.settings_rescan_window_180)
+                                else -> stringResource(R.string.settings_rescan_window_all)
+                            }
+                            FilterChip(
+                                selected = selectedRescanWindow == code,
+                                onClick = { selectedRescanWindow = code },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+                    val statusText = when (rescanWorkInfo?.state) {
+                        WorkInfo.State.ENQUEUED -> stringResource(R.string.settings_rescan_queued)
+                        WorkInfo.State.RUNNING -> stringResource(R.string.settings_rescan_progress, (progress * 100).toInt(), processed)
+                        WorkInfo.State.SUCCEEDED -> stringResource(
+                            R.string.settings_rescan_complete,
+                            rescanWorkInfo.outputData.getInt("processed_count", processed),
+                        )
+                        WorkInfo.State.FAILED -> stringResource(R.string.settings_rescan_failed)
+                        WorkInfo.State.CANCELLED -> stringResource(R.string.settings_rescan_cancelled)
+                        else -> stringResource(R.string.settings_rescan_ready)
+                    }
+                    Text(statusText, color = MaterialTheme.financialColors.textSecondary)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !isRescanActive,
+                    onClick = { onRescanSmsInbox(selectedRescanWindow) },
+                ) {
+                    Text(stringResource(if (isRescanActive) R.string.settings_rescan_queued_button else R.string.settings_rescan_start))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRescanSmsDialog = false }) {
+                    Text(stringResource(R.string.settings_close))
                 }
             },
         )
@@ -1831,6 +1903,14 @@ fun MoreScreen(
     }
 }
 
+private const val RESCAN_WORK_NAME = "sms_inbox_rescan"
+
+private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
+    is FragmentActivity -> this
+    is ContextWrapper -> baseContext.findFragmentActivity()
+    else -> null
+}
+
 @Composable
 private fun SettingsToggleRow(
     title: String,
@@ -1883,7 +1963,7 @@ private fun PreferencesScreenView(
     onNotificationsClick: () -> Unit = {},
     onBackupClick: () -> Unit = {},
     onSecurityClick: () -> Unit = {},
-    onRescanSmsInbox: () -> Unit,
+    onRescanSmsClick: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -2084,7 +2164,7 @@ private fun PreferencesScreenView(
                         SettingsNavRow(
                             icon = Icons.Default.Refresh,
                             title = stringResource(id = R.string.settings_rescan_title),
-                            onClick = onRescanSmsInbox,
+                            onClick = onRescanSmsClick,
                         )
                     }
                 }

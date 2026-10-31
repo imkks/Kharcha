@@ -10,6 +10,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,11 +56,11 @@ class ImportWorkerTest {
                         )
                     }
                 coEvery {
-                    inboxReader.readSmsBatch(if (i == 0) 0L else currentId - batchSize - 1, batchSize)
+                    inboxReader.readSmsBatch(if (i == 0) 0L else currentId - batchSize - 1, batchSize, 0L)
                 } returns batch
             }
             coEvery {
-                inboxReader.readSmsBatch(currentId - 1, batchSize)
+                inboxReader.readSmsBatch(currentId - 1, batchSize, 0L)
             } returns emptyList()
             coEvery { deduplicator.generateHash(any(), any(), any()) } returns "hash"
             coEvery { deduplicator.isDuplicate(any(), any(), any()) } returns false
@@ -72,7 +73,20 @@ class ImportWorkerTest {
 
             val result = worker.doWork()
 
-            assertEquals(ListenableWorker.Result.success(), result)
+            assertTrue(result is ListenableWorker.Result.Success)
+            val success = result as ListenableWorker.Result.Success
+            assertEquals(totalMessages, success.outputData.getInt(ImportWorker.KEY_PROCESSED_COUNT, -1))
             coVerify(exactly = totalMessages) { repository.saveRawSms(any()) }
         }
+
+    @Test
+    fun rescanWindowOptionsUseExpectedDateRange() {
+        val now = 2_000_000_000L
+        val day = 24L * 60 * 60 * 1000
+
+        assertEquals(now - 30 * day, ImportWorker.rescanSinceTimestamp("30", now))
+        assertEquals(now - 90 * day, ImportWorker.rescanSinceTimestamp("90", now))
+        assertEquals(now - 180 * day, ImportWorker.rescanSinceTimestamp("180", now))
+        assertEquals(0L, ImportWorker.rescanSinceTimestamp("all", now))
+    }
 }

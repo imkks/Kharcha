@@ -1,7 +1,7 @@
 # Release builds
 
-Every push to `main` runs the CI checks, then creates a signed Android App Bundle
-and APK. Download both from the **Artifacts** section of the successful GitHub
+Every push to `main` creates a signed Android App Bundle and APK. Download both
+from the **Artifacts** section of the successful GitHub
 Actions run. Upload `app-release.aab` to Play Console; use `app-release.apk` for
 direct device installation and testing.
 
@@ -15,6 +15,11 @@ keytool -genkeypair -v -keystore kharcha-upload.jks -keyalg RSA -keysize 4096 \
   -validity 10000 -alias kharcha-upload
 ```
 
+`ANDROID_KEYSTORE_PASSWORD` is the keystore password. If keytool asked for a
+key password and you accepted the default (pressing Enter), it is the same
+password. Otherwise, set the optional `ANDROID_KEY_PASSWORD` secret to the
+distinct private-key password.
+
 Add these repository **Actions secrets** in GitHub. Base64-encode the JKS file
 locally and paste the single-line result into the first secret. On macOS, use
 `base64 -i kharcha-upload.jks | tr -d '\n'`.
@@ -24,7 +29,7 @@ locally and paste the single-line result into the first secret. On macOS, use
 | `ANDROID_KEYSTORE_BASE64` | Base64 contents of the upload keystore |
 | `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
 | `ANDROID_KEY_ALIAS` | Key alias (for the example above, `kharcha-upload`) |
-| `ANDROID_KEY_PASSWORD` | Key password |
+| `ANDROID_KEY_PASSWORD` | Optional private-key password if it differs from the keystore password |
 
 Keep a secure backup of the keystore and passwords. Do not commit them to the
 repository. The workflow keeps the decoded keystore in the runner's temporary

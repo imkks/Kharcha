@@ -52,6 +52,9 @@
     <string name="settings_section_about">About</string>
     <string name="settings_section_accounts">Accounts &amp; Cards</string>
     <string name="settings_section_notifications">Notifications &amp; Reminders</string>
+    <string name="settings_section_location">Location</string>
+    <string name="settings_expense_sms_location_title">Location for expense SMS</string>
+    <string name="settings_expense_sms_location_subtitle">Open app permissions to allow location all the time</string>
     <string name="settings_section_sms">SMS &amp; Inbox</string>
     <string name="settings_notification_permission_title">Notification permission</string>
     <string name="settings_notification_permission_allowed">Allowed</string>

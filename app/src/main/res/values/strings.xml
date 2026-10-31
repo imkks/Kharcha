@@ -7,6 +7,11 @@
     <string name="app_lock_subtitle">Verify your identity to view your finances.</string>
     <string name="app_lock_unlock">Unlock with fingerprint</string>
     <string name="app_lock_retry">Try again</string>
+    <string name="location_permission_title">Allow location permission</string>
+    <string name="location_permission_foreground_message">Allow location access in app permissions so Kharcha can attach your current place to expenses.</string>
+    <string name="location_permission_background_message">Select “Allow all the time” for location access so Kharcha can attach your current place when an expense SMS arrives.</string>
+    <string name="location_permission_open_settings">Open settings</string>
+    <string name="location_permission_cancel">Cancel</string>
     <string name="app_lock_cancel">Cancel</string>
     <string name="app_lock_error">Authentication was cancelled or unavailable. Try again.</string>
     <string name="app_name">Kharcha</string>

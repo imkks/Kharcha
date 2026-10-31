@@ -1988,6 +1988,7 @@ private fun PreferencesScreenView(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -2112,6 +2113,22 @@ private fun PreferencesScreenView(
                             iconRes = DesignR.drawable.ic_copy,
                             title = stringResource(id = R.string.settings_manage_reminders_title),
                             onClick = onRemindersClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        SettingsGroupHeading(stringResource(R.string.settings_section_location))
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_location,
+                            title = stringResource(id = R.string.settings_expense_sms_location_title),
+                            subtitle = stringResource(id = R.string.settings_expense_sms_location_subtitle),
+                            onClick = {
+                                val intent =
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
+                                context.startActivity(intent)
+                            },
                         )
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)

@@ -44,7 +44,7 @@ jobs:
             -PappVersionCode="$GITHUB_RUN_NUMBER" \
             -PappVersionName="1.0.$GITHUB_RUN_NUMBER"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: kharcha-release-${{ github.run_number }}
           path: |

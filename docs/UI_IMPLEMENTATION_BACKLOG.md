@@ -2,8 +2,8 @@
 
 **Version:** 1.0  
 **Status:** Ready for Implementation  
-**Governing Rules:** `AGENTS.md` (≤600 lines/PR, 1 task/PR, tests included, zero hardcoded colors/strings, 100% offline)  
-**Companion Docs:** `UI_REDESIGN_PLAN.md`, `UI_ADVANCED_FILTERS_SPEC.md`, `UI_SCREEN_LAYOUTS_AND_WIREFRAMES.md`  
+**Governing Rules:** [agents.md](../agents.md) (one task per PR, tests included, no hard-coded colors or strings, offline processing)
+**Companion Docs:** `UI_ADVANCED_FILTERS_SPEC.md`, `UI_SPEC.md`
 
 ---
 
@@ -54,7 +54,7 @@ Phase 8: Settings, Review Queue & Polish (UI-8.1 → UI-8.2)
 
 #### Task `UI-1.1`: Design Token Cleanup & Tabular Typography
 - **Goal:** Eliminate hard-coded colors in `InsightsScreen.kt`, introduce tabular numbers (`tnum`) in typography, and create the 16-color category palette.
-- **Requirements:** `UI_SPEC.md` §2.1, §2.2, `AGENTS.md`
+- **Requirements:** `UI_SPEC.md` §2.1, §2.2, [agents.md](../agents.md)
 - **Scope:**
   - Replace `Color(0xFF2E7D32)` and `Color(0xFFED6C02)` in `feature:insights` with `MaterialTheme.financialColors.income` and `.expense`.
   - Update `core:designsystem/theme/Theme.kt` to set `fontFeatureSettings = "tnum"` for numbers to align vertically.

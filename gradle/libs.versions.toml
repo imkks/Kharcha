@@ -25,7 +25,7 @@ coroutines = "1.8.1"
 androidxCoreTest = "1.5.0"
 
 
-hiltWork = "1.2.0"
+hiltWork = "1.4.0"
 biometric = "1.1.0"
 json = "20240303"
 

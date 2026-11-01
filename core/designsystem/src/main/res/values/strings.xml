@@ -85,8 +85,10 @@
     <string name="add_txn_payee_placeholder">Enter the name or place</string>
     <string name="add_txn_account_label">Account</string>
     <string name="add_txn_select_account">Select source account</string>
+    <string name="add_txn_cash_account">Cash</string>
     <string name="add_txn_category_label">Category</string>
     <string name="add_txn_edit_category">Edit</string>
+    <string name="add_txn_change_category">Change</string>
     <string name="add_txn_collapsed_extras">••• Add notes, tags or receipt</string>
     <string name="add_txn_notes_label">Notes</string>
     <string name="add_txn_notes_hint">Add a note</string>

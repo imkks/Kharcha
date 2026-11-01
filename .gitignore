@@ -1,16 +1,37 @@
+# Android Studio and local machine configuration
 *.iml
-.gradle/
-local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+.idea/
 .DS_Store
+local.properties
+
+# Gradle and Kotlin build state
+.gradle/
+.kotlin/
+**/build/
 build/
-/captures/
+out/
+
+# Native and Android build outputs
 .externalNativeBuild/
 .cxx/
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Local signing material and signing configuration
 *.jks
 *.keystore
+*.p12
+*.pfx
+key.properties
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Vendored parser source kept outside the app modules
+/pennywise_source/

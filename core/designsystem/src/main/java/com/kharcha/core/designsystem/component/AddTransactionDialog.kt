@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,12 +39,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -109,7 +113,7 @@ private val INCOME_CATEGORIES =
  * Full-screen Axio-style Add Transaction Form (UI Spec 7.4).
  * Opened from the lime "+ Add" pill on Home.
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionDialog(
     accounts: List<Account> = emptyList(),
@@ -124,15 +128,17 @@ fun AddTransactionDialog(
     var payeeInput by remember { mutableStateOf("") }
     var selectedTimestamp by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    var selectedAccount by remember(accounts) { mutableStateOf(accounts.firstOrNull()) }
+    var selectedAccount by remember(accounts) {
+        mutableStateOf(defaultManualTransactionAccount(accounts))
+    }
     var showAccountSheet by remember { mutableStateOf(false) }
 
     var selectedCategory by remember(switchOption) {
         mutableStateOf(
-            if (switchOption == TransactionTypeSwitchOption.SPEND) "Not Categorised" else "Salary",
+            if (switchOption == TransactionTypeSwitchOption.SPEND) "Food & Drinks" else "Salary",
         )
     }
-    var isCategoryPickerExpanded by remember { mutableStateOf(false) }
+    var showCategorySheet by remember { mutableStateOf(false) }
 
     var isExtrasExpanded by remember { mutableStateOf(false) }
     var noteInput by remember { mutableStateOf("") }
@@ -336,6 +342,7 @@ fun AddTransactionDialog(
                 Surface(
                     color = MaterialTheme.colorScheme.background,
                     border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                    modifier = Modifier.navigationBarsPadding().imePadding(),
                 ) {
                     FormFooter(
                         onSaveAndAddAnother = {
@@ -552,7 +559,7 @@ fun AddTransactionDialog(
                                     val bank = acc.bankName ?: acc.name
                                     val last4 = acc.last4?.let { " - $it" } ?: ""
                                     "$bank$last4"
-                                } ?: stringResource(id = R.string.add_txn_select_account)
+                                } ?: stringResource(id = R.string.add_txn_cash_account)
                             Text(
                                 text = accountTitle,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -573,7 +580,7 @@ fun AddTransactionDialog(
 
                 // 4. Category Section
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().clickable { showCategorySheet = true },
                     shape = RoundedCornerShape(20.dp),
                     colors =
                         CardDefaults.cardColors(
@@ -593,97 +600,28 @@ fun AddTransactionDialog(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.financialColors.textPrimary,
                             )
-                            if (!isCategoryPickerExpanded) {
-                                Text(
-                                    text = stringResource(id = R.string.add_txn_edit_category),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.financialColors.limeAccent,
-                                    modifier = Modifier.clickable { isCategoryPickerExpanded = true },
-                                )
-                            }
+                            Text(
+                                text = stringResource(id = R.string.add_txn_change_category),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.financialColors.limeAccent,
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        val availableCategories =
-                            if (switchOption == TransactionTypeSwitchOption.SPEND) {
-                                EXPENSE_CATEGORIES
-                            } else {
-                                INCOME_CATEGORIES
-                            }
-
-                        if (!isCategoryPickerExpanded) {
-                            // Single selected category row
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                CategoryBadge(categoryName = selectedCategory, size = 36.dp)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = selectedCategory,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.financialColors.textPrimary,
-                                )
-                            }
-                        } else {
-                            // 3-column category grid
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                availableCategories.chunked(3).forEach { rowCats ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        rowCats.forEach { cat ->
-                                            val isSelected = cat == selectedCategory
-                                            Surface(
-                                                shape = RoundedCornerShape(12.dp),
-                                                color =
-                                                    if (isSelected) {
-                                                        MaterialTheme.financialColors.limeAccent.copy(alpha = 0.2f)
-                                                    } else {
-                                                        MaterialTheme.financialColors.raisedRowBackground
-                                                    },
-                                                border =
-                                                    if (isSelected) {
-                                                        BorderStroke(1.5.dp, MaterialTheme.financialColors.limeAccent)
-                                                    } else {
-                                                        BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider)
-                                                    },
-                                                modifier =
-                                                    Modifier
-                                                        .weight(1f)
-                                                        .clickable {
-                                                            selectedCategory = cat
-                                                            isCategoryPickerExpanded = false
-                                                        },
-                                            ) {
-                                                Column(
-                                                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                ) {
-                                                    CategoryBadge(categoryName = cat, size = 32.dp)
-                                                    Spacer(modifier = Modifier.height(6.dp))
-                                                    Text(
-                                                        text = cat,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                        textAlign = TextAlign.Center,
-                                                        color = MaterialTheme.financialColors.textPrimary,
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        // Fill remaining slots in incomplete row
-                                        repeat(3 - rowCats.size) {
-                                            Spacer(modifier = Modifier.weight(1f))
-                                        }
-                                    }
-                                }
-                            }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            CategoryBadge(categoryName = selectedCategory, size = 36.dp)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = selectedCategory,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.financialColors.textPrimary,
+                            )
                         }
                     }
                 }
@@ -853,6 +791,62 @@ fun AddTransactionDialog(
         )
     }
 
+    if (showCategorySheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val availableCategories =
+            if (switchOption == TransactionTypeSwitchOption.SPEND) EXPENSE_CATEGORIES else INCOME_CATEGORIES
+        ModalBottomSheet(
+            onDismissRequest = { showCategorySheet = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.financialColors.cardBackground,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = stringResource(id = R.string.add_txn_category_label),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.financialColors.textPrimary,
+                )
+                availableCategories.chunked(3).forEach { rowCats ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowCats.forEach { cat ->
+                            val isSelected = cat == selectedCategory
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) MaterialTheme.financialColors.limeAccent.copy(alpha = 0.2f) else MaterialTheme.financialColors.raisedRowBackground,
+                                border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.financialColors.limeAccent) else BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                                modifier = Modifier.weight(1f).clickable {
+                                    selectedCategory = cat
+                                    showCategorySheet = false
+                                },
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    CategoryBadge(categoryName = cat, size = 32.dp)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = cat,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.financialColors.textPrimary,
+                                    )
+                                }
+                            }
+                        }
+                        repeat(3 - rowCats.size) { Spacer(modifier = Modifier.weight(1f)) }
+                    }
+                }
+            }
+        }
+    }
+
     if (showAddTagDialog) {
         AlertDialog(
             onDismissRequest = { showAddTagDialog = false },
@@ -893,3 +887,6 @@ fun AddTransactionDialog(
         )
     }
 }
+
+internal fun defaultManualTransactionAccount(accounts: List<Account>): Account? =
+    accounts.firstOrNull { it.type == AccountType.Cash }

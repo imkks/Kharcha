@@ -105,6 +105,9 @@ import com.kharcha.core.designsystem.component.CategoryIconHelper
 import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
 import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
@@ -184,6 +187,8 @@ fun TransactionDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val isPrivacy = LocalPrivacyMode.current
+    val incomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
 
     var receiptFile by remember(transaction.id) {
         mutableStateOf(ReceiptAttachmentHelper.getReceiptFile(context, transaction.id))
@@ -465,14 +470,14 @@ fun TransactionDetailScreen(
                         Spacer(modifier = Modifier.height(24.dp))
 
                         // Amount with directional arrow
+                        val isCredit = selectedType.isCredit
+                        val isIncomeMasked = incomeHidden && isCredit
                         val displayAmount =
-                            if (isPrivacy) {
+                            if (isPrivacy || isIncomeMasked) {
                                 "₹ ••••••"
                             } else {
                                 MoneyFormatter.formatMinorUnits(transaction.amount)
                             }
-
-                        val isCredit = selectedType.isCredit
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -491,6 +496,7 @@ fun TransactionDetailScreen(
                                 style = MaterialTheme.typography.displayMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
+                                modifier = if (isIncomeMasked && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                             )
                         }
 
@@ -671,8 +677,8 @@ fun TransactionDetailScreen(
                 val isRefundLink =
                     selectedCategory.equals("Refund", ignoreCase = true) ||
                         linkedTxn.categorySource.equals("Refund", ignoreCase = true) ||
-                        TransactionClassifierHelper.isRefundNarrative(linkedTxn.note) ||
-                        TransactionClassifierHelper.isRefundNarrative(transaction.note)
+                        TransactionClassifierHelper.isRefundNarrative(linkedTxn.smsBody ?: linkedTxn.note) ||
+                        TransactionClassifierHelper.isRefundNarrative(transaction.smsBody ?: transaction.note)
 
                 item {
                     val linkedMerchant =
@@ -798,7 +804,7 @@ fun TransactionDetailScreen(
                     selectedCategory.equals("A/C Transfer", ignoreCase = true)
                 if (isTransferCard) {
                     val targetCard =
-                        TransactionClassifierHelper.extractTargetCardLast4(transaction.note ?: "")
+                        TransactionClassifierHelper.extractTargetCardLast4(transaction.smsBody ?: transaction.note.orEmpty())
                     if (targetCard != null) {
                         item {
                             Card(
@@ -1275,7 +1281,7 @@ fun TransactionDetailScreen(
             }
 
             // 6. Original Full SMS Message Card (Exact verbatim message)
-            val rawSms = transaction.note?.takeIf { it.isNotBlank() }
+            val rawSms = transaction.smsBody?.takeIf { it.isNotBlank() }
             if (!rawSms.isNullOrBlank()) {
                 item {
                     Card(
@@ -1395,30 +1401,19 @@ fun TransactionDetailScreen(
                                 transaction.latitude,
                                 transaction.longitude,
                                 transaction.locationLabel,
-                                rawSms,
-                                noteText,
                                 merchantName,
                             ) {
                                 LocationHelper.extractLocation(
                                     latitude = transaction.latitude,
                                     longitude = transaction.longitude,
                                     locationLabel = transaction.locationLabel,
-                                    rawSms = rawSms,
-                                    note = noteText,
                                     merchantName = merchantName,
                                 )
                             }
 
                         if (txnLocation != null) {
                             Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable {
-                                            LocationHelper.openInGoogleMaps(context, txnLocation)
-                                        }
-                                        .padding(vertical = 4.dp),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -1435,29 +1430,9 @@ fun TransactionDetailScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                    Text(
-                                        text = stringResource(id = R.string.detail_location_open_maps),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.financialColors.income,
-                                    )
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .size(38.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(
-                                                MaterialTheme.financialColors.income.copy(alpha = 0.15f),
-                                            ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = DesignR.drawable.ic_location),
-                                        contentDescription = stringResource(id = R.string.detail_location_open_maps),
-                                        tint = MaterialTheme.financialColors.income,
-                                        modifier = Modifier.size(20.dp),
-                                    )
+                                TextButton(onClick = { LocationHelper.openInGoogleMaps(context, txnLocation) }) {
+                                    Text(text = stringResource(id = R.string.detail_location_action))
                                 }
                             }
 
@@ -1909,8 +1884,8 @@ fun TransactionDetailScreen(
                 val isRefund =
                     !isTransfer && (selectedCategory.equals("Refund", ignoreCase = true) ||
                         candidate.categorySource.equals("Refund", ignoreCase = true) ||
-                        TransactionClassifierHelper.isRefundNarrative(candidate.note) ||
-                        TransactionClassifierHelper.isRefundNarrative(transaction.note))
+                        TransactionClassifierHelper.isRefundNarrative(candidate.smsBody ?: candidate.note) ||
+                        TransactionClassifierHelper.isRefundNarrative(transaction.smsBody ?: transaction.note))
                 onLinkTransactions?.invoke(transaction.id, candidate.id, isRefund)
                 showLinkSheet = false
             },

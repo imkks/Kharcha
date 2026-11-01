@@ -1,7 +1,7 @@
 # Advanced Filters & Clean Transaction Data Display Specification
 
 **Document Version:** 1.0  
-**Companion to:** `docs/UI_REDESIGN_PLAN.md`, `docs/SRS.md` (FR-6.1, FR-6.2), `docs/UI_SPEC.md` (§5.3)  
+**Companion to:** `docs/SRS.md` (FR-6.1, FR-6.2), `docs/UI_SPEC.md` (§5.3)
 **Target Platform:** Jetpack Compose, Material 3, Android 8.0+  
 
 ---

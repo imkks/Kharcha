@@ -36,6 +36,9 @@ object CsvExportHelper {
                 "balance_after_paise",
                 "balance_after_inr",
                 "sender",
+                "latitude",
+                "longitude",
+                "location_label",
                 "parser_template",
                 "parse_confidence",
                 "is_transfer",
@@ -54,8 +57,9 @@ object CsvExportHelper {
                 t.balanceAfter?.let {
                     String.format(Locale.US, "%.2f", it / 100.0)
                 } ?: ""
-            val bank = t.bankName ?: inferBankFromNote(t.note)
-            val last4 = t.accountLast4 ?: inferAccountLast4FromNote(t.note)
+            val rawSmsBody = t.smsBody ?: t.note
+            val bank = t.bankName ?: inferBankFromNote(rawSmsBody)
+            val last4 = t.accountLast4 ?: inferAccountLast4FromNote(rawSmsBody)
             val sender = t.sender ?: inferSenderFromHash(t.smsHash)
             val template = t.templateId ?: "unknown"
             val pipelineSteps = buildPipelineSteps(t)
@@ -81,6 +85,9 @@ object CsvExportHelper {
                     t.balanceAfter?.toString() ?: "",
                     balanceInr,
                     escapeCsv(sender),
+                    t.latitude?.toString() ?: "",
+                    t.longitude?.toString() ?: "",
+                    escapeCsv(t.locationLabel ?: ""),
                     escapeCsv(template),
                     t.parseConfidence?.toString() ?: "",
                     t.isTransfer.toString(),
@@ -88,7 +95,7 @@ object CsvExportHelper {
                     t.linkedTransactionId?.toString() ?: "",
                     escapeCsv(pipelineSteps),
                     t.isReviewed.toString(),
-                    escapeCsv(t.note ?: ""),
+                    escapeCsv(rawSmsBody ?: ""),
                 )
             sb.append(row.joinToString(",")).append("\n")
         }
@@ -126,7 +133,7 @@ object CsvExportHelper {
             val totalMinor = txns.sumOf { it.amount }
             obj.put("total_inr", String.format(Locale.US, "%.2f", totalMinor / 100.0))
             obj.put("channel", txns.firstOrNull()?.channel?.name ?: "UNKNOWN")
-            val sampleNote = txns.firstNotNullOfOrNull { it.note?.ifBlank { null } } ?: ""
+            val sampleNote = txns.firstNotNullOfOrNull { (it.smsBody ?: it.note)?.ifBlank { null } } ?: ""
             obj.put("sample_sms", sampleNote)
             jsonArray.put(obj)
         }

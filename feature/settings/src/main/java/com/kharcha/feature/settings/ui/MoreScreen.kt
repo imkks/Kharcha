@@ -1,7 +1,21 @@
 package com.kharcha.feature.settings.ui
 
+import android.app.KeyguardManager
+import android.app.NotificationManager
+import android.app.AlarmManager
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
+import android.net.Uri
+import android.app.TimePickerDialog
+import android.os.Build
+import android.provider.Settings
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import com.kharcha.core.common.NotificationChannels
+import com.kharcha.core.common.security.AuthenticatorPromptMode
+import com.kharcha.core.common.security.authenticatorPromptMode
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -20,6 +34,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -63,10 +79,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +100,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import kotlinx.coroutines.flow.flowOf
 import com.kharcha.core.common.AccountAutoLinker
 import com.kharcha.core.common.BankAccountMergeStore
 import com.kharcha.core.common.CsvExportHelper
@@ -92,6 +114,8 @@ import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.component.DEFAULT_CREDIT_CATEGORIES
 import com.kharcha.core.designsystem.component.DEFAULT_SPEND_CATEGORIES
 import com.kharcha.core.designsystem.theme.financialColors
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Transaction
@@ -104,7 +128,7 @@ import java.util.Locale
 fun MoreScreen(
     transactions: List<Transaction>,
     userPreferences: UserPreferences,
-    onResetOnboarding: () -> Unit,
+    onRescanSmsInbox: (String) -> Unit,
     modifier: Modifier = Modifier,
     onUpdateMonthlyBudget: (Long) -> Unit = {},
     accounts: List<Account> = emptyList(),
@@ -116,6 +140,7 @@ fun MoreScreen(
     onReportSmsClick: () -> Unit = {},
     onAccountClick: (Account) -> Unit = {},
     onTransactionClick: (Transaction) -> Unit = {},
+    onNotificationSettingsChanged: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var showPreferencesScreen by remember { mutableStateOf(false) }
@@ -148,8 +173,16 @@ fun MoreScreen(
     var showManageTagsSheet by remember { mutableStateOf(false) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
     var showSecurityDialog by remember { mutableStateOf(false) }
+    var showRescanSmsDialog by remember { mutableStateOf(false) }
+    var selectedRescanWindow by rememberSaveable { mutableStateOf("90") }
     var currentUserName by remember { mutableStateOf(userPreferences.userName) }
-    var currentUserEmail by remember { mutableStateOf(userPreferences.userEmail) }
+
+    val rescanWorkInfoFlow = remember(context) {
+        runCatching { WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(RESCAN_WORK_NAME) }
+            .getOrDefault(flowOf(emptyList()))
+    }
+    val rescanWorkInfos by rescanWorkInfoFlow.collectAsState(initial = emptyList())
+    val rescanWorkInfo = rescanWorkInfos.firstOrNull()
 
     var categoriesRevision by remember { mutableIntStateOf(0) }
     val customSpendCategories =
@@ -172,10 +205,6 @@ fun MoreScreen(
 
     var rulesRevision by remember { mutableIntStateOf(0) }
     val rules = remember(rulesRevision, showRulesDialog) { userPreferences.getMerchantCategoryRules() }
-
-    var isMoneyManagerDefault by remember {
-        mutableStateOf(userPreferences.isLaunchInMoneyManagerEnabled)
-    }
 
     if (showManageAccountsPage) {
         BackHandler { showManageAccountsPage = false }
@@ -214,11 +243,6 @@ fun MoreScreen(
         PreferencesScreenView(
             accounts = accounts,
             userPreferences = userPreferences,
-            isMoneyManagerDefault = isMoneyManagerDefault,
-            onToggleMoneyManagerDefault = {
-                isMoneyManagerDefault = it
-                userPreferences.isLaunchInMoneyManagerEnabled = it
-            },
             onManageAccountsClick = { showManageAccountsPage = true },
             onLinkAccountsClick = { showLinkAccountsPage = true },
             onSpendCategoriesClick = { showSpendCategoriesSheet = true },
@@ -230,7 +254,7 @@ fun MoreScreen(
             onNotificationsClick = { showNotificationsDialog = true },
             onBackupClick = { showExportDialog = true },
             onSecurityClick = { showSecurityDialog = true },
-            onResetOnboarding = onResetOnboarding,
+            onRescanSmsClick = { showRescanSmsDialog = true },
             onBack = { showPreferencesScreen = false },
             modifier = modifier,
         )
@@ -286,7 +310,10 @@ fun MoreScreen(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = currentUserName,
+                            text =
+                                currentUserName.ifBlank {
+                                    stringResource(id = R.string.settings_user_name_missing)
+                                },
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
@@ -306,35 +333,6 @@ fun MoreScreen(
                         border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
                     ) {
                         Column(modifier = Modifier.padding(18.dp)) {
-                            // Phone row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = DesignR.drawable.ic_channel_upi),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.financialColors.textSecondary,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text = stringResource(id = R.string.settings_user_phone),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White,
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.financialColors.textSecondary,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
                             // Email row
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -350,7 +348,7 @@ fun MoreScreen(
                                     )
                                     Spacer(modifier = Modifier.width(14.dp))
                                     Text(
-                                        text = currentUserEmail,
+                                        text = stringResource(id = R.string.settings_profile_details),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color.White,
@@ -393,28 +391,28 @@ fun MoreScreen(
                         Column {
                             SettingsNavRow(
                                 iconRes = DesignR.drawable.ic_settings,
-                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_preferences_title),
                                 onClick = { showPreferencesScreen = true },
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
                                 iconRes = DesignR.drawable.ic_bar_chart,
-                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_weekly_summary_title),
                                 onClick = onWeeklySummaryClick,
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
                                 iconRes = DesignR.drawable.ic_copy,
-                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_export_statement_title),
                                 onClick = { showExportDialog = true },
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
                                 iconRes = DesignR.drawable.ic_arrow_outward,
-                                iconTint = MaterialTheme.financialColors.chartBlue,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_report_sms_title),
                                 onClick = onReportSmsClick,
                             )
@@ -1529,7 +1527,6 @@ fun MoreScreen(
 
     if (showEditProfileDialog) {
         var nameInput by remember { mutableStateOf(currentUserName) }
-        var emailInput by remember { mutableStateOf(currentUserEmail) }
         AlertDialog(
             onDismissRequest = { showEditProfileDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_edit_profile_title)) },
@@ -1542,22 +1539,13 @@ fun MoreScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    OutlinedTextField(
-                        value = emailInput,
-                        onValueChange = { emailInput = it },
-                        label = { Text(text = stringResource(id = R.string.settings_user_email_label)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
                         userPreferences.userName = nameInput.trim()
-                        userPreferences.userEmail = emailInput.trim()
                         currentUserName = userPreferences.userName
-                        currentUserEmail = userPreferences.userEmail
                         showEditProfileDialog = false
                     },
                     colors =
@@ -1644,36 +1632,99 @@ fun MoreScreen(
 
     if (showNotificationsDialog) {
         var isNotifsEnabled by remember { mutableStateOf(userPreferences.isExpenseNotificationsEnabled) }
+        var hideSmsNotifications by remember { mutableStateOf(userPreferences.hideDefaultSmsNotifications) }
+        var dailySummary by remember { mutableStateOf(userPreferences.isDailySummaryEnabled) }
+        var dailyTime by remember { mutableIntStateOf(userPreferences.dailySummaryMinuteOfDay) }
+        var weeklySummary by remember { mutableStateOf(userPreferences.isWeeklySummaryEnabled) }
+        var weeklyTime by remember { mutableIntStateOf(userPreferences.weeklySummaryMinuteOfDay) }
+        var billReminders by remember { mutableStateOf(userPreferences.isBillReminderEnabled) }
+        val context = LocalContext.current
+        val notificationsAllowed = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val summaryChannelAllowed =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                context.getSystemService(NotificationManager::class.java)
+                    ?.getNotificationChannel(NotificationChannels.SPEND_SUMMARIES)
+                    ?.importance != NotificationManager.IMPORTANCE_NONE
+        val exactSummaryTimeAllowed =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                context.getSystemService(AlarmManager::class.java)?.canScheduleExactAlarms() == true
+        fun timeLabel(minutes: Int): String = String.format(Locale.getDefault(), "%02d:%02d", minutes / 60, minutes % 60)
         AlertDialog(
             onDismissRequest = { showNotificationsDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_notifications_reminders_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier = Modifier.height(520.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SettingsToggleRow(stringResource(R.string.settings_expense_notifications_title), stringResource(R.string.settings_expense_notifications_subtitle), isNotifsEnabled) {
+                        isNotifsEnabled = it; userPreferences.isExpenseNotificationsEnabled = it
+                    }
+                    SettingsValueRow(
+                        title = stringResource(R.string.settings_notification_permission_title),
+                        value = stringResource(
+                            if (notificationsAllowed) R.string.settings_notification_permission_allowed
+                            else R.string.settings_notification_permission_blocked,
+                        ),
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(id = R.string.settings_expense_notifications_title),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
-                            )
-                            Text(
-                                text = stringResource(id = R.string.settings_expense_notifications_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.financialColors.textSecondary,
+                        context.startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                        )
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        SettingsValueRow(
+                            title = stringResource(R.string.settings_exact_summary_time_title),
+                            value = stringResource(
+                                if (exactSummaryTimeAllowed) R.string.settings_exact_summary_time_allowed
+                                else R.string.settings_exact_summary_time_blocked,
+                            ),
+                        ) {
+                            context.startActivity(
+                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                    .setData(Uri.parse("package:${context.packageName}")),
                             )
                         }
-                        Switch(
-                            checked = isNotifsEnabled,
-                            onCheckedChange = {
-                                isNotifsEnabled = it
-                                userPreferences.isExpenseNotificationsEnabled = it
-                            },
-                        )
+                    }
+                    SettingsValueRow(
+                        title = stringResource(R.string.settings_summary_channel_title),
+                        value = stringResource(
+                            if (summaryChannelAllowed) R.string.settings_summary_channel_allowed
+                            else R.string.settings_summary_channel_blocked,
+                        ),
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            context.startActivity(
+                                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    .putExtra(Settings.EXTRA_CHANNEL_ID, NotificationChannels.SPEND_SUMMARIES),
+                            )
+                        }
+                    }
+                    SettingsToggleRow(stringResource(R.string.settings_hide_sms_title), stringResource(R.string.settings_hide_sms_desc), hideSmsNotifications) {
+                        if (it) {
+                            userPreferences.hideDefaultSmsNotifications = true
+                            hideSmsNotifications = true
+                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        } else {
+                            hideSmsNotifications = false
+                            userPreferences.hideDefaultSmsNotifications = false
+                        }
+                    }
+                    SettingsToggleRow(stringResource(R.string.settings_daily_summary_title), stringResource(R.string.settings_toggle_status, if (dailySummary) stringResource(R.string.settings_on) else stringResource(R.string.settings_off)), dailySummary) {
+                        dailySummary = it; userPreferences.isDailySummaryEnabled = it; onNotificationSettingsChanged()
+                    }
+                    SettingsValueRow(stringResource(R.string.settings_daily_summary_time), timeLabel(dailyTime)) {
+                        TimePickerDialog(context, { _, hour, minute -> dailyTime = hour * 60 + minute; userPreferences.dailySummaryMinuteOfDay = dailyTime; onNotificationSettingsChanged() }, dailyTime / 60, dailyTime % 60, false).show()
+                    }
+                    SettingsToggleRow(stringResource(R.string.settings_weekly_summary_title), stringResource(R.string.settings_toggle_status, if (weeklySummary) stringResource(R.string.settings_on) else stringResource(R.string.settings_off)), weeklySummary) {
+                        weeklySummary = it; userPreferences.isWeeklySummaryEnabled = it; onNotificationSettingsChanged()
+                    }
+                    SettingsValueRow(stringResource(R.string.settings_weekly_summary_time), timeLabel(weeklyTime)) {
+                        TimePickerDialog(context, { _, hour, minute -> weeklyTime = hour * 60 + minute; userPreferences.weeklySummaryMinuteOfDay = weeklyTime; onNotificationSettingsChanged() }, weeklyTime / 60, weeklyTime % 60, false).show()
+                    }
+                    SettingsValueRow(stringResource(R.string.settings_bill_reminders), stringResource(R.string.settings_bill_reminders_desc)) {
+                        billReminders = !billReminders; userPreferences.isBillReminderEnabled = billReminders
                     }
                 }
             },
@@ -1686,37 +1737,57 @@ fun MoreScreen(
     }
 
     if (showSecurityDialog) {
-        var isPrivacyChecked by remember { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
+        val incomeHiddenState = LocalIncomeHidden.current
+        val incomeRevealedState = LocalIncomeRevealed.current
+        var hideIncome by remember { mutableStateOf(userPreferences.isIncomeHidden) }
+        var appLock by remember { mutableStateOf(userPreferences.isAppLockEnabled) }
         AlertDialog(
             onDismissRequest = { showSecurityDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_security_dialog_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(id = R.string.settings_security_privacy_title),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
-                            )
-                            Text(
-                                text = stringResource(id = R.string.settings_security_privacy_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.financialColors.textSecondary,
-                            )
+                    SettingsToggleRow(stringResource(R.string.settings_app_lock_title), stringResource(R.string.settings_app_lock_desc), appLock) {
+                        if (!it) {
+                            appLock = false
+                            userPreferences.isAppLockEnabled = false
+                        } else {
+                            val activity = context.findFragmentActivity()
+                            val hasDeviceCredential = context.getSystemService(KeyguardManager::class.java)?.isDeviceSecure == true
+                            val authMode = authenticatorPromptMode(Build.VERSION.SDK_INT, hasDeviceCredential)
+                            val hasBiometric = BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
+                            val available = hasDeviceCredential || hasBiometric
+                            if (activity != null && available) {
+                                val prompt = BiometricPrompt(activity, activity.mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
+                                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                        appLock = true
+                                        userPreferences.isAppLockEnabled = true
+                                    }
+                                })
+                                val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                                    .setTitle(context.getString(R.string.settings_app_lock_title))
+                                    .setSubtitle(context.getString(R.string.settings_app_lock_desc))
+                                if (authMode == AuthenticatorPromptMode.BIOMETRIC_WITH_DEVICE_CREDENTIAL) {
+                                    promptInfo.setAllowedAuthenticators(
+                                        BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                                            BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                                    )
+                                } else if (authMode == AuthenticatorPromptMode.LEGACY_DEVICE_CREDENTIAL_FALLBACK) {
+                                    @Suppress("DEPRECATION")
+                                    promptInfo.setDeviceCredentialAllowed(true)
+                                } else {
+                                    promptInfo
+                                        .setNegativeButtonText(context.getString(R.string.settings_cancel))
+                                        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                                }
+                                prompt.authenticate(promptInfo.build())
+                            }
                         }
-                        Switch(
-                            checked = isPrivacyChecked,
-                            onCheckedChange = {
-                                isPrivacyChecked = it
-                                userPreferences.isPrivacyModeEnabled = it
-                            },
-                        )
+                    }
+                    SettingsToggleRow(stringResource(R.string.settings_hide_income_title), stringResource(R.string.settings_hide_income_desc), hideIncome) {
+                        hideIncome = it
+                        userPreferences.isIncomeHidden = it
+                        incomeHiddenState?.value = it
+                        if (!it) incomeRevealedState?.value = false
                     }
                     HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                     Text(
@@ -1734,6 +1805,61 @@ fun MoreScreen(
         )
     }
 
+    if (showRescanSmsDialog) {
+        val isRescanActive = rescanWorkInfo?.state == WorkInfo.State.ENQUEUED || rescanWorkInfo?.state == WorkInfo.State.RUNNING
+        val progress = rescanWorkInfo?.progress?.getFloat("progress", 0f) ?: 0f
+        val processed = rescanWorkInfo?.progress?.getInt("processedCount", 0) ?: 0
+        AlertDialog(
+            onDismissRequest = { showRescanSmsDialog = false },
+            title = { Text(stringResource(R.string.settings_rescan_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.settings_rescan_window_prompt))
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("30", "90", "180", "all").forEach { code ->
+                            val label = when (code) {
+                                "30" -> stringResource(R.string.settings_rescan_window_30)
+                                "90" -> stringResource(R.string.settings_rescan_window_90)
+                                "180" -> stringResource(R.string.settings_rescan_window_180)
+                                else -> stringResource(R.string.settings_rescan_window_all)
+                            }
+                            FilterChip(
+                                selected = selectedRescanWindow == code,
+                                onClick = { selectedRescanWindow = code },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+                    val statusText = when (rescanWorkInfo?.state) {
+                        WorkInfo.State.ENQUEUED -> stringResource(R.string.settings_rescan_queued)
+                        WorkInfo.State.RUNNING -> stringResource(R.string.settings_rescan_progress, (progress * 100).toInt(), processed)
+                        WorkInfo.State.SUCCEEDED -> stringResource(
+                            R.string.settings_rescan_complete,
+                            rescanWorkInfo.outputData.getInt("processed_count", processed),
+                        )
+                        WorkInfo.State.FAILED -> stringResource(R.string.settings_rescan_failed)
+                        WorkInfo.State.CANCELLED -> stringResource(R.string.settings_rescan_cancelled)
+                        else -> stringResource(R.string.settings_rescan_ready)
+                    }
+                    Text(statusText, color = MaterialTheme.financialColors.textSecondary)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !isRescanActive,
+                    onClick = { onRescanSmsInbox(selectedRescanWindow) },
+                ) {
+                    Text(stringResource(if (isRescanActive) R.string.settings_rescan_queued_button else R.string.settings_rescan_start))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRescanSmsDialog = false }) {
+                    Text(stringResource(R.string.settings_close))
+                }
+            },
+        )
+    }
+
     if (showManageTagsSheet) {
         val allTagsWithCounts = remember(transactions) {
             val counts = mutableMapOf<String, Int>()
@@ -1745,6 +1871,8 @@ fun MoreScreen(
                     counts[tag] = (counts[tag] ?: 0) + 1
                 }
             }
+            val defaults = listOf("#rent", "Family", "Friends", "Office", "Online", "School")
+            defaults.forEach { tag -> counts.putIfAbsent(tag, 0) }
             counts.toList().sortedByDescending { it.second }
         }
 
@@ -1798,6 +1926,45 @@ fun MoreScreen(
     }
 }
 
+private const val RESCAN_WORK_NAME = "sms_inbox_rescan"
+
+private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
+    is FragmentActivity -> this
+    is ContextWrapper -> baseContext.findFragmentActivity()
+    else -> null
+}
+
+@Composable
+private fun SettingsToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.financialColors.textSecondary)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun SettingsValueRow(title: String, value: String, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
+        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.financialColors.textSecondary)
+    }
+}
+
 /**
  * Preferences Screen View (Screenshot 4).
  */
@@ -1806,8 +1973,6 @@ fun MoreScreen(
 private fun PreferencesScreenView(
     accounts: List<Account>,
     userPreferences: UserPreferences,
-    isMoneyManagerDefault: Boolean,
-    onToggleMoneyManagerDefault: (Boolean) -> Unit,
     onManageAccountsClick: () -> Unit,
     onLinkAccountsClick: () -> Unit,
     onSpendCategoriesClick: () -> Unit,
@@ -1819,10 +1984,11 @@ private fun PreferencesScreenView(
     onNotificationsClick: () -> Unit = {},
     onBackupClick: () -> Unit = {},
     onSecurityClick: () -> Unit = {},
-    onResetOnboarding: () -> Unit,
+    onRescanSmsClick: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -1871,55 +2037,7 @@ private fun PreferencesScreenView(
                     border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
                 ) {
                     Column {
-                        // 1. Launch in Money Manager Row (Screenshot 4)
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onToggleMoneyManagerDefault(!isMoneyManagerDefault) }
-                                    .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = DesignR.drawable.ic_bar_chart),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.financialColors.textSecondary,
-                                    modifier = Modifier.size(22.dp),
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    Text(
-                                        text = stringResource(id = R.string.settings_launch_money_manager_title),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color.White,
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = stringResource(id = R.string.settings_launch_money_manager_subtitle),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.financialColors.textSecondary,
-                                    )
-                                }
-                            }
-                            Switch(
-                                checked = isMoneyManagerDefault,
-                                onCheckedChange = onToggleMoneyManagerDefault,
-                                colors =
-                                    SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = MaterialTheme.financialColors.limeAccent,
-                                    ),
-                            )
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
-
+                        SettingsGroupHeading(stringResource(R.string.settings_section_accounts))
                         // 2. Manage accounts
                         SettingsNavRow(
                             iconRes = DesignR.drawable.ic_bank,
@@ -1939,15 +2057,7 @@ private fun PreferencesScreenView(
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
 
-                        // 4. Manage reminders
-                        SettingsNavRow(
-                            iconRes = DesignR.drawable.ic_copy,
-                            title = stringResource(id = R.string.settings_manage_reminders_title),
-                            onClick = onRemindersClick,
-                        )
-
-                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
-
+                        SettingsGroupHeading(stringResource(R.string.settings_section_rules))
                         // 5. Spend categories
                         SettingsNavRow(
                             iconRes = DesignR.drawable.ic_arrow_outward,
@@ -1989,6 +2099,7 @@ private fun PreferencesScreenView(
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
 
+                        SettingsGroupHeading(stringResource(R.string.settings_section_notifications))
                         // 9. Notifications & Reminders
                         SettingsNavRow(
                             iconRes = DesignR.drawable.ic_notes,
@@ -1998,6 +2109,31 @@ private fun PreferencesScreenView(
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
 
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_copy,
+                            title = stringResource(id = R.string.settings_manage_reminders_title),
+                            onClick = onRemindersClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        SettingsGroupHeading(stringResource(R.string.settings_section_location))
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_location,
+                            title = stringResource(id = R.string.settings_expense_sms_location_title),
+                            subtitle = stringResource(id = R.string.settings_expense_sms_location_subtitle),
+                            onClick = {
+                                val intent =
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
+                                context.startActivity(intent)
+                            },
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        SettingsGroupHeading(stringResource(R.string.settings_section_data))
                         // 10. Backup
                         SettingsNavRow(
                             iconRes = DesignR.drawable.ic_copy,
@@ -2007,6 +2143,7 @@ private fun PreferencesScreenView(
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
 
+                        SettingsGroupHeading(stringResource(R.string.settings_section_security))
                         // 11. Security
                         SettingsNavRow(
                             iconRes = DesignR.drawable.ic_channel_card,
@@ -2016,11 +2153,12 @@ private fun PreferencesScreenView(
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
 
+                        SettingsGroupHeading(stringResource(R.string.settings_section_sms))
                         // 12. Rescan SMS Inbox
                         SettingsNavRow(
                             icon = Icons.Default.Refresh,
                             title = stringResource(id = R.string.settings_rescan_title),
-                            onClick = onResetOnboarding,
+                            onClick = onRescanSmsClick,
                         )
                     }
                 }
@@ -2151,6 +2289,17 @@ private fun CategoriesManagerSheet(
             }
         }
     }
+}
+
+@Composable
+private fun SettingsGroupHeading(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.financialColors.textSecondary,
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+    )
 }
 
 @Composable

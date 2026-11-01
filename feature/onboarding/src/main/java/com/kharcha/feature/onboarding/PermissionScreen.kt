@@ -149,6 +149,13 @@ fun PermissionScreen(
                     text = stringResource(id = R.string.onboarding_permission_point_private),
                     colors = colors,
                 )
+
+                HorizontalDivider(color = colors.hairlineDivider, thickness = 1.dp)
+
+                PermissionBulletRow(
+                    text = stringResource(id = R.string.onboarding_permission_point_location),
+                    colors = colors,
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))

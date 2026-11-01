@@ -56,7 +56,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
@@ -95,6 +95,9 @@ import com.kharcha.core.designsystem.component.SwipeableTransactionRow
 import com.kharcha.core.designsystem.component.TwoColumnDonutChart
 import com.kharcha.core.designsystem.component.buildCategorySlices
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AmountRangeFilter
@@ -534,11 +537,12 @@ fun TransactionsScreen(
                     .padding(innerPadding),
         ) {
             // 1. Sub-Tabs Row: Transactions | Categories | Merchants
-            TabRow(
+            ScrollableTabRow(
                 selectedTabIndex = selectedSubTab.ordinal,
                 containerColor = Color.Transparent,
                 contentColor = MaterialTheme.financialColors.income,
                 divider = {},
+                edgePadding = 8.dp,
                 indicator = { tabPositions ->
                     if (selectedSubTab.ordinal < tabPositions.size) {
                         val currentTabPosition = tabPositions[selectedSubTab.ordinal]
@@ -569,7 +573,7 @@ fun TransactionsScreen(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 TransactionsSubTab.entries.forEach { tab ->
                     val isSelected = selectedSubTab == tab
@@ -581,6 +585,9 @@ fun TransactionsScreen(
                                 text = stringResource(id = tab.titleRes),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
                                 color =
                                     if (isSelected) {
                                         MaterialTheme.financialColors.limeAccent
@@ -1030,10 +1037,12 @@ fun HeroMonthSummary(
     onIncomeClick: (() -> Unit)? = null,
 ) {
     val isPrivacy = LocalPrivacyMode.current
+    val incomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
     val expenseFormatted =
         if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalExpenseMinor)
     val incomeFormatted =
-        if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalIncomeMinor)
+        if (isPrivacy || incomeHidden) "₹ ••••••" else MoneyFormatter.formatMinorUnits(totalIncomeMinor)
     val budgetFormatted =
         if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(monthlyBudgetMinor)
 
@@ -1080,6 +1089,7 @@ fun HeroMonthSummary(
                     text = incomeFormatted,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    modifier = if (incomeHidden && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                     color =
                         if (isIncomeSelected) {
                             MaterialTheme.financialColors.income

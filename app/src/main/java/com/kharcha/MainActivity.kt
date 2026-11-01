@@ -1,7 +1,24 @@
 package com.kharcha
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import android.os.Build
+import android.Manifest
+import android.app.KeyguardManager
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import android.view.WindowManager
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import com.kharcha.core.common.security.AuthenticatorPromptMode
+import com.kharcha.core.common.security.authenticatorPromptMode
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -23,9 +40,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,6 +55,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.TransactionRepository
@@ -47,12 +67,17 @@ import com.kharcha.core.designsystem.component.AxioNavItem
 import com.kharcha.core.designsystem.component.KharchaPillSnackbar
 import com.kharcha.core.designsystem.theme.KharchaTheme
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalPrivacyModeState
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
 import com.kharcha.engine.sms.ExpenseNotification
+import com.kharcha.engine.sms.ImportWorker
 import com.kharcha.feature.home.ui.HomeScreen
 import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
@@ -68,6 +93,7 @@ import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import com.kharcha.feature.transactions.ui.TransactionsSubTab
 import com.kharcha.feature.transactions.ui.WeeklySummaryScreen
+import com.kharcha.feature.transactions.ui.SplitRecordsScreen
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.YearMonth
 import javax.inject.Inject
@@ -84,12 +110,27 @@ enum class AppDestination(
 ) {
     TRANSACTIONS(R.string.nav_transactions, DesignR.drawable.ic_category_transfer),
     HOME(R.string.nav_home, DesignR.drawable.ic_bar_chart),
+    SPLITS(R.string.nav_splits, DesignR.drawable.ic_split),
     INSIGHTS(R.string.nav_insights, DesignR.drawable.ic_trending_up),
     MORE(R.string.nav_more, DesignR.drawable.ic_settings),
 }
 
+private val bottomDestinations = listOf(
+    AppDestination.HOME,
+    AppDestination.TRANSACTIONS,
+    AppDestination.INSIGHTS,
+    AppDestination.SPLITS,
+)
+
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+    private var appUnlockState: MutableState<Boolean>? = null
+    private var appLockErrorState: MutableState<Boolean>? = null
+    private var appUnlockRetryState: MutableState<Int>? = null
+    private var incomeRevealState: MutableState<Boolean>? = null
+    private var locationPermissionIssueState: MutableState<LocationPermissionIssue?>? = null
+    private var retryAppUnlockOnResume = false
+    private var appLockResumeGeneration = 0L
     @Inject
     lateinit var transactionRepository: TransactionRepository
 
@@ -98,6 +139,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         setContent {
             KharchaTheme {
                 Surface(
@@ -107,6 +151,26 @@ class MainActivity : ComponentActivity() {
                     var isOnboardingCompleted by rememberSaveable {
                         mutableStateOf(userPreferences.isOnboardingCompleted)
                     }
+                    val appUnlockedState = rememberSaveable {
+                        mutableStateOf(!userPreferences.isAppLockEnabled)
+                    }
+                    val appLockErrorRemembered = rememberSaveable { mutableStateOf(false) }
+                    val appUnlockRetryRemembered = rememberSaveable { mutableIntStateOf(0) }
+                    var appLockError by appLockErrorRemembered
+                    var appUnlockRetryToken by appUnlockRetryRemembered
+                    val incomeHiddenState = rememberSaveable { mutableStateOf(userPreferences.isIncomeHidden) }
+                    val incomeRevealedState = rememberSaveable { mutableStateOf(false) }
+                    val privacyModeState = rememberSaveable { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
+                    val locationPermissionIssue = remember {
+                        mutableStateOf(currentLocationPermissionIssue())
+                    }
+                    locationPermissionIssueState = locationPermissionIssue
+                    appUnlockState = appUnlockedState
+                    appLockErrorState = appLockErrorRemembered
+                    appUnlockRetryState = appUnlockRetryRemembered
+                    incomeRevealState = incomeRevealedState
+                    var isAppUnlocked by appUnlockedState
+                    var isIncomeRevealed by incomeRevealedState
 
                     if (!isOnboardingCompleted) {
                         OnboardingRoute(
@@ -115,7 +179,35 @@ class MainActivity : ComponentActivity() {
                                 isOnboardingCompleted = true
                             },
                         )
+                    } else if (userPreferences.isAppLockEnabled && !isAppUnlocked) {
+                        AppLockScreen(
+                            hasError = appLockError,
+                            unlockRequestKey = appUnlockRetryToken,
+                            onUnlock = {
+                                authenticateWithBiometric(
+                                    onAuthenticated = {
+                                        isAppUnlocked = true
+                                        appLockError = false
+                                    },
+                                    onError = { appLockError = true },
+                                )
+                            },
+                        )
                     } else {
+                        CompositionLocalProvider(
+                            LocalIncomeHidden provides incomeHiddenState,
+                            LocalIncomeRevealed provides incomeRevealedState,
+                            LocalIncomeReveal provides {
+                                if (!isIncomeRevealed) {
+                                    authenticateWithBiometric(
+                                        onAuthenticated = { isIncomeRevealed = true },
+                                        onError = {},
+                                    )
+                                }
+                            },
+                            LocalPrivacyModeState provides privacyModeState,
+                            LocalPrivacyMode provides privacyModeState.value,
+                        ) {
                         MainAppShell(
                             transactionRepository = transactionRepository,
                             userPreferences = userPreferences,
@@ -123,25 +215,171 @@ class MainActivity : ComponentActivity() {
                                 intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
                                     .takeIf { it >= 0L },
                             notificationAction = intent.getStringExtra(ExpenseNotification.EXTRA_ACTION),
-                            onResetOnboarding = {
-                                userPreferences.isOnboardingCompleted = false
-                                isOnboardingCompleted = false
+                            openWeeklySummary = intent.getBooleanExtra(SummaryNotificationWorker.EXTRA_OPEN_WEEKLY_SUMMARY, false),
+                            locationPermissionIssue = locationPermissionIssue.value,
+                            onRescanSmsInbox = { windowCode ->
+                                WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                                    "sms_inbox_rescan",
+                                    ExistingWorkPolicy.KEEP,
+                                    OneTimeWorkRequestBuilder<ImportWorker>()
+                                        .setInputData(
+                                            workDataOf(
+                                                ImportWorker.KEY_FORCE_RESCAN to true,
+                                                ImportWorker.KEY_SINCE_TIMESTAMP to ImportWorker.rescanSinceTimestamp(windowCode),
+                                            ),
+                                        ).build(),
+                                )
                             },
                         )
+                        }
                     }
+                }
+            }
+        }
+    }
+
+    override fun onStop() {
+        incomeRevealState?.value = false
+        if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
+            appUnlockState?.value = false
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        if (userPreferences.isAppLockEnabled) retryAppUnlockOnResume = true
+        appLockResumeGeneration += 1
+        super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        locationPermissionIssueState?.value = currentLocationPermissionIssue()
+        if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        if (retryAppUnlockOnResume) {
+            retryAppUnlockOnResume = false
+            val resumeGeneration = ++appLockResumeGeneration
+            window.decorView.postDelayed({
+                if (resumeGeneration != appLockResumeGeneration || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    return@postDelayed
+                }
+                val shouldRetry = shouldRetryAppUnlock(
+                    appLockEnabled = userPreferences.isAppLockEnabled,
+                    isAppUnlocked = appUnlockState?.value != false,
+                    stoppedWhileLocked = true,
+                )
+                if (shouldRetry) {
+                    appLockErrorState?.value = false
+                    appUnlockRetryState?.value = (appUnlockRetryState?.value ?: 0) + 1
+                }
+            }, APP_UNLOCK_RESUME_RETRY_DELAY_MS)
+        }
+    }
+
+    private fun currentLocationPermissionIssue(): LocationPermissionIssue? {
+        val hasForegroundLocation =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        val hasBackgroundLocation =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        return locationPermissionIssue(
+            sdkInt = Build.VERSION.SDK_INT,
+            hasForegroundAccess = hasForegroundLocation,
+            hasBackgroundAccess = hasBackgroundLocation,
+        )
+    }
+
+    private fun authenticateWithBiometric(
+        onAuthenticated: () -> Unit,
+        onError: () -> Unit,
+    ) {
+        try {
+            val prompt = BiometricPrompt(
+                this,
+                mainExecutor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        onAuthenticated()
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        onError()
+                    }
+                },
+            )
+            val hasDeviceCredential = getSystemService(KeyguardManager::class.java)?.isDeviceSecure == true
+            val authMode = authenticatorPromptMode(Build.VERSION.SDK_INT, hasDeviceCredential)
+            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                .setTitle(getString(R.string.app_lock_title))
+                .setSubtitle(getString(R.string.app_lock_subtitle))
+            if (authMode == AuthenticatorPromptMode.BIOMETRIC_WITH_DEVICE_CREDENTIAL) {
+                promptInfo.setAllowedAuthenticators(
+                    BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                )
+            } else if (authMode == AuthenticatorPromptMode.LEGACY_DEVICE_CREDENTIAL_FALLBACK) {
+                @Suppress("DEPRECATION")
+                promptInfo.setDeviceCredentialAllowed(true)
+            } else {
+                promptInfo
+                    .setNegativeButtonText(getString(R.string.app_lock_cancel))
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            }
+            prompt.authenticate(promptInfo.build())
+        } catch (_: IllegalArgumentException) {
+            onError()
+        } catch (_: IllegalStateException) {
+            onError()
+        }
+    }
+}
+
+@Composable
+private fun AppLockScreen(hasError: Boolean, unlockRequestKey: Int, onUnlock: () -> Unit) {
+    androidx.compose.runtime.LaunchedEffect(unlockRequestKey) {
+        onUnlock()
+    }
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        if (hasError) {
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            ) {
+                Text(text = stringResource(R.string.app_lock_error), style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.material3.Button(onClick = onUnlock) {
+                    Text(text = stringResource(R.string.app_lock_retry))
                 }
             }
         }
     }
 }
 
+internal fun shouldRetryAppUnlock(
+    appLockEnabled: Boolean,
+    isAppUnlocked: Boolean,
+    stoppedWhileLocked: Boolean,
+): Boolean = appLockEnabled && stoppedWhileLocked && !isAppUnlocked
+
+private const val APP_UNLOCK_RESUME_RETRY_DELAY_MS = 300L
+
 @Composable
 fun MainAppShell(
     transactionRepository: TransactionRepository,
     userPreferences: UserPreferences,
-    onResetOnboarding: () -> Unit,
+    onRescanSmsInbox: (String) -> Unit,
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
+    openWeeklySummary: Boolean = false,
+    locationPermissionIssue: LocationPermissionIssue? = null,
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
@@ -165,7 +403,7 @@ fun MainAppShell(
     var showAddTransactionDialog by rememberSaveable { mutableStateOf(false) }
     var showSearchScreen by rememberSaveable { mutableStateOf(false) }
     var showReportSmsScreen by rememberSaveable { mutableStateOf(false) }
-    var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(false) }
+    var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(openWeeklySummary) }
     var showSetBudgetSheet by rememberSaveable { mutableStateOf(false) }
     var showSplitInfoDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
@@ -174,6 +412,16 @@ fun MainAppShell(
     var transactionsIsAllMonthsSelected by remember { mutableStateOf(false) }
     var transactionsSubTab by remember { mutableStateOf(TransactionsSubTab.TRANSACTIONS) }
     var handledNotificationAction by rememberSaveable { mutableStateOf("") }
+    var showLocationPermissionDialog by rememberSaveable { mutableStateOf(false) }
+    var dismissedLocationPermissionIssue by rememberSaveable { mutableStateOf("") }
+    val locationPermissionIssueKey = locationPermissionIssue?.name.orEmpty()
+
+    LaunchedEffect(locationPermissionIssueKey) {
+        if (locationPermissionIssueKey.isEmpty()) {
+            dismissedLocationPermissionIssue = ""
+            showLocationPermissionDialog = false
+        }
+    }
 
     LaunchedEffect(notificationTransactionId, notificationAction, transactions) {
         val transactionId = notificationTransactionId ?: return@LaunchedEffect
@@ -202,10 +450,11 @@ fun MainAppShell(
         }
     }
 
-    var isPrivacyMode by rememberSaveable { mutableStateOf(userPreferences.isPrivacyModeEnabled) }
+    val privacyModeState = LocalPrivacyModeState.current
+    val isPrivacyMode = privacyModeState?.value ?: userPreferences.isPrivacyModeEnabled
     val onTogglePrivacyMode = {
         val newMode = !isPrivacyMode
-        isPrivacyMode = newMode
+        privacyModeState?.value = newMode
         userPreferences.isPrivacyModeEnabled = newMode
     }
 
@@ -241,17 +490,17 @@ fun MainAppShell(
                 },
                 bottomBar = {
                     val navItems =
-                        AppDestination.entries.map { dest ->
+                        bottomDestinations.map { dest ->
                             AxioNavItem(
                                 icon = painterResource(id = dest.iconRes),
                                 contentDescription = stringResource(id = dest.labelRes),
                             )
                         }
-                    val selectedIndex = AppDestination.entries.indexOf(currentDestination).coerceAtLeast(0)
+                    val selectedIndex = bottomDestinations.indexOf(currentDestination)
                     AxioBottomNavBar(
                         selectedIndex = selectedIndex,
                         onItemSelected = { index ->
-                            currentDestination = AppDestination.entries[index]
+                            currentDestination = bottomDestinations[index]
                         },
                         items = navItems,
                     )
@@ -263,6 +512,12 @@ fun MainAppShell(
                     transactions = transactions,
                     accounts = accounts,
                     userPreferences = userPreferences,
+                    showLocationPermissionAlert =
+                        locationPermissionIssue != null && dismissedLocationPermissionIssue != locationPermissionIssueKey,
+                    onCheckLocationPermission = { showLocationPermissionDialog = true },
+                    onDismissLocationPermissionAlert = {
+                        dismissedLocationPermissionIssue = locationPermissionIssueKey
+                    },
                     onNavigateToTransactions = { currentDestination = AppDestination.TRANSACTIONS },
                     onNavigateToHome = { currentDestination = AppDestination.HOME },
                     onReviewClick = { showReviewQueue = true },
@@ -295,7 +550,7 @@ fun MainAppShell(
                             transactionRepository.updateTransactions(updatedList)
                         }
                     },
-                    onResetOnboarding = onResetOnboarding,
+                    onRescanSmsInbox = onRescanSmsInbox,
                     onPrivacyToggle = onTogglePrivacyMode,
                     onCategoriseUnknown = { showReviewQueue = true },
                     transactionsFilter = transactionsFilter,
@@ -381,6 +636,9 @@ fun MainAppShell(
                     onAccountClick = { selectedAccountForDetail = it },
                     onProfileClick = { currentDestination = AppDestination.MORE },
                     onDuesClick = { currentDestination = AppDestination.INSIGHTS },
+                    onNotificationSettingsChanged = {
+                        SummaryNotificationWorker.scheduleAll(context, userPreferences)
+                    },
                     onSplitClick = { showSplitInfoDialog = true },
                 )
             }
@@ -653,6 +911,39 @@ fun MainAppShell(
             },
         )
     }
+
+    if (showLocationPermissionDialog && locationPermissionIssue != null) {
+        val messageRes =
+            if (locationPermissionIssue == LocationPermissionIssue.BACKGROUND_ACCESS) {
+                R.string.location_permission_background_message
+            } else {
+                R.string.location_permission_foreground_message
+            }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showLocationPermissionDialog = false },
+            title = { Text(text = stringResource(R.string.location_permission_title)) },
+            text = { Text(text = stringResource(messageRes)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showLocationPermissionDialog = false
+                        val settingsIntent =
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                        context.startActivity(settingsIntent)
+                    },
+                ) {
+                    Text(text = stringResource(R.string.location_permission_open_settings))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showLocationPermissionDialog = false }) {
+                    Text(text = stringResource(R.string.location_permission_cancel))
+                }
+            },
+        )
+    }
 }
 }
 
@@ -662,6 +953,9 @@ fun BoxDestinationContent(
     transactions: List<Transaction>,
     accounts: List<Account> = emptyList(),
     userPreferences: UserPreferences,
+    showLocationPermissionAlert: Boolean = false,
+    onCheckLocationPermission: () -> Unit = {},
+    onDismissLocationPermissionAlert: () -> Unit = {},
     onNavigateToTransactions: () -> Unit,
     onNavigateToHome: () -> Unit = {},
     onReviewClick: () -> Unit,
@@ -674,7 +968,7 @@ fun BoxDestinationContent(
     onRestoreTransaction: (Transaction) -> Unit = {},
     onReviewTransaction: (Transaction) -> Unit = {},
     onUpdateTransactions: (List<Transaction>) -> Unit = {},
-    onResetOnboarding: () -> Unit,
+    onRescanSmsInbox: (String) -> Unit,
     onPrivacyToggle: () -> Unit,
     onCategoriseUnknown: () -> Unit = {},
     transactionsFilter: TransactionFilter = TransactionFilter(),
@@ -698,6 +992,7 @@ fun BoxDestinationContent(
     onSplitClick: () -> Unit = {},
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
+    onNotificationSettingsChanged: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((Long, Set<Long>) -> Unit)? = null,
@@ -711,6 +1006,10 @@ fun BoxDestinationContent(
             HomeScreen(
                 transactions = transactions,
                 accounts = accounts,
+                userName = userPreferences.userName,
+                showLocationPermissionAlert = showLocationPermissionAlert,
+                onCheckLocationPermission = onCheckLocationPermission,
+                onDismissLocationPermissionAlert = onDismissLocationPermissionAlert,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 onSeeAllClick = onNavigateToTransactions,
                 onIncomeClick = onIncomeClick,
@@ -782,12 +1081,19 @@ fun BoxDestinationContent(
                 modifier = modifier,
             )
         }
+        AppDestination.SPLITS -> {
+            SplitRecordsScreen(
+                transactions = transactions,
+                onTransactionClick = onTransactionClick,
+                modifier = modifier,
+            )
+        }
         AppDestination.MORE -> {
             MoreScreen(
                 transactions = transactions,
                 accounts = accounts,
                 userPreferences = userPreferences,
-                onResetOnboarding = onResetOnboarding,
+                onRescanSmsInbox = onRescanSmsInbox,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 onSaveAccount = onSaveAccount,
                 onMergeAccounts = onMergeAccounts,
@@ -797,6 +1103,7 @@ fun BoxDestinationContent(
                 onReportSmsClick = onReportSmsClick,
                 onAccountClick = onAccountClick,
                 onTransactionClick = onTransactionClick,
+                onNotificationSettingsChanged = onNotificationSettingsChanged,
                 modifier = modifier,
             )
         }

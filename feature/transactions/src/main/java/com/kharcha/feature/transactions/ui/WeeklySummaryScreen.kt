@@ -137,6 +137,21 @@ fun WeeklySummaryScreen(
                 }
         }
 
+    val topLocations =
+        remember(thisWeekTransactions) {
+            thisWeekTransactions
+                .filter { it.type == TransactionType.Expense && (it.latitude != null && it.longitude != null || !it.locationLabel.isNullOrBlank()) }
+                .groupBy { transaction ->
+                    transaction.locationLabel?.takeIf { it.isNotBlank() }
+                        ?: String.format(java.util.Locale.getDefault(), "%.4f, %.4f", transaction.latitude, transaction.longitude)
+                }
+                .map { (label, locationTransactions) ->
+                    Triple(label, locationTransactions.first(), locationTransactions.sumOf { it.amount })
+                }
+                .sortedByDescending { it.third }
+                .take(3)
+        }
+
     val upcomingDues =
         remember {
             listOf(
@@ -327,6 +342,52 @@ fun WeeklySummaryScreen(
             }
 
             // 3. Dues coming up in next 7 days
+            if (topLocations.isNotEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.financialColors.cardBackground),
+                        border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = stringResource(R.string.weekly_summary_top_locations),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.financialColors.textPrimary,
+                            )
+                            topLocations.forEach { (label, transaction, amount) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.financialColors.textPrimary)
+                                        Text(MoneyFormatter.formatMinorUnits(amount), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.financialColors.textSecondary)
+                                    }
+                                    Text(
+                                        text = stringResource(R.string.detail_location_action),
+                                        modifier = Modifier.clickable {
+                                            val location = LocationHelper.extractLocation(
+                                                latitude = transaction.latitude,
+                                                longitude = transaction.longitude,
+                                                locationLabel = transaction.locationLabel,
+                                            )
+                                            if (location != null) LocationHelper.openInGoogleMaps(context, location)
+                                        }.padding(8.dp),
+                                        color = MaterialTheme.financialColors.income,
+                                        style = MaterialTheme.typography.labelLarge,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Dues coming up in next 7 days
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),

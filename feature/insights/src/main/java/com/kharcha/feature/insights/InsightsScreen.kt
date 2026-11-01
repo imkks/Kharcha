@@ -53,6 +53,9 @@ import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.R as DesignR
 import com.kharcha.core.designsystem.component.CategoryBadge
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.TimePeriod
@@ -451,6 +454,7 @@ fun MonthlyFlowCard(
                     title = stringResource(id = R.string.insights_summary_income),
                     amountMinor = incomeMinor,
                     color = financialColors.income,
+                    isIncome = true,
                 )
                 FlowSummaryItem(
                     title = stringResource(id = R.string.insights_summary_expense),
@@ -472,9 +476,12 @@ fun FlowSummaryItem(
     title: String,
     amountMinor: Long,
     color: Color,
+    isIncome: Boolean = false,
 ) {
     val isPrivacy = LocalPrivacyMode.current
-    val formatted = if (isPrivacy) "₹ ••••••" else MoneyFormatter.formatMinorUnits(amountMinor)
+    val hideIncome = isIncome && LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
+    val formatted = if (isPrivacy || hideIncome) "₹ ••••••" else MoneyFormatter.formatMinorUnits(amountMinor)
     Column {
         Text(
             text = title,
@@ -486,6 +493,7 @@ fun FlowSummaryItem(
             text = formatted,
             style = MaterialTheme.typography.titleMedium,
             color = color,
+            modifier = if (hideIncome && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
         )
     }
 }

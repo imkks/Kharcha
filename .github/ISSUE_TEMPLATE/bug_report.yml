@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a reproducible problem in Kharcha.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include real SMS text, transaction amounts, account numbers, passwords, keystores, or unredacted financial screenshots. Use synthetic or fully redacted examples.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: e.g. 1.0.12
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version and device
+      placeholder: e.g. Android 16, Pixel 8
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use sample data; redact personal or financial information.
+      placeholder: 1. Open… 2. Tap… 3. Observe…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs (optional)
+      description: Remove SMS bodies, amounts, account numbers, and personal data before posting.
+    validations:
+      required: false

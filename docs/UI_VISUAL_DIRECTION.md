@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Date:** October 2026  
 **Status:** Approved for Implementation  
-**Companion Documents:** [SRS.md](file:///Users/krish/Developer/Kharcha/docs/SRS.md), [UI_SPEC.md](file:///Users/krish/Developer/Kharcha/docs/UI_SPEC.md), [TechDoc.md](file:///Users/krish/Developer/Kharcha/docs/TechDoc.md)
+**Companion Documents:** [SRS.md](SRS.md), [UI_SPEC.md](UI_SPEC.md), [TechDoc.md](TechDoc.md)
 
 ---
 
@@ -257,7 +257,7 @@ Clean, card-based settings architecture tailored for offline expense tracking, a
 
 ## 5. Technical Implementation Guidelines
 
-Per Kharcha's architecture and `AGENTS.md`:
+Per Kharcha's architecture and [agents.md](../agents.md):
 1. **Currency Handling:** Always store and compute amounts as **`Long` minor units (paise)**. Never use `Double` or `Float`.
 2. **Privacy & Security:**
    - No `INTERNET` permission in `AndroidManifest.xml`.

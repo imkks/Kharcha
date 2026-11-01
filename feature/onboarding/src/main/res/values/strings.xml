@@ -3,6 +3,11 @@
     <string name="onboarding_welcome_title">Track spends\nautomatically</string>
     <string name="onboarding_welcome_subtitle">Smart, effortless financial insights right from your bank alert SMS.</string>
     <string name="onboarding_get_started">Get Started</string>
+    <string name="onboarding_profile_title">What should we call you?</string>
+    <string name="onboarding_profile_subtitle">Your money journey deserves a name. We’ll use it to make Kharcha feel like yours.</string>
+    <string name="onboarding_profile_name">Your name</string>
+    <string name="onboarding_profile_name_hint">e.g. Aanya</string>
+    <string name="onboarding_profile_continue">Continue</string>
 
     <string name="onboarding_trust_on_device_title">100% On-Device</string>
     <string name="onboarding_trust_on_device_desc">Your financial data is processed locally and never leaves your phone.</string>
@@ -18,6 +23,11 @@
     <string name="onboarding_permission_point_automated">Automates manual expense tracking</string>
     <string name="onboarding_permission_point_accounts">Auto-detects bank accounts, cards &amp; UPI</string>
     <string name="onboarding_permission_point_private">Personal SMS and OTPs are strictly ignored</string>
+    <string name="onboarding_permission_point_location">Location is optional. When allowed, Kharcha adds your current location to live expense SMS transactions and manual expenses.</string>
+    <string name="onboarding_background_location_title">Allow location for expense SMS?</string>
+    <string name="onboarding_background_location_message">To attach your current place when a bank expense SMS arrives while Kharcha is closed, allow location all the time in App info → Permissions → Location. You can skip this and continue without SMS locations.</string>
+    <string name="onboarding_background_location_settings">Open app settings</string>
+    <string name="onboarding_background_location_skip">Skip</string>
     <string name="onboarding_import_window_title">Scan SMS from</string>
     <string name="onboarding_permission_cta">Allow SMS Access</string>
     <string name="onboarding_grant_permission">Allow SMS Access</string>

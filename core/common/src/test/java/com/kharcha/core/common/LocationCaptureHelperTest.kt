@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -25,5 +26,13 @@ class LocationCaptureHelperTest {
 
         val location = LocationCaptureHelper.getLastKnownLocation(context)
         assertNull(location)
+    }
+
+    @Test
+    fun getLocationForLiveTransaction_returnsNullWhenPermissionDenied() = runTest {
+        val context = mockk<Context>()
+        every { context.checkPermission(any(), any(), any()) } returns PackageManager.PERMISSION_DENIED
+
+        assertNull(LocationCaptureHelper.getLocationForLiveTransaction(context))
     }
 }

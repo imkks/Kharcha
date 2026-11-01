@@ -37,16 +37,18 @@ class ImportWorker
             withContext(Dispatchers.IO) {
                 try {
                     val batchSize = 500
-                    var lastProcessedId = smsRepository.getCheckpoint()
+                    val forceRescan = inputData.getBoolean(KEY_FORCE_RESCAN, false)
+                    val sinceTimestamp = inputData.getLong(KEY_SINCE_TIMESTAMP, 0L)
+                    var lastProcessedId = if (forceRescan) 0L else smsRepository.getCheckpoint()
                     var processedCount = 0
 
-                    val totalSms = inboxReader.getSmsCount()
+                    val totalSms = inboxReader.getSmsCount(sinceTimestamp)
                     setProgress(workDataOf("progress" to 0.0f, "processedCount" to 0))
 
                     val parser = TemplateLoader.createParser(applicationContext)
 
                     while (true) {
-                        val batch = inboxReader.readSmsBatch(lastProcessedId, batchSize)
+                        val batch = inboxReader.readSmsBatch(lastProcessedId, batchSize, sinceTimestamp)
                         if (batch.isEmpty()) break
 
                         for (sms in batch) {
@@ -137,7 +139,7 @@ class ImportWorker
                                                 refNumber = parsed.refNumber,
                                                 upiId = parsed.upiId,
                                                 balanceAfter = parsed.balanceAfterMinor,
-                                                note = sms.body.trim(),
+                                                smsBody = sms.body.trim(),
                                                 parseConfidence = parsed.confidence,
                                                 isReviewed = true,
                                                 templateId = parsed.templateId ?: "generic_fallback",
@@ -177,9 +179,30 @@ class ImportWorker
                         DefaultAccountRepository.getInstance(applicationContext).autoLinkAccounts(allTxns)
                     } catch (_: Throwable) {
                     }
-                    Result.success()
+                    Result.success(workDataOf(KEY_PROCESSED_COUNT to processedCount))
                 } catch (e: Exception) {
                     Result.retry()
                 }
             }
+
+    companion object {
+        const val KEY_FORCE_RESCAN = "force_rescan"
+        const val KEY_SINCE_TIMESTAMP = "since_timestamp"
+        const val KEY_PROCESSED_COUNT = "processed_count"
+
+        fun rescanSinceTimestamp(
+            windowCode: String,
+            now: Long = System.currentTimeMillis(),
+        ): Long {
+            val windowDays = when (windowCode) {
+                "30" -> 30L
+                "90" -> 90L
+                "180" -> 180L
+                else -> return 0L
+            }
+            return now - windowDays * MILLIS_PER_DAY
+        }
+
+        private const val MILLIS_PER_DAY = 24L * 60 * 60 * 1000
+    }
     }

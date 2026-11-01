@@ -141,7 +141,7 @@ Learning: when the user recategorises, write a MerchantMapping and optionally a 
 • Screenshot tests for core screens in light, dark and large font.
 • CI gates: build, lint, detekt, unit tests, coverage at or above 80 percent on engine modules.
 12. Jules Task Backlog
-Each task is one PR. Jules should read AGENTS.md (Section 13) first. Format: ID, goal, requirements, acceptance criteria.
+Each task is one PR. Read [agents.md](../agents.md) and the relevant design sections first. Format: ID, goal, requirements, acceptance criteria.
 T0.1 Project scaffold. Create the multi-module Gradle project (Kotlin DSL, version catalog), Hilt, theme and navigation shell, CI workflow, ktlint and detekt. Acceptance: app builds, empty Home screen launches, CI is green.
 T0.2 Database foundation. Room entities, DAOs, converters, SQLCipher integration, seed initialiser, migration test harness. Requirements: SRS section 5, FR-12.2. Acceptance: DAO tests pass; the database file is not readable without the key.
 T1.1 Onboarding and permissions. Screens per the UI spec 5.1, permission flows including denial paths. Requirements: FR-1. Acceptance: Compose tests for granted and denied branches.
@@ -155,21 +155,9 @@ T5.1 Transactions UI. List, filters, search, detail, edit, manual add, multi-sel
 T6.1 Dashboard. Summary, period selector with custom month start, charts and drill-down. Requirements: FR-8.1 to 8.4. Acceptance: totals match the database queries in tests.
 T7.1 Budgets and notifications. Budget CRUD, progress, threshold alerts, transaction notifications with actions. Requirements: FR-9.1, 9.2, FR-11. Acceptance: alerts fire once per threshold per period.
 T8.1 Security and data. App lock, export (CSV and JSON), encrypted backup and restore, delete all. Requirements: FR-12. Acceptance: backup and restore round-trips identical data.
-T9.x Post-MVP. Recurring detection, insights cards, split transactions, goals, widget, TFLite layer (see [PENNYWISE_BENCHMARK_ANALYSIS.md](PENNYWISE_BENCHMARK_ANALYSIS.md) for benchmark exploration and task breakdown).
-13. AGENTS.md (place in the repository root)
-The following content is intended to be committed as AGENTS.md so Jules follows project rules on every task:
-• Read the SRS, UI/UX spec and this design doc in /docs before starting. Cite requirement IDs in the PR description.
-• Work on one task per PR. Keep PRs under about 600 changed lines where possible.
-• Always add or update tests with the code. Never reduce coverage on the engine modules.
-• Run ./gradlew ktlintCheck detekt test before finishing; fix all failures.
-• Money is Long minor units. Never use Float or Double for currency.
-• Never log SMS bodies, amounts or account numbers. Never add the INTERNET permission.
-• No hard-coded user-facing strings; use string resources. No hard-coded colours; use theme tokens.
-• Parser templates and merchant data go in JSON assets, not Kotlin code.
-• Follow the module dependency rules in Section 2. Do not create feature-to-feature dependencies.
-• Database changes require a Room migration and a migration test.
-• When requirements are ambiguous, choose the simplest option that satisfies the acceptance criteria and note the assumption in the PR description.
-• Do not add new third-party libraries without stating the reason in the PR.
+T9.x Post-MVP. Recurring detection, insights cards, split transactions, goals, widget, and the optional TFLite layer.
+13. Repository instructions
+Repository-wide implementation rules live in the root [agents.md](../agents.md). Keep this document focused on product architecture and the task plan; cite requirement IDs from the SRS when planning implementation work.
 14. Definition of Done (per task)
 1. Acceptance criteria met and demonstrated by tests.
 2. CI green (build, lint, detekt, tests).
@@ -178,4 +166,4 @@ The following content is intended to be committed as AGENTS.md so Jules follows 
 5. PR description lists requirement IDs covered and any assumptions.
 15. Suggested Prompt Template for Jules
 Use this for each task you assign:
-Task: <ID and title>. Context: read AGENTS.md and the docs folder. Goal: <one sentence>. Requirements: <FR IDs>. Acceptance criteria: <copied from Section 12>. Constraints: <modules to touch, anything to avoid>. Deliverable: one PR with tests passing.
+Task: <ID and title>. Context: read agents.md and the docs folder. Goal: <one sentence>. Requirements: <FR IDs>. Acceptance criteria: <copied from Section 12>. Constraints: <modules to touch, anything to avoid>. Deliverable: one PR with tests passing.

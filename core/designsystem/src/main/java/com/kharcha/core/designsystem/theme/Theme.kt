@@ -28,7 +28,7 @@ private val LightColors =
 
 private val DarkColors =
     darkColorScheme(
-        primary = axio_lime_accent,
+        primary = md_theme_dark_primary,
         onPrimary = axio_background_dark,
         primaryContainer = axio_pale_lime,
         onPrimaryContainer = axio_background_dark,

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -68,6 +69,9 @@ import com.kharcha.core.designsystem.component.PromoCard
 import com.kharcha.core.designsystem.component.SpendRing
 import com.kharcha.core.designsystem.component.TagChip
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
@@ -99,7 +103,7 @@ data class CreditCardItem(
 /**
  * Axio-style Home Dashboard Screen (UI Specification Section 3.1 & 7.1).
  * Features:
- * - Avatar + "Hi Krishna" header with search and privacy toggle.
+ * - Avatar and personalized greeting with search and privacy toggle.
  * - Centered "Spent in [Month]" caption.
  * - 190dp circular progress ring with center "↗" amount, tappable to All Spends.
  * - Income and Set monthly budget split columns.
@@ -140,6 +144,9 @@ fun HomeScreen(
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    showLocationPermissionAlert: Boolean = false,
+    onCheckLocationPermission: () -> Unit = {},
+    onDismissLocationPermissionAlert: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val currentYearMonth = remember { YearMonth.now() }
@@ -184,7 +191,9 @@ fun HomeScreen(
         }
 
     val isPrivacy = LocalPrivacyMode.current
-    val greetingUser = userName ?: stringResource(id = R.string.home_default_user)
+    val isIncomeHidden = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
+    val revealIncome = LocalIncomeReveal.current
+    val greetingUser = userName?.takeIf(String::isNotBlank) ?: stringResource(id = R.string.home_default_user)
 
     // Data models for Section 7.1 continuous scrolling feed
     val duesList =
@@ -327,7 +336,7 @@ fun HomeScreen(
                     .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // 1. Header: Avatar + "Hi Krishna" + Actions (Search & Privacy)
+            // 1. Header: Avatar, personalized greeting, and actions (Search & Privacy)
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
@@ -452,7 +461,7 @@ fun HomeScreen(
                         ) {
                             Text(
                                 text =
-                                    if (isPrivacy) {
+                                    if (isPrivacy || isIncomeHidden) {
                                         "₹ ••••••"
                                     } else {
                                         MoneyFormatter.formatMinorUnits(incomeThisMonth)
@@ -460,6 +469,7 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.financialColors.textPrimary,
+                                modifier = if (isIncomeHidden && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
@@ -630,6 +640,15 @@ fun HomeScreen(
                             )
                         }
                     }
+                }
+            }
+
+            if (showLocationPermissionAlert) {
+                item {
+                    LocationPermissionAlertCard(
+                        onCheckNow = onCheckLocationPermission,
+                        onDismiss = onDismissLocationPermissionAlert,
+                    )
                 }
             }
 
@@ -1266,6 +1285,69 @@ fun HomeScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocationPermissionAlertCard(
+    onCheckNow: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.financialColors.cardBackground),
+        border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Surface(
+                modifier = Modifier.padding(top = 2.dp).size(40.dp),
+                shape = CircleShape,
+                color = MaterialTheme.financialColors.warningContainer,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.financialColors.warning,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.home_permission_alert_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.financialColors.textPrimary,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.home_permission_alert_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.financialColors.textSecondary,
+                )
+                Text(
+                    text = stringResource(R.string.home_permission_alert_action),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.financialColors.limeAccent,
+                    modifier = Modifier.align(Alignment.End).clickable(onClick = onCheckNow).padding(top = 12.dp),
+                )
+            }
+            IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.home_permission_alert_dismiss),
+                    tint = MaterialTheme.financialColors.textSecondary,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
     }

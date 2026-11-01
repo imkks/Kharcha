@@ -23,7 +23,7 @@
     <string name="home_spending_breakdown_title">Spending Breakdown</string>
     <string name="home_spending_breakdown_others">Others</string>
     <string name="home_greeting">Hi %1$s</string>
-    <string name="home_default_user">Krishna</string>
+    <string name="home_default_user">there</string>
     <string name="home_spent_in_month">Spent in %1$s</string>
     <string name="home_income_label">Income</string>
     <string name="home_set_monthly_budget">Set monthly\nbudget</string>
@@ -31,6 +31,10 @@
     <string name="home_shortcut_trends">Trends</string>
     <string name="home_shortcut_categories">Categories</string>
     <string name="home_shortcut_weekly_summary">Weekly</string>
+    <string name="home_permission_alert_title">Kharcha needs location permission</string>
+    <string name="home_permission_alert_body">Allow location access to attach your current place to expense SMS transactions.</string>
+    <string name="home_permission_alert_action">Check now</string>
+    <string name="home_permission_alert_dismiss">Dismiss location permission alert</string>
     <string name="home_recent_add_button">+ Add</string>
     <string name="home_action_search">Search</string>
     <string name="home_dues_title">Dues &amp; Reminders</string>

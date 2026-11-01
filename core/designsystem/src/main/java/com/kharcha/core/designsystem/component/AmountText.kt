@@ -2,12 +2,16 @@ package com.kharcha.core.designsystem.component
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDecoration
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
+import com.kharcha.core.designsystem.theme.LocalIncomeHidden
+import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.TransactionType
 
@@ -22,8 +26,13 @@ fun AmountText(
     isTransfer: Boolean = false,
 ) {
     val isPrivacyMode = LocalPrivacyMode.current
+    val isIncomeHidden =
+        LocalIncomeHidden.current?.value == true &&
+            LocalIncomeRevealed.current?.value != true &&
+            type == TransactionType.Income
+    val revealIncome = LocalIncomeReveal.current
     val formatted =
-        if (maskIfPrivacy && isPrivacyMode) {
+        if (shouldMaskAmount(type, isPrivacyMode, isIncomeHidden, maskIfPrivacy)) {
             "₹ ••••••"
         } else {
             when (type) {
@@ -54,6 +63,13 @@ fun AmountText(
                 fontFeatureSettings = "tnum",
                 textDecoration = textDecoration,
             ),
-        modifier = modifier,
+        modifier = if (isIncomeHidden && !isPrivacyMode) modifier.clickable { revealIncome?.invoke() } else modifier,
     )
 }
+
+internal fun shouldMaskAmount(
+    type: TransactionType,
+    privacyMode: Boolean,
+    incomeHidden: Boolean,
+    maskIfPrivacy: Boolean,
+): Boolean = maskIfPrivacy && (privacyMode || (incomeHidden && type == TransactionType.Income))

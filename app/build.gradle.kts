@@ -9,23 +9,47 @@ android {
     namespace = "com.kharcha"
     compileSdk = 36
 
-    val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
-    val releaseKeystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-    val releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
-    val releaseKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
-        ?.takeIf { it.isNotBlank() }
+    val keystorePropFile = rootProject.file("keystore.properties").takeIf { it.exists() }
+        ?: rootProject.file("key.properties").takeIf { it.exists() }
+    val signingProps = java.util.Properties().apply {
+        if (keystorePropFile != null) {
+            load(java.io.FileInputStream(keystorePropFile))
+        }
+    }
+
+    val releaseKeystorePath = signingProps.getProperty("storeFile")
+        ?: (project.findProperty("KEYSTORE_PATH") as? String)
+        ?: System.getenv("ANDROID_KEYSTORE_PATH")
+        ?: System.getenv("KEYSTORE_PATH")
+    val releaseKeystorePassword = signingProps.getProperty("storePassword")
+        ?: (project.findProperty("KEYSTORE_PASSWORD") as? String)
+        ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+        ?: System.getenv("KEYSTORE_PASSWORD")
+    val releaseKeyAlias = signingProps.getProperty("keyAlias")
+        ?: (project.findProperty("KEY_ALIAS") as? String)
+        ?: System.getenv("ANDROID_KEY_ALIAS")
+        ?: System.getenv("KEY_ALIAS")
+    val releaseKeyPassword = signingProps.getProperty("keyPassword")
+        ?: (project.findProperty("KEY_PASSWORD") as? String)
+        ?: System.getenv("ANDROID_KEY_PASSWORD")
+        ?: System.getenv("KEY_PASSWORD")
         ?: releaseKeystorePassword
     val hasReleaseSigning = listOf(
         releaseKeystorePath,
         releaseKeystorePassword,
         releaseKeyAlias,
         releaseKeyPassword,
-    ).all { !it.isNullOrBlank() }
+    ).all { !it.isNullOrBlank() } && releaseKeystorePath?.let {
+        (if (file(it).isAbsolute) file(it) else rootProject.file(it)).exists()
+    } == true
 
     signingConfigs {
         if (hasReleaseSigning) {
             create("release") {
-                storeFile = file(requireNotNull(releaseKeystorePath))
+                val resolvedStore = releaseKeystorePath?.let {
+                    if (file(it).isAbsolute) file(it) else rootProject.file(it)
+                }
+                storeFile = resolvedStore
                 storePassword = requireNotNull(releaseKeystorePassword)
                 keyAlias = requireNotNull(releaseKeyAlias)
                 keyPassword = requireNotNull(releaseKeyPassword)
@@ -34,11 +58,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.kharcha"
+        applicationId = "com.evertrail.kharcha"
         minSdk = 26
         targetSdk = 36
         versionCode = providers.gradleProperty("appVersionCode").orNull?.toIntOrNull() ?: 1
-        versionName = providers.gradleProperty("appVersionName").orNull ?: "1.0"
+        versionName = providers.gradleProperty("appVersionName").orNull ?: "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

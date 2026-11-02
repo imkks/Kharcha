@@ -26,6 +26,7 @@ captures/
 *.p12
 *.pfx
 key.properties
+keystore.properties
 
 # Logs and temporary files
 *.log

@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -11,9 +14,9 @@ android {
 
     val keystorePropFile = rootProject.file("keystore.properties").takeIf { it.exists() }
         ?: rootProject.file("key.properties").takeIf { it.exists() }
-    val signingProps = java.util.Properties().apply {
+    val signingProps = Properties().apply {
         if (keystorePropFile != null) {
-            load(java.io.FileInputStream(keystorePropFile))
+            load(FileInputStream(keystorePropFile))
         }
     }
 

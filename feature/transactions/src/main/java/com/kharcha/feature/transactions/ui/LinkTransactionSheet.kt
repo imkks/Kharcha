@@ -85,9 +85,7 @@ fun LinkTransactionSheet(
                     }
                 } else {
                     if (isLinkingToRefund) {
-                        candidate.type == TransactionType.Income &&
-                            (candidate.categorySource.equals("Refund", ignoreCase = true) ||
-                                TransactionClassifierHelper.isRefundNarrative(candidate.smsBody ?: candidate.note))
+                        candidate.type == TransactionType.Income
                     } else {
                         candidate.type == TransactionType.Expense
                     }
@@ -137,9 +135,9 @@ fun LinkTransactionSheet(
                 stringResource(id = R.string.link_sheet_credit_title)
             }
         } else if (isLinkingToRefund) {
-            stringResource(id = R.string.link_sheet_expense_title)
-        } else {
             stringResource(id = R.string.link_sheet_refund_title)
+        } else {
+            stringResource(id = R.string.link_sheet_expense_title)
         }
 
     ModalBottomSheet(

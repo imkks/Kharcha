@@ -202,14 +202,28 @@ class DefaultTransactionRepository(
             val i1 = current.indexOfFirst { it.id == transactionId }
             if (i1 != -1) {
                 val now = System.currentTimeMillis()
+                val userPrefs = try { DefaultUserPreferences(context) } catch (_: Exception) { null }
                 val t1 = current[i1]
                 val partnerId = t1.linkedTransactionId
-                current[i1] = t1.copy(linkedTransactionId = null, updatedAt = now)
+                val t1Restored = if (t1.type == TransactionType.Income && !t1.isCounted) {
+                    val isExcluded = userPrefs?.isCategoryExcluded(t1.categorySource ?: "", false) ?: false
+                    t1.copy(isCounted = !isExcluded)
+                } else {
+                    t1
+                }
+                current[i1] = t1Restored.copy(linkedTransactionId = null, updatedAt = now)
 
                 if (partnerId != null) {
                     val i2 = current.indexOfFirst { it.id == partnerId }
                     if (i2 != -1) {
-                        current[i2] = current[i2].copy(
+                        val t2 = current[i2]
+                        val t2Restored = if (t2.type == TransactionType.Income && !t2.isCounted) {
+                            val isExcluded = userPrefs?.isCategoryExcluded(t2.categorySource ?: "", false) ?: false
+                            t2.copy(isCounted = !isExcluded)
+                        } else {
+                            t2
+                        }
+                        current[i2] = t2Restored.copy(
                             linkedTransactionId = null,
                             updatedAt = now,
                         )

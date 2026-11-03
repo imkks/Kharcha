@@ -23,6 +23,7 @@ import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.common.NotificationChannels
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.forTotals
 import com.kharcha.core.common.MoneyFormatter
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -55,8 +56,9 @@ class SummaryNotificationWorker @AssistedInject constructor(
         val days = if (weekly) 7 else 1
         val start = now - TimeUnit.DAYS.toMillis(days.toLong())
         val total = repository.getTransactionsSync()
+            .forTotals()
             .asSequence()
-            .filter { it.dateTime in start..now && it.type == TransactionType.Expense && it.isCounted }
+            .filter { it.dateTime in start..now && it.type == TransactionType.Expense }
             .sumOf { it.amount }
         ensureSummaryChannel(applicationContext)
         val openIntent = applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)

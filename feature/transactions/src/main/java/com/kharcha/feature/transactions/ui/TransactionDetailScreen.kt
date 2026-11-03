@@ -678,7 +678,9 @@ fun TransactionDetailScreen(
                     selectedCategory.equals("Refund", ignoreCase = true) ||
                         linkedTxn.categorySource.equals("Refund", ignoreCase = true) ||
                         TransactionClassifierHelper.isRefundNarrative(linkedTxn.smsBody ?: linkedTxn.note) ||
-                        TransactionClassifierHelper.isRefundNarrative(transaction.smsBody ?: transaction.note)
+                        TransactionClassifierHelper.isRefundNarrative(transaction.smsBody ?: transaction.note) ||
+                        (selectedType == TransactionType.Expense && linkedTxn.type == TransactionType.Income) ||
+                        (selectedType == TransactionType.Income && linkedTxn.type == TransactionType.Expense && !transaction.isTransfer && !linkedTxn.isTransfer)
 
                 item {
                     val linkedMerchant =
@@ -1882,10 +1884,10 @@ fun TransactionDetailScreen(
             isCreditTarget = isCreditTxn,
             onLink = { candidate ->
                 val isRefund =
-                    !isTransfer && (selectedCategory.equals("Refund", ignoreCase = true) ||
-                        candidate.categorySource.equals("Refund", ignoreCase = true) ||
-                        TransactionClassifierHelper.isRefundNarrative(candidate.smsBody ?: candidate.note) ||
-                        TransactionClassifierHelper.isRefundNarrative(transaction.smsBody ?: transaction.note))
+                    !isTransfer && (
+                        (transaction.type == TransactionType.Expense && candidate.type == TransactionType.Income) ||
+                            (transaction.type == TransactionType.Income && candidate.type == TransactionType.Expense)
+                    )
                 onLinkTransactions?.invoke(transaction.id, candidate.id, isRefund)
                 showLinkSheet = false
             },
@@ -1960,7 +1962,11 @@ fun TransactionDetailScreen(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = stringResource(id = R.string.detail_menu_link_refund),
+                        text = if (isCreditTxn) {
+                            stringResource(id = R.string.detail_menu_link_expense)
+                        } else {
+                            stringResource(id = R.string.detail_menu_link_refund)
+                        },
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.White,
                     )

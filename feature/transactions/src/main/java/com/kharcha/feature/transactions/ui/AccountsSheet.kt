@@ -47,6 +47,8 @@ import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.buildRefundMap
+import com.kharcha.core.model.forTotals
 import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 
@@ -75,20 +77,24 @@ fun AccountsSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isPrivacy = LocalPrivacyMode.current
 
+    val globalRefundMap = remember(transactions) { transactions.buildRefundMap() }
+    val countedTxns = remember(transactions, globalRefundMap) { transactions.forTotals(globalRefundMap) }
+
     val totalExpense =
-        remember(transactions) {
-            transactions.filter { it.type == TransactionType.Expense && it.isCounted }.sumOf { it.amount }
+        remember(countedTxns) {
+            countedTxns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
         }
 
     val accountOptions =
-        remember(transactions, accounts) {
+        remember(transactions, countedTxns, accounts) {
             if (accounts.isNotEmpty()) {
                 accounts.map { acc ->
                     val linkedIds = accounts.filter { it.linkedPrimaryAccountId == acc.id }.map { it.id }.toSet()
                     val allAssociatedIds = setOf(acc.id) + linkedIds
                     val txns = transactions.filter { it.accountId in allAssociatedIds }
+                    val countedAccTxns = txns.forTotals(globalRefundMap)
                     val expenseSum =
-                        txns.filter { it.type == TransactionType.Expense && it.isCounted }.sumOf { it.amount }
+                        countedAccTxns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
                     AccountOption(
                         key = "acc_${acc.id}",
                         name = acc.name,
@@ -115,7 +121,7 @@ fun AccountsSheet(
                     val accIds = txns.map { it.accountId }.toSet()
                     val channels = txns.mapNotNull { it.channel }.toSet()
                     val expenseSum =
-                        txns.filter { it.type == TransactionType.Expense && it.isCounted }.sumOf { it.amount }
+                        txns.forTotals(globalRefundMap).filter { it.type == TransactionType.Expense }.sumOf { it.amount }
                     AccountOption(
                         key = name,
                         name = name,

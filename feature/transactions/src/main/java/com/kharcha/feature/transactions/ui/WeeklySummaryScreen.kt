@@ -57,6 +57,8 @@ import com.kharcha.core.designsystem.component.HalfRingGauge
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.buildRefundMap
+import com.kharcha.core.model.forTotals
 import com.kharcha.feature.transactions.R
 import java.time.Instant
 import java.time.LocalDate
@@ -97,9 +99,15 @@ fun WeeklySummaryScreen(
             }
         }
 
+    val globalRefundMap = remember(transactions) { transactions.buildRefundMap() }
+    val countedThisWeekTransactions =
+        remember(thisWeekTransactions, globalRefundMap) {
+            thisWeekTransactions.forTotals(globalRefundMap)
+        }
+
     val weekExpenseMinor =
-        remember(thisWeekTransactions) {
-            thisWeekTransactions
+        remember(countedThisWeekTransactions) {
+            countedThisWeekTransactions
                 .filter { it.type == TransactionType.Expense }
                 .sumOf { it.amount }
         }
@@ -118,8 +126,8 @@ fun WeeklySummaryScreen(
 
     // Top 3 merchants for the week
     val topMerchants =
-        remember(thisWeekTransactions, weekExpenseMinor) {
-            thisWeekTransactions
+        remember(countedThisWeekTransactions, weekExpenseMinor) {
+            countedThisWeekTransactions
                 .filter { it.type == TransactionType.Expense }
                 .groupBy { it.merchantNormalised ?: it.merchantRaw ?: "Others" }
                 .mapValues { entry -> entry.value.sumOf { it.amount } }
@@ -138,8 +146,8 @@ fun WeeklySummaryScreen(
         }
 
     val topLocations =
-        remember(thisWeekTransactions) {
-            thisWeekTransactions
+        remember(countedThisWeekTransactions) {
+            countedThisWeekTransactions
                 .filter { it.type == TransactionType.Expense && (it.latitude != null && it.longitude != null || !it.locationLabel.isNullOrBlank()) }
                 .groupBy { transaction ->
                     transaction.locationLabel?.takeIf { it.isNotBlank() }

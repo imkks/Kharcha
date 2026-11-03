@@ -50,6 +50,7 @@ import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.forTotals
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -79,6 +80,7 @@ fun calculateMonthlyComparisonData(
     val startYm = currentYm.minusMonths((monthsCount - 1).toLong())
     val formatter = DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
 
+    val countedTxns = transactions.forTotals()
     val results = mutableListOf<MonthlyComparisonBarData>()
     var cursor = startYm
     while (!cursor.isAfter(currentYm)) {
@@ -96,7 +98,7 @@ fun calculateMonthlyComparisonData(
                 .toInstant()
                 .toEpochMilli()
 
-        val txnsInMonth = transactions.filter { it.dateTime in monthStart..monthEnd }
+        val txnsInMonth = countedTxns.filter { it.dateTime in monthStart..monthEnd }
         val income =
             txnsInMonth
                 .filter { it.type == TransactionType.Income }

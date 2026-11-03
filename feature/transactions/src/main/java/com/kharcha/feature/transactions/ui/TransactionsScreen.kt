@@ -106,6 +106,8 @@ import com.kharcha.core.model.ReviewStatusFilter
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.buildRefundMap
+import com.kharcha.core.model.forTotals
 import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 import java.time.Instant
@@ -310,17 +312,23 @@ fun TransactionsScreen(
             }
         }
 
+    val globalRefundMap = remember(transactions) { transactions.buildRefundMap() }
+    val countedMonthAllTxns =
+        remember(monthAllTransactions, globalRefundMap) {
+            monthAllTransactions.forTotals(globalRefundMap)
+        }
+
     val monthIncome =
-        remember(monthAllTransactions) {
-            monthAllTransactions
-                .filter { it.type == TransactionType.Income && it.isCounted }
+        remember(countedMonthAllTxns) {
+            countedMonthAllTxns
+                .filter { it.type == TransactionType.Income }
                 .sumOf { it.amount }
         }
 
     val monthExpense =
-        remember(monthAllTransactions) {
-            monthAllTransactions
-                .filter { it.type == TransactionType.Expense && it.isCounted }
+        remember(countedMonthAllTxns) {
+            countedMonthAllTxns
+                .filter { it.type == TransactionType.Expense }
                 .sumOf { it.amount }
         }
 
@@ -1149,7 +1157,7 @@ fun CategoriesTabContent(
     onCategoryClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    val expenses = transactions.forTotals().filter { it.type == TransactionType.Expense && it.amount > 0 }
     val totalExpense = expenses.sumOf { it.amount }
     val slices =
         remember(transactions) {
@@ -1504,7 +1512,7 @@ fun MerchantsTabContent(
     onMerchantClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    val expenses = transactions.forTotals().filter { it.type == TransactionType.Expense && it.amount > 0 }
     val isPrivacy = LocalPrivacyMode.current
     val topMerchants =
         remember(expenses) {
@@ -1705,6 +1713,7 @@ fun MonthPickerSheet(
                         }
                     val monthSpent =
                         monthTxns
+                            .forTotals()
                             .filter { it.type == TransactionType.Expense }
                             .sumOf { it.amount }
                     val isPrivacy = LocalPrivacyMode.current
@@ -1803,6 +1812,7 @@ fun DayHeader(
 ) {
     val dayTotalMinor =
         transactions
+            .forTotals()
             .filter { it.type == TransactionType.Expense }
             .sumOf { it.amount }
 

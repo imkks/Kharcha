@@ -77,6 +77,8 @@ import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.buildRefundMap
+import com.kharcha.core.model.forTotals
 import com.kharcha.core.model.isCounted
 import com.kharcha.feature.home.R
 import java.time.Instant
@@ -166,17 +168,23 @@ fun HomeScreen(
             }
         }
 
+    val globalRefundMap = remember(transactions) { transactions.buildRefundMap() }
+    val countedCurrentMonthTxns =
+        remember(currentMonthTransactions, globalRefundMap) {
+            currentMonthTransactions.forTotals(globalRefundMap)
+        }
+
     val spentThisMonth =
-        remember(currentMonthTransactions) {
-            currentMonthTransactions
-                .filter { it.type == TransactionType.Expense && it.isCounted }
+        remember(countedCurrentMonthTxns) {
+            countedCurrentMonthTxns
+                .filter { it.type == TransactionType.Expense }
                 .sumOf { it.amount }
         }
 
     val incomeThisMonth =
-        remember(currentMonthTransactions) {
-            currentMonthTransactions
-                .filter { it.type == TransactionType.Income && it.isCounted }
+        remember(countedCurrentMonthTxns) {
+            countedCurrentMonthTxns
+                .filter { it.type == TransactionType.Income }
                 .sumOf { it.amount }
         }
 
@@ -208,11 +216,10 @@ fun HomeScreen(
     val totalDuesMinor = remember(duesList) { duesList.sumOf { it.amountMinor } }
 
     val unknownSpend =
-        remember(currentMonthTransactions) {
-            currentMonthTransactions
+        remember(countedCurrentMonthTxns) {
+            countedCurrentMonthTxns
                 .filter {
                     it.type == TransactionType.Expense &&
-                        it.isCounted &&
                         (it.categorySource.isNullOrBlank() ||
                             it.categorySource.equals("Unknown", ignoreCase = true) ||
                             it.categorySource.equals("Unknown Category", ignoreCase = true) ||
@@ -222,11 +229,10 @@ fun HomeScreen(
         }
 
     val topSpendCategories =
-        remember(currentMonthTransactions) {
-            currentMonthTransactions
+        remember(countedCurrentMonthTxns) {
+            countedCurrentMonthTxns
                 .filter {
                     it.type == TransactionType.Expense &&
-                        it.isCounted &&
                         !it.categorySource.isNullOrBlank() &&
                         !it.categorySource.equals("Unknown", ignoreCase = true) &&
                         !it.categorySource.equals("Unknown Category", ignoreCase = true) &&

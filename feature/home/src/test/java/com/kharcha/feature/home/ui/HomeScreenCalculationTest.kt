@@ -3,6 +3,8 @@ package com.kharcha.feature.home.ui
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.buildRefundMap
+import com.kharcha.core.model.forTotals
 import com.kharcha.core.model.isCounted
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -283,5 +285,91 @@ class HomeScreenCalculationTest {
         assertEquals(1, creditCardAccounts.size)
         assertEquals(listOf(2L), creditCardAccounts.map { it.id })
         assertEquals(1L, creditCardAccounts.first().linkedPrimaryAccountId)
+    }
+
+    @Test
+    fun testLinkedRefundReducesMonthlySpendWithoutInflatingIncome() {
+        val octEpoch = Instant.parse("2026-10-15T10:00:00Z").toEpochMilli()
+        val expense = Transaction(
+            id = 10L,
+            amount = 1_000_00L,
+            type = TransactionType.Expense,
+            channel = Channel.CARD,
+            dateTime = octEpoch,
+            merchantRaw = "Swiggy",
+            categorySource = "Food",
+            isCounted = true,
+        )
+        val refund = Transaction(
+            id = 11L,
+            amount = 300_00L,
+            type = TransactionType.Income,
+            channel = Channel.UPI,
+            dateTime = octEpoch,
+            merchantRaw = "Swiggy",
+            categorySource = "Food",
+            isCounted = false,
+            linkedTransactionId = 10L,
+        )
+        val salary = Transaction(
+            id = 12L,
+            amount = 50_000_00L,
+            type = TransactionType.Income,
+            channel = Channel.NEFT,
+            dateTime = octEpoch,
+            merchantRaw = "Employer",
+            categorySource = "Salary",
+            isCounted = true,
+        )
+
+        val allTxns = listOf(expense, refund, salary)
+        val refundMap = allTxns.buildRefundMap()
+        val countedCurrentMonth = allTxns.forTotals(refundMap)
+
+        val spentThisMonth = countedCurrentMonth.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+        val incomeThisMonth = countedCurrentMonth.filter { it.type == TransactionType.Income }.sumOf { it.amount }
+
+        // Expense should be reduced by 300_00 to 700_00
+        assertEquals(700_00L, spentThisMonth)
+        // Income should only be salary 50_000_00, NOT 50_300_00
+        assertEquals(50_000_00L, incomeThisMonth)
+    }
+
+    @Test
+    fun testUncountedTransactionsExcludedFromSpendAndIncome() {
+        val octEpoch = Instant.parse("2026-10-15T10:00:00Z").toEpochMilli()
+        val uncountedExpense = Transaction(
+            id = 21L,
+            amount = 500_00L,
+            type = TransactionType.Expense,
+            dateTime = octEpoch,
+            categorySource = "Transfer",
+            isCounted = false,
+        )
+        val uncountedIncome = Transaction(
+            id = 22L,
+            amount = 500_00L,
+            type = TransactionType.Income,
+            dateTime = octEpoch,
+            categorySource = "Transfer",
+            isCounted = false,
+        )
+        val countedExpense = Transaction(
+            id = 23L,
+            amount = 200_00L,
+            type = TransactionType.Expense,
+            dateTime = octEpoch,
+            categorySource = "Food",
+            isCounted = true,
+        )
+
+        val allTxns = listOf(uncountedExpense, uncountedIncome, countedExpense)
+        val countedTxns = allTxns.forTotals()
+
+        val spent = countedTxns.filter { it.type == TransactionType.Expense }.sumOf { it.amount }
+        val income = countedTxns.filter { it.type == TransactionType.Income }.sumOf { it.amount }
+
+        assertEquals(200_00L, spent)
+        assertEquals(0L, income)
     }
 }

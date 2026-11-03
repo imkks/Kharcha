@@ -63,6 +63,7 @@ import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.forTotals
 import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 import java.time.Instant
@@ -536,6 +537,7 @@ fun calculateEntityMonthlySpend(
     val startYm = currentYm.minusMonths((monthsCount - 1).toLong())
     val formatter = DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
 
+    val countedTxns = transactions.forTotals()
     val results = mutableListOf<MonthSpendBarData>()
     var cursor = startYm
     while (!cursor.isAfter(currentYm)) {
@@ -549,7 +551,7 @@ fun calculateEntityMonthlySpend(
                 .toEpochMilli()
 
         val spend =
-            transactions
+            countedTxns
                 .filter { it.dateTime in monthStart..monthEnd && it.type == TransactionType.Expense }
                 .sumOf { it.amount }
 

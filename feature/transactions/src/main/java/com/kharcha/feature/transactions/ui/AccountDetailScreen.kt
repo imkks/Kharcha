@@ -87,6 +87,8 @@ import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.buildRefundMap
+import com.kharcha.core.model.forTotals
 import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 import java.time.Instant
@@ -177,15 +179,19 @@ fun AccountDetailScreen(
         }
     }
 
-    val monthExpensePaise = remember(allMonthTransactions) {
-        allMonthTransactions
-            .filter { it.type == TransactionType.Expense && it.isCounted }
+    val countedAllMonthTxns = remember(allMonthTransactions) {
+        allMonthTransactions.forTotals()
+    }
+
+    val monthExpensePaise = remember(countedAllMonthTxns) {
+        countedAllMonthTxns
+            .filter { it.type == TransactionType.Expense }
             .sumOf { it.amount }
     }
 
-    val monthIncomePaise = remember(allMonthTransactions) {
-        allMonthTransactions
-            .filter { it.type == TransactionType.Income && it.isCounted }
+    val monthIncomePaise = remember(countedAllMonthTxns) {
+        countedAllMonthTxns
+            .filter { it.type == TransactionType.Income }
             .sumOf { it.amount }
     }
 
@@ -620,6 +626,7 @@ fun AccountDetailScreen(
                 TransactionsSubTab.MERCHANTS -> {
                     val merchantList = remember(monthTransactions) {
                         monthTransactions
+                            .forTotals()
                             .filter { it.type == TransactionType.Expense }
                             .groupBy { it.merchantNormalised ?: it.merchantRaw ?: "Unknown" }
                             .map { (merchant, txns) ->

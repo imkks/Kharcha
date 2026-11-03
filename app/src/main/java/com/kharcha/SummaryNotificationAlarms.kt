@@ -18,6 +18,7 @@ import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.NotificationChannels
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.forTotals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -73,8 +74,8 @@ internal fun publishSummary(context: Context, weekly: Boolean, transactions: Lis
     val now = System.currentTimeMillis()
     val days = if (weekly) 7 else 1
     val start = now - TimeUnit.DAYS.toMillis(days.toLong())
-    val total = transactions.asSequence()
-        .filter { it.dateTime in start..now && it.type == TransactionType.Expense && it.isCounted }
+    val total = transactions.forTotals().asSequence()
+        .filter { it.dateTime in start..now && it.type == TransactionType.Expense }
         .sumOf { it.amount }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(

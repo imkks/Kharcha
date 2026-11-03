@@ -25,6 +25,8 @@
     <string name="settings_hide_sms_title">Hide default SMS notifications</string>
     <string name="settings_hide_sms_desc">Requires notification access to dismiss alerts from your SMS app</string>
     <string name="settings_daily_summary_title">Daily summary</string>
+    <string name="settings_daily_summary_subtitle">Recap today\'s spend at 9:00 PM</string>
+    <string name="settings_weekly_summary_subtitle">Recap this week\'s spend on Sunday</string>
     <string name="settings_daily_summary_time">Daily summary time</string>
     <string name="settings_weekly_summary_time">Weekly summary time</string>
     <string name="settings_bill_reminders">Bill reminders</string>

@@ -170,7 +170,6 @@ class SmsReceiver : BroadcastReceiver() {
                         val preferences = DefaultUserPreferences(context)
                         if (!alreadySaved &&
                             preferences.isExpenseNotificationsEnabled &&
-                            txn.type == TransactionType.Expense &&
                             txn.isCounted
                         ) {
                             val accountDescription =

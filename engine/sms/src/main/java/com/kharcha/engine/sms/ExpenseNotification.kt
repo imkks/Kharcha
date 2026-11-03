@@ -29,7 +29,6 @@ class ExpenseNotification(
         accountDescription: String,
         hideAmount: Boolean = false,
     ) {
-        if (transaction.type != TransactionType.Expense) return
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -37,20 +36,31 @@ class ExpenseNotification(
         ) return
 
         createChannel()
+        val isIncome = transaction.type == TransactionType.Income
+        val title = when {
+            hideAmount && isIncome -> context.getString(R.string.income_notification_hidden_title, merchant)
+            hideAmount -> context.getString(R.string.expense_notification_hidden_title, merchant)
+            isIncome -> context.getString(
+                R.string.income_notification_title,
+                formatAmount(transaction.amount),
+                merchant,
+            )
+            else -> context.getString(
+                R.string.expense_notification_title,
+                formatAmount(transaction.amount),
+                merchant,
+            )
+        }
+        val dismissLabel = if (isIncome) {
+            context.getString(R.string.income_notification_not_income)
+        } else {
+            context.getString(R.string.expense_notification_not_expense)
+        }
+
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle(
-                    if (hideAmount) {
-                        context.getString(R.string.expense_notification_hidden_title, merchant)
-                    } else {
-                        context.getString(
-                            R.string.expense_notification_title,
-                            formatAmount(transaction.amount),
-                            merchant,
-                        )
-                    },
-                )
+                .setContentTitle(title)
                 .setContentText(context.getString(R.string.expense_notification_body, categoryName, accountDescription))
                 .setStyle(
                     NotificationCompat.BigTextStyle()
@@ -73,7 +83,7 @@ class ExpenseNotification(
                     )
                     addAction(
                         0,
-                        context.getString(R.string.expense_notification_not_expense),
+                        dismissLabel,
                         pendingIntent(notExpenseIntent(transaction.id), transaction.id, 2),
                     )
                     addAction(

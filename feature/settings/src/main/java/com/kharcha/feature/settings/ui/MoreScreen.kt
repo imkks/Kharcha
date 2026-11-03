@@ -2,12 +2,10 @@ package com.kharcha.feature.settings.ui
 
 import android.app.KeyguardManager
 import android.app.NotificationManager
-import android.app.AlarmManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
-import android.app.TimePickerDialog
 import android.os.Build
 import android.provider.Settings
 import androidx.biometric.BiometricManager
@@ -1690,10 +1688,7 @@ fun MoreScreen(
         var isNotifsEnabled by remember { mutableStateOf(userPreferences.isExpenseNotificationsEnabled) }
         var hideSmsNotifications by remember { mutableStateOf(userPreferences.hideDefaultSmsNotifications) }
         var dailySummary by remember { mutableStateOf(userPreferences.isDailySummaryEnabled) }
-        var dailyTime by remember { mutableIntStateOf(userPreferences.dailySummaryMinuteOfDay) }
         var weeklySummary by remember { mutableStateOf(userPreferences.isWeeklySummaryEnabled) }
-        var weeklyTime by remember { mutableIntStateOf(userPreferences.weeklySummaryMinuteOfDay) }
-        var billReminders by remember { mutableStateOf(userPreferences.isBillReminderEnabled) }
         val context = LocalContext.current
         val notificationsAllowed = NotificationManagerCompat.from(context).areNotificationsEnabled()
         val summaryChannelAllowed =
@@ -1701,20 +1696,21 @@ fun MoreScreen(
                 context.getSystemService(NotificationManager::class.java)
                     ?.getNotificationChannel(NotificationChannels.SPEND_SUMMARIES)
                     ?.importance != NotificationManager.IMPORTANCE_NONE
-        val exactSummaryTimeAllowed =
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
-                context.getSystemService(AlarmManager::class.java)?.canScheduleExactAlarms() == true
-        fun timeLabel(minutes: Int): String = String.format(Locale.getDefault(), "%02d:%02d", minutes / 60, minutes % 60)
         AlertDialog(
             onDismissRequest = { showNotificationsDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_notifications_reminders_title)) },
             text = {
                 Column(
-                    modifier = Modifier.height(520.dp).verticalScroll(rememberScrollState()),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    SettingsToggleRow(stringResource(R.string.settings_expense_notifications_title), stringResource(R.string.settings_expense_notifications_subtitle), isNotifsEnabled) {
-                        isNotifsEnabled = it; userPreferences.isExpenseNotificationsEnabled = it
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_expense_notifications_title),
+                        stringResource(R.string.settings_expense_notifications_subtitle),
+                        isNotifsEnabled,
+                    ) {
+                        isNotifsEnabled = it
+                        userPreferences.isExpenseNotificationsEnabled = it
                     }
                     SettingsValueRow(
                         title = stringResource(R.string.settings_notification_permission_title),
@@ -1727,20 +1723,6 @@ fun MoreScreen(
                             Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                                 .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
                         )
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        SettingsValueRow(
-                            title = stringResource(R.string.settings_exact_summary_time_title),
-                            value = stringResource(
-                                if (exactSummaryTimeAllowed) R.string.settings_exact_summary_time_allowed
-                                else R.string.settings_exact_summary_time_blocked,
-                            ),
-                        ) {
-                            context.startActivity(
-                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                                    .setData(Uri.parse("package:${context.packageName}")),
-                            )
-                        }
                     }
                     SettingsValueRow(
                         title = stringResource(R.string.settings_summary_channel_title),
@@ -1757,7 +1739,11 @@ fun MoreScreen(
                             )
                         }
                     }
-                    SettingsToggleRow(stringResource(R.string.settings_hide_sms_title), stringResource(R.string.settings_hide_sms_desc), hideSmsNotifications) {
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_hide_sms_title),
+                        stringResource(R.string.settings_hide_sms_desc),
+                        hideSmsNotifications,
+                    ) {
                         if (it) {
                             userPreferences.hideDefaultSmsNotifications = true
                             hideSmsNotifications = true
@@ -1767,20 +1753,23 @@ fun MoreScreen(
                             userPreferences.hideDefaultSmsNotifications = false
                         }
                     }
-                    SettingsToggleRow(stringResource(R.string.settings_daily_summary_title), stringResource(R.string.settings_toggle_status, if (dailySummary) stringResource(R.string.settings_on) else stringResource(R.string.settings_off)), dailySummary) {
-                        dailySummary = it; userPreferences.isDailySummaryEnabled = it; onNotificationSettingsChanged()
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_daily_summary_title),
+                        stringResource(R.string.settings_daily_summary_subtitle),
+                        dailySummary,
+                    ) {
+                        dailySummary = it
+                        userPreferences.isDailySummaryEnabled = it
+                        onNotificationSettingsChanged()
                     }
-                    SettingsValueRow(stringResource(R.string.settings_daily_summary_time), timeLabel(dailyTime)) {
-                        TimePickerDialog(context, { _, hour, minute -> dailyTime = hour * 60 + minute; userPreferences.dailySummaryMinuteOfDay = dailyTime; onNotificationSettingsChanged() }, dailyTime / 60, dailyTime % 60, false).show()
-                    }
-                    SettingsToggleRow(stringResource(R.string.settings_weekly_summary_title), stringResource(R.string.settings_toggle_status, if (weeklySummary) stringResource(R.string.settings_on) else stringResource(R.string.settings_off)), weeklySummary) {
-                        weeklySummary = it; userPreferences.isWeeklySummaryEnabled = it; onNotificationSettingsChanged()
-                    }
-                    SettingsValueRow(stringResource(R.string.settings_weekly_summary_time), timeLabel(weeklyTime)) {
-                        TimePickerDialog(context, { _, hour, minute -> weeklyTime = hour * 60 + minute; userPreferences.weeklySummaryMinuteOfDay = weeklyTime; onNotificationSettingsChanged() }, weeklyTime / 60, weeklyTime % 60, false).show()
-                    }
-                    SettingsValueRow(stringResource(R.string.settings_bill_reminders), stringResource(R.string.settings_bill_reminders_desc)) {
-                        billReminders = !billReminders; userPreferences.isBillReminderEnabled = billReminders
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_weekly_summary_title),
+                        stringResource(R.string.settings_weekly_summary_subtitle),
+                        weeklySummary,
+                    ) {
+                        weeklySummary = it
+                        userPreferences.isWeeklySummaryEnabled = it
+                        onNotificationSettingsChanged()
                     }
                 }
             },

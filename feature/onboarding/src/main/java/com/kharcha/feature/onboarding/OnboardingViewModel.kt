@@ -224,7 +224,8 @@ class OnboardingViewModel
                             val isTransfer = !isCardBill && (category.equals("Transfer", ignoreCase = true) || category.equals("A/C Transfer", ignoreCase = true))
                             val isCounted = !isCardBill && !isTransfer
                             val isHighConf = (parsedTxn.confidence >= 0.8f) && (rawMerchant != null)
-                            val isReviewed = isUserCategorized || (isHighConf && category != "Other")
+                            val isReviewed = isUserCategorized ||
+                                (isHighConf && !category.equals("Unknown", ignoreCase = true) && !category.equals("Unknown Category", ignoreCase = true))
 
                             val accountId =
                                 try {

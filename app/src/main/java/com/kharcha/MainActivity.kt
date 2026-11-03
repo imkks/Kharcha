@@ -788,7 +788,14 @@ fun MainAppShell(
     }
 
     if (showReviewQueue) {
-        val unreviewed = remember(transactions) { transactions.filter { !it.isReviewed } }
+        val unreviewed = remember(transactions) {
+            transactions.filter {
+                !it.isReviewed ||
+                    it.categorySource.isNullOrBlank() ||
+                    it.categorySource.equals("Unknown", ignoreCase = true) ||
+                    it.categorySource.equals("Unknown Category", ignoreCase = true)
+            }
+        }
         ReviewQueueScreen(
             unreviewedTransactions = unreviewed,
             onCategorize = { txn, category, propagate ->
@@ -808,10 +815,11 @@ fun MainAppShell(
                     } else {
                         val isTransferCat = category.equals("Transfer", ignoreCase = true) ||
                             category.equals("A/C Transfer", ignoreCase = true)
+                        val isExcluded = userPreferences.isCategoryExcluded(category, txn.type == TransactionType.Expense)
                         transactionRepository.updateTransaction(
                             txn.copy(
                                 categorySource = category,
-                                isCounted = !isTransferCat,
+                                isCounted = !isTransferCat && !isExcluded,
                                 isReviewed = true,
                             ),
                         )

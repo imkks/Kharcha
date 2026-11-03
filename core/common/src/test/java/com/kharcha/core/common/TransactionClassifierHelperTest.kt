@@ -253,6 +253,9 @@ class TransactionClassifierHelperTest {
         assertEquals("Travel", TransactionClassifierHelper.guessCategory("Telangana State Road Tran", isCredit = false))
         assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Auto Debit", isCredit = false))
         assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Bill Payment", isCredit = false))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Bharti Airtel", isCredit = false))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Airtel Recharge", isCredit = false))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Jio Prepaid", isCredit = false))
         assertEquals("Other", TransactionClassifierHelper.guessCategory("SBI ATM", isCredit = false))
         assertEquals("Other", TransactionClassifierHelper.guessCategory("Cash Withdrawal", isCredit = false))
 

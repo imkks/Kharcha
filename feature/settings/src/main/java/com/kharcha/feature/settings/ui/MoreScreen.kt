@@ -1129,6 +1129,7 @@ fun MoreScreen(
 
     // 5. Spend Categories Sheet
     if (showSpendCategoriesSheet) {
+        val excludedSpend = remember(categoriesRevision) { userPreferences.getExcludedExpenseCategories() }
         CategoriesManagerSheet(
             title = stringResource(id = R.string.settings_spend_categories_title),
             allCategories = allSpendCategories,
@@ -1139,23 +1140,47 @@ fun MoreScreen(
                 categoriesRevision++
             },
             onDismiss = { showSpendCategoriesSheet = false },
+            excludedCategories = excludedSpend,
+            onToggleExclude = { cat, excluded ->
+                userPreferences.setCategoryExcludedFromExpense(cat, excluded)
+                categoriesRevision++
+            },
         )
     }
 
     // 6. Add Spend Category Dialog
     if (showAddSpendCategoryDialog) {
         var catInput by remember { mutableStateOf("") }
+        var excludeExpense by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showAddSpendCategoryDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_add_category)) },
             text = {
-                OutlinedTextField(
-                    value = catInput,
-                    onValueChange = { catInput = it },
-                    label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = catInput,
+                        onValueChange = { catInput = it },
+                        label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.settings_exclude_from_expense_label),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.financialColors.textPrimary,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        )
+                        Switch(
+                            checked = excludeExpense,
+                            onCheckedChange = { excludeExpense = it },
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Button(
@@ -1163,6 +1188,9 @@ fun MoreScreen(
                         val trimmed = catInput.trim()
                         if (trimmed.isNotBlank()) {
                             userPreferences.addCustomSpendCategory(trimmed)
+                            if (excludeExpense) {
+                                userPreferences.setCategoryExcludedFromExpense(trimmed, true)
+                            }
                             categoriesRevision++
                         }
                         showAddSpendCategoryDialog = false
@@ -1186,6 +1214,7 @@ fun MoreScreen(
 
     // 7. Credit Categories Sheet
     if (showCreditCategoriesSheet) {
+        val excludedCredit = remember(categoriesRevision) { userPreferences.getExcludedIncomeCategories() }
         CategoriesManagerSheet(
             title = stringResource(id = R.string.settings_credit_categories_title),
             allCategories = allCreditCategories,
@@ -1196,23 +1225,47 @@ fun MoreScreen(
                 categoriesRevision++
             },
             onDismiss = { showCreditCategoriesSheet = false },
+            excludedCategories = excludedCredit,
+            onToggleExclude = { cat, excluded ->
+                userPreferences.setCategoryExcludedFromIncome(cat, excluded)
+                categoriesRevision++
+            },
         )
     }
 
     // 8. Add Credit Category Dialog
     if (showAddCreditCategoryDialog) {
         var catInput by remember { mutableStateOf("") }
+        var excludeIncome by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showAddCreditCategoryDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_add_category)) },
             text = {
-                OutlinedTextField(
-                    value = catInput,
-                    onValueChange = { catInput = it },
-                    label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = catInput,
+                        onValueChange = { catInput = it },
+                        label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.settings_exclude_from_income_label),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.financialColors.textPrimary,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        )
+                        Switch(
+                            checked = excludeIncome,
+                            onCheckedChange = { excludeIncome = it },
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Button(
@@ -1220,6 +1273,9 @@ fun MoreScreen(
                         val trimmed = catInput.trim()
                         if (trimmed.isNotBlank()) {
                             userPreferences.addCustomCreditCategory(trimmed)
+                            if (excludeIncome) {
+                                userPreferences.setCategoryExcludedFromIncome(trimmed, true)
+                            }
                             categoriesRevision++
                         }
                         showAddCreditCategoryDialog = false
@@ -2179,6 +2235,8 @@ private fun CategoriesManagerSheet(
     onAddCategoryClick: () -> Unit,
     onDeleteCustomCategory: (String) -> Unit,
     onDismiss: () -> Unit,
+    excludedCategories: Set<String> = emptySet(),
+    onToggleExclude: ((String, Boolean) -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -2259,28 +2317,50 @@ private fun CategoriesManagerSheet(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false),
+                            ) {
                                 CategoryBadge(categoryName = cat, size = 28.dp)
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = cat,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White,
-                                )
-                            }
-                            if (isCustom) {
-                                IconButton(
-                                    onClick = { onDeleteCustomCategory(cat) },
-                                    modifier = Modifier.size(28.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription =
-                                            stringResource(id = R.string.settings_delete_category_title),
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(18.dp),
+                                Column {
+                                    Text(
+                                        text = cat,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White,
                                     )
+                                    if (excludedCategories.any { it.equals(cat, ignoreCase = true) }) {
+                                        Text(
+                                            text = stringResource(id = R.string.settings_category_not_counted_badge),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.financialColors.warning,
+                                        )
+                                    }
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (onToggleExclude != null && isCustom) {
+                                    val isExcluded = excludedCategories.any { it.equals(cat, ignoreCase = true) }
+                                    Switch(
+                                        checked = isExcluded,
+                                        onCheckedChange = { checked -> onToggleExclude(cat, checked) },
+                                        modifier = Modifier.padding(end = 4.dp),
+                                    )
+                                }
+                                if (isCustom) {
+                                    IconButton(
+                                        onClick = { onDeleteCustomCategory(cat) },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription =
+                                                stringResource(id = R.string.settings_delete_category_title),
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
                                 }
                             }
                         }

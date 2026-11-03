@@ -885,23 +885,23 @@ object SharedCategoryMapping {
     )
 
     private val RULES: List<Rule> = listOf(
-        Rule("Tax", TAX),
-        Rule("Bank Charges", BANK_CHARGE),
+        Rule("Bills & Utilities", TAX),
+        Rule("Bills & Utilities", BANK_CHARGE),
         Rule("Credit Card Payment", CC_PAYMENT),
         Rule("Food & Dining", FOOD),
         Rule("Groceries", GROCERY),
-        Rule("Transportation", TRANSPORT),
+        Rule("Travel", TRANSPORT),
         Rule("Shopping", SHOPPING + SHOPPING_EXTENDED, SHOPPING_EXCLUDE),
         Rule("Bills & Utilities", UTILITIES),
         Rule("Entertainment", ENTERTAINMENT),
-        Rule("Healthcare", HEALTHCARE),
+        Rule("Health", HEALTHCARE),
         Rule("Investments", INVESTMENT),
-        Rule("Banking", BANKING),
-        Rule("Personal Care", PERSONAL_CARE),
-        Rule("Education", EDUCATION),
-        Rule("Mobile", MOBILE),
-        Rule("Fitness", FITNESS),
-        Rule("Insurance", INSURANCE),
+        Rule("Bills & Utilities", BANKING),
+        Rule("Health", PERSONAL_CARE),
+        Rule("Bills & Utilities", EDUCATION),
+        Rule("Bills & Utilities", MOBILE),
+        Rule("Health", FITNESS),
+        Rule("Bills & Utilities", INSURANCE),
         Rule("Travel", TRAVEL),
     )
 

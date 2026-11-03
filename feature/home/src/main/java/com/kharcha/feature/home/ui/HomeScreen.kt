@@ -213,7 +213,10 @@ fun HomeScreen(
                 .filter {
                     it.type == TransactionType.Expense &&
                         it.isCounted &&
-                        (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed)
+                        (it.categorySource.isNullOrBlank() ||
+                            it.categorySource.equals("Unknown", ignoreCase = true) ||
+                            it.categorySource.equals("Unknown Category", ignoreCase = true) ||
+                            !it.isReviewed)
                 }
                 .sumOf { it.amount }
         }
@@ -224,10 +227,12 @@ fun HomeScreen(
                 .filter {
                     it.type == TransactionType.Expense &&
                         it.isCounted &&
-                        it.categorySource != "Unknown" &&
-                        it.categorySource != "Other"
+                        !it.categorySource.isNullOrBlank() &&
+                        !it.categorySource.equals("Unknown", ignoreCase = true) &&
+                        !it.categorySource.equals("Unknown Category", ignoreCase = true) &&
+                        it.isReviewed
                 }
-                .groupBy { it.categorySource ?: "Others" }
+                .groupBy { it.categorySource ?: "Other" }
                 .mapValues { entry -> entry.value.sumOf { it.amount } }
                 .toList()
                 .sortedByDescending { it.second }

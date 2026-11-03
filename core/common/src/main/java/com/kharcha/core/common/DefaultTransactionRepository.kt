@@ -143,11 +143,16 @@ class DefaultTransactionRepository(
 
                 if (matches) {
                     val targetType = newType ?: t.type
+                    val isTransferCat = newCategory.equals("Transfer", ignoreCase = true) ||
+                        newCategory.equals("A/C Transfer", ignoreCase = true)
+                    val isExcluded = userPreferences?.isCategoryExcluded(newCategory, targetType == TransactionType.Expense) ?: false
+                    val isCounted = !isTransferCat && !isExcluded
 
                     current[i] =
                         t.copy(
                             categorySource = newCategory,
                             type = targetType,
+                            isCounted = isCounted,
                             isReviewed = true,
                             updatedAt = now,
                         )

@@ -86,6 +86,9 @@
     <string name="settings_account_saved">Account saved successfully</string>
     <string name="settings_rule_saved">Merchant rule saved</string>
     <string name="settings_category_saved">Category added</string>
+    <string name="settings_exclude_from_expense_label">Exclude from Expense totals</string>
+    <string name="settings_exclude_from_income_label">Exclude from Income totals</string>
+    <string name="settings_category_not_counted_badge">Not counted</string>
     <string name="settings_rules_search_hint">Search rules...</string>
     <string name="settings_rules_no_match">No matching rules found</string>
     <string name="settings_categories_empty">No custom categories created yet.</string>

@@ -22,6 +22,8 @@ class UserPreferencesTest {
     fun setUp() {
         every { context.getSharedPreferences("kharcha_user_prefs", Context.MODE_PRIVATE) } returns sharedPreferences
         every { sharedPreferences.edit() } returns editor
+        every { sharedPreferences.getString("key_excluded_expense_categories_json", null) } returns null
+        every { sharedPreferences.getString("key_excluded_income_categories_json", null) } returns null
         userPreferences = DefaultUserPreferences(context)
     }
 
@@ -161,6 +163,27 @@ class UserPreferencesTest {
 
         userPreferences.addCustomCreditCategory("Crypto Dividend")
         verify { editor.putString("key_custom_credit_categories_json", any()) }
+    }
+
+    @Test
+    fun testExcludedCategories() {
+        every { sharedPreferences.getString("key_excluded_expense_categories_json", null) } returns null
+        assertTrue(userPreferences.getExcludedExpenseCategories().isEmpty())
+        assertFalse(userPreferences.isCategoryExcluded("Transfer", isExpense = true))
+
+        userPreferences.setCategoryExcludedFromExpense("Investments", true)
+        verify { editor.putString("key_excluded_expense_categories_json", any()) }
+
+        every { sharedPreferences.getString("key_excluded_expense_categories_json", null) } returns
+            """["Investments","Personal Loan"]"""
+        assertTrue(userPreferences.isCategoryExcluded("investments", isExpense = true))
+        assertTrue(userPreferences.isCategoryExcluded("Personal Loan", isExpense = true))
+        assertFalse(userPreferences.isCategoryExcluded("Food", isExpense = true))
+
+        every { sharedPreferences.getString("key_excluded_income_categories_json", null) } returns
+            """["Transfer"]"""
+        assertTrue(userPreferences.isCategoryExcluded("transfer", isExpense = false))
+        assertFalse(userPreferences.isCategoryExcluded("Salary", isExpense = false))
     }
 
     @Test

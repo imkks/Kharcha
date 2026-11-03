@@ -158,25 +158,48 @@ class HomeScreenCalculationTest {
                 categorySource = "Shopping",
                 isReviewed = true,
             ),
+            Transaction(
+                id = 5L,
+                amount = 1_500_00L,
+                type = TransactionType.Expense,
+                channel = Channel.UPI,
+                dateTime = Instant.parse("2026-10-19T16:00:00Z").toEpochMilli(),
+                categorySource = "Other",
+                isReviewed = true,
+            ),
         )
 
         val unknownSpend = transactions
-            .filter { it.type == TransactionType.Expense && (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed) }
+            .filter {
+                it.type == TransactionType.Expense &&
+                    (it.categorySource.isNullOrBlank() ||
+                        it.categorySource.equals("Unknown", ignoreCase = true) ||
+                        it.categorySource.equals("Unknown Category", ignoreCase = true) ||
+                        !it.isReviewed)
+            }
             .sumOf { it.amount }
         assertEquals(962_00L, unknownSpend)
 
         val topSpendCategories = transactions
-            .filter { it.type == TransactionType.Expense && it.categorySource != "Unknown" && it.categorySource != "Other" }
-            .groupBy { it.categorySource ?: "Others" }
+            .filter {
+                it.type == TransactionType.Expense &&
+                    !it.categorySource.isNullOrBlank() &&
+                    !it.categorySource.equals("Unknown", ignoreCase = true) &&
+                    !it.categorySource.equals("Unknown Category", ignoreCase = true) &&
+                    it.isReviewed
+            }
+            .groupBy { it.categorySource ?: "Other" }
             .mapValues { entry -> entry.value.sumOf { it.amount } }
             .toList()
             .sortedByDescending { it.second }
 
-        assertEquals(2, topSpendCategories.size)
+        assertEquals(3, topSpendCategories.size)
         assertEquals("Shopping", topSpendCategories[0].first)
         assertEquals(32_878_00L, topSpendCategories[0].second)
         assertEquals("Food & Drinks", topSpendCategories[1].first)
         assertEquals(10_290_00L, topSpendCategories[1].second)
+        assertEquals("Other", topSpendCategories[2].first)
+        assertEquals(1_500_00L, topSpendCategories[2].second)
     }
 
     @Test

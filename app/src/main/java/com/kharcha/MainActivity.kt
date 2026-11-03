@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.kharcha.core.common.DefaultAccountRepository
+import com.kharcha.core.common.ImportCsvUseCase
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.RecurringTransactionRepository
 import com.kharcha.core.common.TransactionRepository
@@ -142,6 +143,9 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var recurringTransactionRepository: RecurringTransactionRepository
 
+    @Inject
+    lateinit var importCsvUseCase: ImportCsvUseCase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (userPreferences.isAppLockEnabled || userPreferences.isIncomeHidden) {
@@ -217,6 +221,7 @@ class MainActivity : FragmentActivity() {
                             transactionRepository = transactionRepository,
                             userPreferences = userPreferences,
                             recurringTransactionRepository = recurringTransactionRepository,
+                            importCsvUseCase = importCsvUseCase,
                             notificationTransactionId =
                                 intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
                                     .takeIf { it >= 0L },
@@ -382,6 +387,7 @@ fun MainAppShell(
     transactionRepository: TransactionRepository,
     userPreferences: UserPreferences,
     recurringTransactionRepository: RecurringTransactionRepository,
+    importCsvUseCase: ImportCsvUseCase,
     onRescanSmsInbox: (String) -> Unit,
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
@@ -533,6 +539,29 @@ fun MainAppShell(
                     onToggleRecurringActive = { id, isActive ->
                         scope.launch {
                             recurringTransactionRepository.setActive(id, isActive)
+                        }
+                    },
+                    onImportCsv = { uri ->
+                        scope.launch {
+                            when (val result = importCsvUseCase.execute(uri)) {
+                                is ImportCsvUseCase.Result.Success -> {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(
+                                            R.string.import_csv_success,
+                                            result.imported,
+                                            result.skippedDuplicate,
+                                        ),
+                                    )
+                                }
+                                is ImportCsvUseCase.Result.Error -> {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(
+                                            R.string.import_csv_error,
+                                            result.message,
+                                        ),
+                                    )
+                                }
+                            }
                         }
                     },
                     userPreferences = userPreferences,
@@ -988,6 +1017,7 @@ fun BoxDestinationContent(
     onSaveRecurringTransaction: (RecurringTransaction) -> Unit = {},
     onDeleteRecurringTransaction: (Long) -> Unit = {},
     onToggleRecurringActive: (Long, Boolean) -> Unit = { _, _ -> },
+    onImportCsv: (Uri) -> Unit = {},
     userPreferences: UserPreferences,
     showLocationPermissionAlert: Boolean = false,
     onCheckLocationPermission: () -> Unit = {},
@@ -1132,6 +1162,7 @@ fun BoxDestinationContent(
                 onSaveRecurringTransaction = onSaveRecurringTransaction,
                 onDeleteRecurringTransaction = onDeleteRecurringTransaction,
                 onToggleRecurringActive = onToggleRecurringActive,
+                onImportCsv = onImportCsv,
                 userPreferences = userPreferences,
                 onRescanSmsInbox = onRescanSmsInbox,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },

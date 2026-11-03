@@ -214,4 +214,10 @@
     <string name="recurring_day_of_week_any">Any</string>
     <string name="recurring_field_note">Note (optional)</string>
     <string name="recurring_field_active">Active</string>
+
+    <!-- CSV Import -->
+    <string name="settings_import_statement_title">Import statement (CSV)</string>
+    <string name="settings_import_statement_subtitle">Import transactions from a CSV file</string>
+    <string name="import_csv_success">Imported %1$d transactions (%2$d duplicates skipped)</string>
+    <string name="import_csv_error">Import failed: %1$s</string>
 </resources>

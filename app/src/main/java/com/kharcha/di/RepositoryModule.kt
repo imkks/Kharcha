@@ -1,9 +1,11 @@
 package com.kharcha.di
 
 import android.content.Context
+import com.kharcha.core.common.CsvTransactionImporter
 import com.kharcha.core.common.DefaultRecurringTransactionRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
+import com.kharcha.core.common.ImportCsvUseCase
 import com.kharcha.core.common.RecurringTransactionRepository
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
@@ -36,5 +38,21 @@ object RepositoryModule {
         transactionRepository: TransactionRepository,
     ): RecurringTransactionRepository {
         return DefaultRecurringTransactionRepository(context, transactionRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCsvTransactionImporter(): CsvTransactionImporter {
+        return CsvTransactionImporter()
+    }
+
+    @Provides
+    @Singleton
+    fun provideImportCsvUseCase(
+        @ApplicationContext context: Context,
+        importer: CsvTransactionImporter,
+        transactionRepository: TransactionRepository,
+    ): ImportCsvUseCase {
+        return ImportCsvUseCase(context, importer, transactionRepository)
     }
 }

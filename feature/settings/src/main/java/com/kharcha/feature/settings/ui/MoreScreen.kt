@@ -15,6 +15,8 @@ import com.kharcha.core.common.security.AuthenticatorPromptMode
 import com.kharcha.core.common.security.authenticatorPromptMode
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -144,8 +146,16 @@ fun MoreScreen(
     onAccountClick: (Account) -> Unit = {},
     onTransactionClick: (Transaction) -> Unit = {},
     onNotificationSettingsChanged: () -> Unit = {},
+    onImportCsv: (Uri) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val csvPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        if (uri != null) {
+            onImportCsv(uri)
+        }
+    }
     var showPreferencesScreen by remember { mutableStateOf(false) }
     var showRecurringPage by remember { mutableStateOf(false) }
     var showManageAccountsPage by remember { mutableStateOf(false) }
@@ -269,6 +279,17 @@ fun MoreScreen(
             onTagsClick = { showManageTagsSheet = true },
             onNotificationsClick = { showNotificationsDialog = true },
             onBackupClick = { showExportDialog = true },
+            onImportCsvClick = {
+                csvPickerLauncher.launch(
+                    arrayOf(
+                        "text/comma-separated-values",
+                        "text/csv",
+                        "application/csv",
+                        "text/plain",
+                        "*/*",
+                    ),
+                )
+            },
             onSecurityClick = { showSecurityDialog = true },
             onRescanSmsClick = { showRescanSmsDialog = true },
             onBack = { showPreferencesScreen = false },
@@ -432,6 +453,24 @@ fun MoreScreen(
                                 iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_export_statement_title),
                                 onClick = { showExportDialog = true },
+                            )
+                            HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                            SettingsNavRow(
+                                iconRes = DesignR.drawable.ic_arrow_outward,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
+                                title = stringResource(id = R.string.settings_import_statement_title),
+                                subtitle = stringResource(id = R.string.settings_import_statement_subtitle),
+                                onClick = {
+                                    csvPickerLauncher.launch(
+                                        arrayOf(
+                                            "text/comma-separated-values",
+                                            "text/csv",
+                                            "application/csv",
+                                            "text/plain",
+                                            "*/*",
+                                        ),
+                                    )
+                                },
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
@@ -2055,6 +2094,7 @@ private fun PreferencesScreenView(
     onTagsClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
     onBackupClick: () -> Unit = {},
+    onImportCsvClick: () -> Unit = {},
     onSecurityClick: () -> Unit = {},
     onRescanSmsClick: () -> Unit,
     onBack: () -> Unit,
@@ -2221,6 +2261,16 @@ private fun PreferencesScreenView(
                             iconRes = DesignR.drawable.ic_copy,
                             title = stringResource(id = R.string.settings_backup_title),
                             onClick = onBackupClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 11. Import statement
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_arrow_outward,
+                            title = stringResource(id = R.string.settings_import_statement_title),
+                            subtitle = stringResource(id = R.string.settings_import_statement_subtitle),
+                            onClick = onImportCsvClick,
                         )
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)

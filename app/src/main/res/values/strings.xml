@@ -43,4 +43,6 @@
     <string name="more_rules_count">Custom Merchant Rules: %1$d active</string>
     <string name="txn_propagated_toast">Updated %1$d transactions for %2$s</string>
     <string name="row_not_counted">Not counted</string>
+    <string name="import_csv_success">Imported %1$d transactions (%2$d duplicates skipped)</string>
+    <string name="import_csv_error">Import failed: %1$s</string>
 </resources>

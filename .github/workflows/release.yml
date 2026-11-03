@@ -3,6 +3,16 @@ name: Android release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      versionCode:
+        description: 'Version Code (must be higher than current Play Console version)'
+        required: false
+        default: ''
+      versionName:
+        description: 'Version Name (e.g. 1.0.1)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -40,9 +50,28 @@ jobs:
         run: |
           test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "Set ANDROID_KEYSTORE_PASSWORD in GitHub Actions secrets" >&2; exit 1; }
           test -n "$ANDROID_KEY_ALIAS" || { echo "Set ANDROID_KEY_ALIAS in GitHub Actions secrets" >&2; exit 1; }
+          
+          # Determine Version Code & Name
+          INPUT_CODE="${{ github.event.inputs.versionCode }}"
+          INPUT_NAME="${{ github.event.inputs.versionName }}"
+          
+          if [ -n "$INPUT_CODE" ]; then
+            VERSION_CODE="$INPUT_CODE"
+          else
+            VERSION_CODE="$GITHUB_RUN_NUMBER"
+          fi
+          
+          if [ -n "$INPUT_NAME" ]; then
+            VERSION_NAME="$INPUT_NAME"
+          else
+            VERSION_NAME="1.0.$VERSION_CODE"
+          fi
+          
+          echo "Building with versionCode=$VERSION_CODE, versionName=$VERSION_NAME"
+          
           ./gradlew assembleRelease bundleRelease \
-            -PappVersionCode="$GITHUB_RUN_NUMBER" \
-            -PappVersionName="1.0.$GITHUB_RUN_NUMBER"
+            -PappVersionCode="$VERSION_CODE" \
+            -PappVersionName="$VERSION_NAME"
 
       - uses: actions/upload-artifact@v4
         with:

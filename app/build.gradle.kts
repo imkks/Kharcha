@@ -37,22 +37,21 @@ android {
         ?: System.getenv("ANDROID_KEY_PASSWORD")
         ?: System.getenv("KEY_PASSWORD")
         ?: releaseKeystorePassword
+    val resolvedStoreFile = releaseKeystorePath?.let { path ->
+        val candidate = file(path)
+        if (candidate.exists()) candidate else rootProject.file(path)
+    }
+
     val hasReleaseSigning = listOf(
-        releaseKeystorePath,
         releaseKeystorePassword,
         releaseKeyAlias,
         releaseKeyPassword,
-    ).all { !it.isNullOrBlank() } && releaseKeystorePath?.let {
-        (if (file(it).isAbsolute) file(it) else rootProject.file(it)).exists()
-    } == true
+    ).all { !it.isNullOrBlank() } && resolvedStoreFile?.exists() == true
 
     signingConfigs {
         if (hasReleaseSigning) {
             create("release") {
-                val resolvedStore = releaseKeystorePath?.let {
-                    if (file(it).isAbsolute) file(it) else rootProject.file(it)
-                }
-                storeFile = resolvedStore
+                storeFile = resolvedStoreFile
                 storePassword = requireNotNull(releaseKeystorePassword)
                 keyAlias = requireNotNull(releaseKeyAlias)
                 keyPassword = requireNotNull(releaseKeyPassword)

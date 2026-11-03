@@ -20,22 +20,22 @@ android {
         }
     }
 
-    val releaseKeystorePath = signingProps.getProperty("storeFile")
-        ?: (project.findProperty("KEYSTORE_PATH") as? String)
-        ?: System.getenv("ANDROID_KEYSTORE_PATH")
-        ?: System.getenv("KEYSTORE_PATH")
-    val releaseKeystorePassword = signingProps.getProperty("storePassword")
-        ?: (project.findProperty("KEYSTORE_PASSWORD") as? String)
-        ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
-        ?: System.getenv("KEYSTORE_PASSWORD")
-    val releaseKeyAlias = signingProps.getProperty("keyAlias")
-        ?: (project.findProperty("KEY_ALIAS") as? String)
-        ?: System.getenv("ANDROID_KEY_ALIAS")
-        ?: System.getenv("KEY_ALIAS")
-    val releaseKeyPassword = signingProps.getProperty("keyPassword")
-        ?: (project.findProperty("KEY_PASSWORD") as? String)
-        ?: System.getenv("ANDROID_KEY_PASSWORD")
-        ?: System.getenv("KEY_PASSWORD")
+    val releaseKeystorePath = signingProps.getProperty("storeFile")?.takeIf { it.isNotBlank() }
+        ?: (project.findProperty("KEYSTORE_PATH") as? String)?.takeIf { it.isNotBlank() }
+        ?: System.getenv("ANDROID_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
+        ?: System.getenv("KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
+    val releaseKeystorePassword = signingProps.getProperty("storePassword")?.takeIf { it.isNotBlank() }
+        ?: (project.findProperty("KEYSTORE_PASSWORD") as? String)?.takeIf { it.isNotBlank() }
+        ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
+        ?: System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
+    val releaseKeyAlias = signingProps.getProperty("keyAlias")?.takeIf { it.isNotBlank() }
+        ?: (project.findProperty("KEY_ALIAS") as? String)?.takeIf { it.isNotBlank() }
+        ?: System.getenv("ANDROID_KEY_ALIAS")?.takeIf { it.isNotBlank() }
+        ?: System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() }
+    val releaseKeyPassword = signingProps.getProperty("keyPassword")?.takeIf { it.isNotBlank() }
+        ?: (project.findProperty("KEY_PASSWORD") as? String)?.takeIf { it.isNotBlank() }
+        ?: System.getenv("ANDROID_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+        ?: System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() }
         ?: releaseKeystorePassword
     val resolvedStoreFile = releaseKeystorePath?.let { path ->
         val candidate = file(path)
@@ -75,7 +75,12 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("release")
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning != null) {
+                signingConfig = releaseSigning
+            } else if (System.getenv("CI") == "true" || System.getenv("GITHUB_ACTIONS") == "true") {
+                error("Release signing configuration is missing in CI environment! Please verify your GitHub Actions secrets (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS).")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

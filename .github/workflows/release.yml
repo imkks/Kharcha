@@ -69,9 +69,20 @@ jobs:
           
           echo "Building with versionCode=$VERSION_CODE, versionName=$VERSION_NAME"
           
+          KEY_PASS="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
+
           ./gradlew assembleRelease bundleRelease \
+            -PKEYSTORE_PATH="$ANDROID_KEYSTORE_PATH" \
+            -PKEYSTORE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD" \
+            -PKEY_ALIAS="$ANDROID_KEY_ALIAS" \
+            -PKEY_PASSWORD="$KEY_PASS" \
             -PappVersionCode="$VERSION_CODE" \
             -PappVersionName="$VERSION_NAME"
+
+      - name: Verify Bundle Signature
+        run: |
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab || { echo "ERROR: Bundle was built unsigned!" >&2; exit 1; }
+          echo "Bundle signature verified successfully!"
 
       - uses: actions/upload-artifact@v4
         with:

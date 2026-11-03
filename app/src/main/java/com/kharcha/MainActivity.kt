@@ -58,6 +58,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.MoneyFormatter
+import com.kharcha.core.common.RecurringTransactionRepository
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.designsystem.R as DesignR
@@ -73,6 +74,7 @@ import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
 import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
+import com.kharcha.core.model.RecurringTransaction
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
@@ -136,6 +138,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var userPreferences: UserPreferences
+
+    @Inject
+    lateinit var recurringTransactionRepository: RecurringTransactionRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -211,6 +216,7 @@ class MainActivity : FragmentActivity() {
                         MainAppShell(
                             transactionRepository = transactionRepository,
                             userPreferences = userPreferences,
+                            recurringTransactionRepository = recurringTransactionRepository,
                             notificationTransactionId =
                                 intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
                                     .takeIf { it >= 0L },
@@ -375,6 +381,7 @@ private const val APP_UNLOCK_RESUME_RETRY_DELAY_MS = 300L
 fun MainAppShell(
     transactionRepository: TransactionRepository,
     userPreferences: UserPreferences,
+    recurringTransactionRepository: RecurringTransactionRepository,
     onRescanSmsInbox: (String) -> Unit,
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
@@ -383,6 +390,7 @@ fun MainAppShell(
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
+    val recurringTransactions by recurringTransactionRepository.getRecurringTransactions().collectAsState(initial = emptyList())
     val context = LocalContext.current
     val accountRepository = remember { DefaultAccountRepository.getInstance(context) }
     val accounts by accountRepository.getAccounts().collectAsState(initial = emptyList())
@@ -511,6 +519,22 @@ fun MainAppShell(
                     destination = currentDestination,
                     transactions = transactions,
                     accounts = accounts,
+                    recurringTransactions = recurringTransactions,
+                    onSaveRecurringTransaction = { recurring ->
+                        scope.launch {
+                            recurringTransactionRepository.saveRecurringTransaction(recurring)
+                        }
+                    },
+                    onDeleteRecurringTransaction = { id ->
+                        scope.launch {
+                            recurringTransactionRepository.deleteRecurringTransaction(id)
+                        }
+                    },
+                    onToggleRecurringActive = { id, isActive ->
+                        scope.launch {
+                            recurringTransactionRepository.setActive(id, isActive)
+                        }
+                    },
                     userPreferences = userPreferences,
                     showLocationPermissionAlert =
                         locationPermissionIssue != null && dismissedLocationPermissionIssue != locationPermissionIssueKey,
@@ -960,6 +984,10 @@ fun BoxDestinationContent(
     destination: AppDestination,
     transactions: List<Transaction>,
     accounts: List<Account> = emptyList(),
+    recurringTransactions: List<RecurringTransaction> = emptyList(),
+    onSaveRecurringTransaction: (RecurringTransaction) -> Unit = {},
+    onDeleteRecurringTransaction: (Long) -> Unit = {},
+    onToggleRecurringActive: (Long, Boolean) -> Unit = { _, _ -> },
     userPreferences: UserPreferences,
     showLocationPermissionAlert: Boolean = false,
     onCheckLocationPermission: () -> Unit = {},
@@ -1100,6 +1128,10 @@ fun BoxDestinationContent(
             MoreScreen(
                 transactions = transactions,
                 accounts = accounts,
+                recurringTransactions = recurringTransactions,
+                onSaveRecurringTransaction = onSaveRecurringTransaction,
+                onDeleteRecurringTransaction = onDeleteRecurringTransaction,
+                onToggleRecurringActive = onToggleRecurringActive,
                 userPreferences = userPreferences,
                 onRescanSmsInbox = onRescanSmsInbox,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },

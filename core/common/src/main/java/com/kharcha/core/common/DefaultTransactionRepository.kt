@@ -59,7 +59,17 @@ class DefaultTransactionRepository(
     override suspend fun insertTransactions(transactions: List<Transaction>) {
         if (transactions.isEmpty()) return
         withContext(ioDispatcher) {
-            val combined = _transactions.value + transactions
+            val current = _transactions.value
+            val maxId = current.maxOfOrNull { it.id } ?: 0L
+            var nextId = maxId + 1L
+            val assigned = transactions.map { txn ->
+                if (txn.id == 0L) {
+                    txn.copy(id = nextId++)
+                } else {
+                    txn
+                }
+            }
+            val combined = current + assigned
             val deduplicated = deduplicateList(combined).toMutableList()
             reconcileTransfers(deduplicated)
             reconcileRefunds(deduplicated)
@@ -333,7 +343,7 @@ class DefaultTransactionRepository(
         val seenRefs = mutableMapOf<String, Int>()
 
         for (txn in transactions) {
-            val idxById = seenIds[txn.id]
+            val idxById = if (txn.id != 0L) seenIds[txn.id] else null
             val idxByHash = txn.smsHash?.let { seenHashes[it] }
             val ref = txn.refNumber?.trim()
             val bankAccountKey =
@@ -377,7 +387,7 @@ class DefaultTransactionRepository(
             if (!isDuplicate) {
                 val newIdx = result.size
                 result.add(txn)
-                seenIds[txn.id] = newIdx
+                if (txn.id != 0L) seenIds[txn.id] = newIdx
                 txn.smsHash?.let { seenHashes[it] = newIdx }
                 if (refKey != null) seenRefs[refKey] = newIdx
             }

@@ -1,8 +1,10 @@
 package com.kharcha.di
 
 import android.content.Context
+import com.kharcha.core.common.DefaultRecurringTransactionRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
+import com.kharcha.core.common.RecurringTransactionRepository
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
 import dagger.Module
@@ -25,5 +27,14 @@ object RepositoryModule {
     @Singleton
     fun provideUserPreferences(@ApplicationContext context: Context): UserPreferences {
         return DefaultUserPreferences(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideRecurringTransactionRepository(
+        @ApplicationContext context: Context,
+        transactionRepository: TransactionRepository,
+    ): RecurringTransactionRepository {
+        return DefaultRecurringTransactionRepository(context, transactionRepository)
     }
 }

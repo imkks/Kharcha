@@ -15,6 +15,8 @@ class KharchaApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         SummaryNotificationWorker.scheduleAll(this, DefaultUserPreferences(this))
+        RecurringTransactionWorker.enqueuePeriodic(this)
+        RecurringTransactionWorker.enqueueOneShotCatchUp(this)
     }
 
     override val workManagerConfiguration: Configuration

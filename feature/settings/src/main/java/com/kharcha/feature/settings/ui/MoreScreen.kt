@@ -116,6 +116,7 @@ import com.kharcha.core.designsystem.theme.LocalIncomeHidden
 import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
+import com.kharcha.core.model.RecurringTransaction
 import com.kharcha.core.model.Transaction
 import com.kharcha.feature.settings.R
 import java.io.File
@@ -130,6 +131,10 @@ fun MoreScreen(
     modifier: Modifier = Modifier,
     onUpdateMonthlyBudget: (Long) -> Unit = {},
     accounts: List<Account> = emptyList(),
+    recurringTransactions: List<RecurringTransaction> = emptyList(),
+    onSaveRecurringTransaction: (RecurringTransaction) -> Unit = {},
+    onDeleteRecurringTransaction: (Long) -> Unit = {},
+    onToggleRecurringActive: (Long, Boolean) -> Unit = { _, _ -> },
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((primaryAccountId: Long, redundantAccountIds: Set<Long>) -> Unit)? = null,
     onMergeDuplicateAccounts: ((sourceAccountId: Long, targetAccountId: Long) -> Unit)? = null,
@@ -142,6 +147,7 @@ fun MoreScreen(
 ) {
     val context = LocalContext.current
     var showPreferencesScreen by remember { mutableStateOf(false) }
+    var showRecurringPage by remember { mutableStateOf(false) }
     var showManageAccountsPage by remember { mutableStateOf(false) }
     var showLinkAccountsPage by remember { mutableStateOf(false) }
 
@@ -204,7 +210,18 @@ fun MoreScreen(
     var rulesRevision by remember { mutableIntStateOf(0) }
     val rules = remember(rulesRevision, showRulesDialog) { userPreferences.getMerchantCategoryRules() }
 
-    if (showManageAccountsPage) {
+    if (showRecurringPage) {
+        BackHandler { showRecurringPage = false }
+        RecurringTransactionsScreenView(
+            recurringTransactions = recurringTransactions,
+            categories = (allSpendCategories + allCreditCategories).distinct(),
+            onSave = onSaveRecurringTransaction,
+            onDelete = onDeleteRecurringTransaction,
+            onToggleActive = onToggleRecurringActive,
+            onBack = { showRecurringPage = false },
+            modifier = modifier,
+        )
+    } else if (showManageAccountsPage) {
         BackHandler { showManageAccountsPage = false }
         ManageAccountsScreenView(
             accounts = accounts,
@@ -243,6 +260,7 @@ fun MoreScreen(
             userPreferences = userPreferences,
             onManageAccountsClick = { showManageAccountsPage = true },
             onLinkAccountsClick = { showLinkAccountsPage = true },
+            onRecurringPaymentsClick = { showRecurringPage = true },
             onSpendCategoriesClick = { showSpendCategoriesSheet = true },
             onCreditCategoriesClick = { showCreditCategoriesSheet = true },
             onRulesClick = { showRulesDialog = true },
@@ -392,6 +410,14 @@ fun MoreScreen(
                                 iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_preferences_title),
                                 onClick = { showPreferencesScreen = true },
+                            )
+                            HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                            SettingsNavRow(
+                                iconRes = DesignR.drawable.ic_calendar,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
+                                title = stringResource(id = R.string.settings_recurring_payments_title),
+                                subtitle = stringResource(id = R.string.settings_recurring_payments_subtitle),
+                                onClick = { showRecurringPage = true },
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
@@ -2020,6 +2046,7 @@ private fun PreferencesScreenView(
     userPreferences: UserPreferences,
     onManageAccountsClick: () -> Unit,
     onLinkAccountsClick: () -> Unit,
+    onRecurringPaymentsClick: () -> Unit = {},
     onSpendCategoriesClick: () -> Unit,
     onCreditCategoriesClick: () -> Unit,
     onRulesClick: () -> Unit,
@@ -2098,6 +2125,16 @@ private fun PreferencesScreenView(
                             title = stringResource(id = R.string.settings_link_accounts_title),
                             subtitle = stringResource(id = R.string.settings_link_accounts_subtitle),
                             onClick = onLinkAccountsClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 4. Recurring payments
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_calendar,
+                            title = stringResource(id = R.string.settings_recurring_payments_title),
+                            subtitle = stringResource(id = R.string.settings_recurring_payments_subtitle),
+                            onClick = onRecurringPaymentsClick,
                         )
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)

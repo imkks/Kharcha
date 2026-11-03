@@ -176,4 +176,42 @@
     <string name="settings_security_privacy_desc">Hide transaction and balance amounts on dashboard</string>
     <string name="settings_security_offline_notice">Kharcha is strictly 100% offline. Zero data ever leaves your device.</string>
     <string name="settings_tags_empty">No tags found. Add tags like #food or #trip in transaction notes.</string>
+
+    <!-- Recurring payments -->
+    <string name="settings_recurring_payments_title">Recurring payments</string>
+    <string name="settings_recurring_payments_subtitle">Automate recurring expenses and income</string>
+    <string name="recurring_title">Recurring</string>
+    <string name="recurring_back">Back</string>
+    <string name="recurring_add">Add recurring transaction</string>
+    <string name="recurring_empty_title">No recurring transactions</string>
+    <string name="recurring_empty_hint">Schedule cash or manual spend to be added automatically — rent, an allowance, a weekly cleaner.</string>
+    <string name="recurring_section_active">Active</string>
+    <string name="recurring_section_paused">Paused</string>
+    <string name="recurring_frequency_daily">Daily</string>
+    <string name="recurring_frequency_weekly">Weekly</string>
+    <string name="recurring_frequency_monthly">Monthly</string>
+    <string name="recurring_untitled">Untitled</string>
+    <string name="recurring_item_schedule">%1$s · Next %2$s</string>
+    <string name="recurring_more_options">More options</string>
+    <string name="recurring_pause">Pause</string>
+    <string name="recurring_resume">Resume</string>
+    <string name="recurring_edit">Edit</string>
+    <string name="recurring_delete">Delete</string>
+    <string name="recurring_cancel">Cancel</string>
+    <string name="recurring_save">Save</string>
+    <string name="recurring_delete_title">Delete recurring transaction?</string>
+    <string name="recurring_delete_message">\"%1$s\" will stop being added automatically. This cannot be undone.</string>
+    <string name="recurring_editor_new">New recurring</string>
+    <string name="recurring_editor_edit">Edit recurring</string>
+    <string name="recurring_field_name">Name</string>
+    <string name="recurring_field_amount">Amount (₹)</string>
+    <string name="recurring_expense">Expense</string>
+    <string name="recurring_income">Income</string>
+    <string name="recurring_field_category">Category</string>
+    <string name="recurring_field_frequency">Frequency</string>
+    <string name="recurring_field_day_of_month">Day of month (1-31)</string>
+    <string name="recurring_field_day_of_week">Day of week</string>
+    <string name="recurring_day_of_week_any">Any</string>
+    <string name="recurring_field_note">Note (optional)</string>
+    <string name="recurring_field_active">Active</string>
 </resources>

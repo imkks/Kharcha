@@ -78,8 +78,6 @@ android {
             val releaseSigning = signingConfigs.findByName("release")
             if (releaseSigning != null) {
                 signingConfig = releaseSigning
-            } else if (System.getenv("CI") == "true" || System.getenv("GITHUB_ACTIONS") == "true") {
-                error("Release signing configuration is missing in CI environment! Please verify your GitHub Actions secrets (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS).")
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

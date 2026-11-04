@@ -4,8 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
@@ -202,14 +200,6 @@ class SmsReceiver : BroadcastReceiver() {
                     } catch (_: Exception) {
                     }
                 }
-            }
-
-            try {
-                val workRequest =
-                    OneTimeWorkRequestBuilder<ImportWorker>()
-                        .build()
-                WorkManager.getInstance(context).enqueue(workRequest)
-            } catch (_: Throwable) {
             }
         }
     }

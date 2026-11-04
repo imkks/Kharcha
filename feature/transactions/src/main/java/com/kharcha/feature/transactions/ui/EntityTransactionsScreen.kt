@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -86,6 +87,8 @@ fun EntityTransactionsScreen(
     title: String,
     isMerchant: Boolean,
     allTransactions: List<Transaction>,
+    initialMonth: YearMonth? = null,
+    isAllMonthsInitial: Boolean = false,
     onBack: () -> Unit,
     onTransactionClick: (Transaction) -> Unit,
     modifier: Modifier = Modifier,
@@ -121,14 +124,31 @@ fun EntityTransactionsScreen(
             }
         }
 
+    val availableMonths =
+        remember(allTransactions) {
+            val months =
+                allTransactions
+                    .map {
+                        val date = Instant.ofEpochMilli(it.dateTime).atZone(zoneId).toLocalDate()
+                        YearMonth.from(date)
+                    }
+                    .distinct()
+                    .sortedDescending()
+            if (months.isEmpty()) listOf(YearMonth.now()) else months
+        }
+
     val monthlyBarData =
         remember(entityTransactions, latestDate) {
             calculateEntityMonthlySpend(entityTransactions, latestDate, monthsCount = 7, zoneId)
         }
 
     var selectedMonth by rememberSaveable {
-        mutableStateOf<YearMonth?>(YearMonth.from(latestDate))
+        mutableStateOf<YearMonth?>(
+            if (isAllMonthsInitial) null else (initialMonth ?: YearMonth.from(latestDate))
+        )
     }
+
+    var showMonthPickerSheet by remember { mutableStateOf(false) }
 
     val filteredTransactions =
         remember(entityTransactions, selectedMonth) {
@@ -144,7 +164,7 @@ fun EntityTransactionsScreen(
 
     val subtitle =
         if (selectedMonth != null) {
-            selectedMonth!!.format(DateTimeFormatter.ofPattern("MMM", Locale.getDefault()))
+            selectedMonth!!.format(DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault()))
         } else {
             stringResource(id = R.string.entity_screen_all_time)
         }
@@ -163,11 +183,27 @@ fun EntityTransactionsScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF9E9E9E),
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showMonthPickerSheet = true }
+                                .padding(vertical = 2.dp, horizontal = 2.dp),
+                        ) {
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.financialColors.income,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = stringResource(id = R.string.transactions_select_month),
+                                tint = MaterialTheme.financialColors.income,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -274,6 +310,24 @@ fun EntityTransactionsScreen(
                 }
             }
         }
+    }
+
+    if (showMonthPickerSheet) {
+        MonthPickerSheet(
+            availableMonths = availableMonths,
+            selectedYearMonth = selectedMonth ?: (availableMonths.firstOrNull() ?: YearMonth.now()),
+            isAllMonthsSelected = selectedMonth == null,
+            transactions = entityTransactions,
+            onSelectMonth = { ym ->
+                selectedMonth = ym
+                showMonthPickerSheet = false
+            },
+            onSelectAllMonths = {
+                selectedMonth = null
+                showMonthPickerSheet = false
+            },
+            onDismiss = { showMonthPickerSheet = false },
+        )
     }
 }
 

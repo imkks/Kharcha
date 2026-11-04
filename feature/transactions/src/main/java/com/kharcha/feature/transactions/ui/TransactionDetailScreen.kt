@@ -271,7 +271,8 @@ fun TransactionDetailScreen(
     val hasPendingChanges =
         selectedType != transaction.type ||
             selectedCategory != (transaction.categorySource ?: "Other") ||
-            noteText != (transaction.note ?: "")
+            noteText != (transaction.note ?: "") ||
+            isCountedInTotals != transaction.isCounted
 
     val dynamicHeroTint =
         remember(selectedCategory) {

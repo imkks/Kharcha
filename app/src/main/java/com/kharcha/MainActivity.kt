@@ -105,6 +105,8 @@ import kotlinx.coroutines.launch
 data class SelectedEntity(
     val title: String,
     val isMerchant: Boolean,
+    val initialMonth: YearMonth? = null,
+    val isAllMonthsInitial: Boolean = false,
 )
 
 enum class AppDestination(
@@ -576,10 +578,20 @@ fun MainAppShell(
                     onReviewClick = { showReviewQueue = true },
                     onTransactionClick = { txn -> selectedTransactionForDetail = txn },
                     onCategoryClick = { cat ->
-                        selectedEntityForDetail = SelectedEntity(cat, isMerchant = false)
+                        selectedEntityForDetail = SelectedEntity(
+                            title = cat,
+                            isMerchant = false,
+                            initialMonth = transactionsYearMonth,
+                            isAllMonthsInitial = transactionsIsAllMonthsSelected,
+                        )
                     },
                     onMerchantClick = { merchant ->
-                        selectedEntityForDetail = SelectedEntity(merchant, isMerchant = true)
+                        selectedEntityForDetail = SelectedEntity(
+                            title = merchant,
+                            isMerchant = true,
+                            initialMonth = transactionsYearMonth,
+                            isAllMonthsInitial = transactionsIsAllMonthsSelected,
+                        )
                     },
                     filterCategory = filterCategoryForTransactions,
                     onClearCategoryFilter = { filterCategoryForTransactions = null },
@@ -711,7 +723,12 @@ fun MainAppShell(
                 },
                 onNavigateToMerchant = { merchantName ->
                     selectedTransactionForDetail = null
-                    selectedEntityForDetail = SelectedEntity(title = merchantName, isMerchant = true)
+                    selectedEntityForDetail = SelectedEntity(
+                        title = merchantName,
+                        isMerchant = true,
+                        initialMonth = transactionsYearMonth,
+                        isAllMonthsInitial = transactionsIsAllMonthsSelected,
+                    )
                 },
                 onLinkTransactions = { primaryId, secondaryId, isRefund ->
                     scope.launch {
@@ -789,6 +806,8 @@ fun MainAppShell(
                 title = entity.title,
                 isMerchant = entity.isMerchant,
                 allTransactions = transactions,
+                initialMonth = entity.initialMonth,
+                isAllMonthsInitial = entity.isAllMonthsInitial,
                 onBack = { selectedEntityForDetail = null },
                 onTransactionClick = { selectedTransactionForDetail = it },
             )

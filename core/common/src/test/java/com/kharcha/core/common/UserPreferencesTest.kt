@@ -22,6 +22,8 @@ class UserPreferencesTest {
     fun setUp() {
         every { context.getSharedPreferences("kharcha_user_prefs", Context.MODE_PRIVATE) } returns sharedPreferences
         every { sharedPreferences.edit() } returns editor
+        every { sharedPreferences.getString("key_excluded_expense_categories_json", null) } returns null
+        every { sharedPreferences.getString("key_excluded_income_categories_json", null) } returns null
         userPreferences = DefaultUserPreferences(context)
     }
 
@@ -86,7 +88,7 @@ class UserPreferencesTest {
     fun reminderAndSecurityPreferencesHaveScreenshotDefaults() {
         every { sharedPreferences.getBoolean("key_hide_default_sms_notifications", false) } returns false
         every { sharedPreferences.getBoolean("key_daily_summary_enabled", true) } returns true
-        every { sharedPreferences.getInt("key_daily_summary_time", 22 * 60) } returns 22 * 60
+        every { sharedPreferences.getInt("key_daily_summary_time", 21 * 60) } returns 21 * 60
         every { sharedPreferences.getBoolean("key_weekly_summary_enabled", true) } returns true
         every { sharedPreferences.getInt("key_weekly_summary_time", 11 * 60) } returns 11 * 60
         every { sharedPreferences.getBoolean("key_bill_reminder_enabled", true) } returns true
@@ -95,7 +97,7 @@ class UserPreferencesTest {
 
         assertFalse(userPreferences.hideDefaultSmsNotifications)
         assertTrue(userPreferences.isDailySummaryEnabled)
-        assertEquals(22 * 60, userPreferences.dailySummaryMinuteOfDay)
+        assertEquals(21 * 60, userPreferences.dailySummaryMinuteOfDay)
         assertTrue(userPreferences.isWeeklySummaryEnabled)
         assertEquals(11 * 60, userPreferences.weeklySummaryMinuteOfDay)
         assertTrue(userPreferences.isBillReminderEnabled)
@@ -161,6 +163,27 @@ class UserPreferencesTest {
 
         userPreferences.addCustomCreditCategory("Crypto Dividend")
         verify { editor.putString("key_custom_credit_categories_json", any()) }
+    }
+
+    @Test
+    fun testExcludedCategories() {
+        every { sharedPreferences.getString("key_excluded_expense_categories_json", null) } returns null
+        assertTrue(userPreferences.getExcludedExpenseCategories().isEmpty())
+        assertFalse(userPreferences.isCategoryExcluded("Transfer", isExpense = true))
+
+        userPreferences.setCategoryExcludedFromExpense("Investments", true)
+        verify { editor.putString("key_excluded_expense_categories_json", any()) }
+
+        every { sharedPreferences.getString("key_excluded_expense_categories_json", null) } returns
+            """["Investments","Personal Loan"]"""
+        assertTrue(userPreferences.isCategoryExcluded("investments", isExpense = true))
+        assertTrue(userPreferences.isCategoryExcluded("Personal Loan", isExpense = true))
+        assertFalse(userPreferences.isCategoryExcluded("Food", isExpense = true))
+
+        every { sharedPreferences.getString("key_excluded_income_categories_json", null) } returns
+            """["Transfer"]"""
+        assertTrue(userPreferences.isCategoryExcluded("transfer", isExpense = false))
+        assertFalse(userPreferences.isCategoryExcluded("Salary", isExpense = false))
     }
 
     @Test

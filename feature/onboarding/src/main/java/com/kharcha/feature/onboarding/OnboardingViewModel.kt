@@ -3,8 +3,6 @@ package com.kharcha.feature.onboarding
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.kharcha.core.common.AccountRepository
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
@@ -19,7 +17,6 @@ import com.kharcha.core.model.TransactionType
 import com.kharcha.engine.parser.NoiseFilter
 import com.kharcha.engine.parser.TemplateLoader
 import com.kharcha.engine.sms.Deduplicator
-import com.kharcha.engine.sms.ImportWorker
 import com.kharcha.engine.sms.InboxReader
 import com.kharcha.engine.sms.SenderFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -140,7 +137,6 @@ class OnboardingViewModel
                 val totalCount = inboxReader.getSmsCount(sinceTimestamp)
                 if (totalCount <= 0) {
                     _uiState.update { it.copy(progress = 1.0f, isImportComplete = true) }
-                    enqueueBackgroundWorker()
                     return@launch
                 }
 
@@ -224,7 +220,8 @@ class OnboardingViewModel
                             val isTransfer = !isCardBill && (category.equals("Transfer", ignoreCase = true) || category.equals("A/C Transfer", ignoreCase = true))
                             val isCounted = !isCardBill && !isTransfer
                             val isHighConf = (parsedTxn.confidence >= 0.8f) && (rawMerchant != null)
-                            val isReviewed = isUserCategorized || (isHighConf && category != "Other")
+                            val isReviewed = isUserCategorized ||
+                                (isHighConf && !category.equals("Unknown", ignoreCase = true) && !category.equals("Unknown Category", ignoreCase = true))
 
                             val accountId =
                                 try {
@@ -300,18 +297,6 @@ class OnboardingViewModel
                     accountRepo.autoLinkAccounts(allTxns)
                 } catch (_: Throwable) {
                 }
-
-                enqueueBackgroundWorker()
-            }
-        }
-
-        @Suppress("TooGenericExceptionCaught")
-        private fun enqueueBackgroundWorker() {
-            try {
-                val workRequest = OneTimeWorkRequestBuilder<ImportWorker>().build()
-                WorkManager.getInstance(context).enqueue(workRequest)
-            } catch (_: Throwable) {
-                // Ignore if WorkManager fails in tests or headless mode
             }
         }
     }

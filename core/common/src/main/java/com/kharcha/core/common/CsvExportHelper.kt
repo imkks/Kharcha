@@ -117,7 +117,11 @@ object CsvExportHelper {
     fun generateLlmBatchExportJson(transactions: List<Transaction>): String {
         val unreviewedOrOther =
             transactions.filter {
-                !it.isReviewed || it.categorySource == "Other" || (it.parseConfidence ?: 1.0f) < 0.8f
+                !it.isReviewed ||
+                    it.categorySource.isNullOrBlank() ||
+                    it.categorySource.equals("Unknown", ignoreCase = true) ||
+                    it.categorySource.equals("Unknown Category", ignoreCase = true) ||
+                    (it.parseConfidence ?: 1.0f) < 0.8f
             }
 
         val grouped =

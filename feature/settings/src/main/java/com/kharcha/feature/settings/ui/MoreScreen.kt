@@ -2,12 +2,10 @@ package com.kharcha.feature.settings.ui
 
 import android.app.KeyguardManager
 import android.app.NotificationManager
-import android.app.AlarmManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
-import android.app.TimePickerDialog
 import android.os.Build
 import android.provider.Settings
 import androidx.biometric.BiometricManager
@@ -17,6 +15,8 @@ import com.kharcha.core.common.security.AuthenticatorPromptMode
 import com.kharcha.core.common.security.authenticatorPromptMode
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -118,6 +118,7 @@ import com.kharcha.core.designsystem.theme.LocalIncomeHidden
 import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
+import com.kharcha.core.model.RecurringTransaction
 import com.kharcha.core.model.Transaction
 import com.kharcha.feature.settings.R
 import java.io.File
@@ -132,6 +133,10 @@ fun MoreScreen(
     modifier: Modifier = Modifier,
     onUpdateMonthlyBudget: (Long) -> Unit = {},
     accounts: List<Account> = emptyList(),
+    recurringTransactions: List<RecurringTransaction> = emptyList(),
+    onSaveRecurringTransaction: (RecurringTransaction) -> Unit = {},
+    onDeleteRecurringTransaction: (Long) -> Unit = {},
+    onToggleRecurringActive: (Long, Boolean) -> Unit = { _, _ -> },
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((primaryAccountId: Long, redundantAccountIds: Set<Long>) -> Unit)? = null,
     onMergeDuplicateAccounts: ((sourceAccountId: Long, targetAccountId: Long) -> Unit)? = null,
@@ -141,9 +146,20 @@ fun MoreScreen(
     onAccountClick: (Account) -> Unit = {},
     onTransactionClick: (Transaction) -> Unit = {},
     onNotificationSettingsChanged: () -> Unit = {},
+    onTestDailySummary: (() -> Unit)? = null,
+    onImportCsv: (Uri) -> Unit = {},
+    onImportStatementClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val csvPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        if (uri != null) {
+            onImportCsv(uri)
+        }
+    }
     var showPreferencesScreen by remember { mutableStateOf(false) }
+    var showRecurringPage by remember { mutableStateOf(false) }
     var showManageAccountsPage by remember { mutableStateOf(false) }
     var showLinkAccountsPage by remember { mutableStateOf(false) }
 
@@ -206,7 +222,18 @@ fun MoreScreen(
     var rulesRevision by remember { mutableIntStateOf(0) }
     val rules = remember(rulesRevision, showRulesDialog) { userPreferences.getMerchantCategoryRules() }
 
-    if (showManageAccountsPage) {
+    if (showRecurringPage) {
+        BackHandler { showRecurringPage = false }
+        RecurringTransactionsScreenView(
+            recurringTransactions = recurringTransactions,
+            categories = (allSpendCategories + allCreditCategories).distinct(),
+            onSave = onSaveRecurringTransaction,
+            onDelete = onDeleteRecurringTransaction,
+            onToggleActive = onToggleRecurringActive,
+            onBack = { showRecurringPage = false },
+            modifier = modifier,
+        )
+    } else if (showManageAccountsPage) {
         BackHandler { showManageAccountsPage = false }
         ManageAccountsScreenView(
             accounts = accounts,
@@ -245,6 +272,7 @@ fun MoreScreen(
             userPreferences = userPreferences,
             onManageAccountsClick = { showManageAccountsPage = true },
             onLinkAccountsClick = { showLinkAccountsPage = true },
+            onRecurringPaymentsClick = { showRecurringPage = true },
             onSpendCategoriesClick = { showSpendCategoriesSheet = true },
             onCreditCategoriesClick = { showCreditCategoriesSheet = true },
             onRulesClick = { showRulesDialog = true },
@@ -253,6 +281,21 @@ fun MoreScreen(
             onTagsClick = { showManageTagsSheet = true },
             onNotificationsClick = { showNotificationsDialog = true },
             onBackupClick = { showExportDialog = true },
+            onImportCsvClick = {
+                if (onImportStatementClick != null) {
+                    onImportStatementClick()
+                } else {
+                    csvPickerLauncher.launch(
+                        arrayOf(
+                            "text/comma-separated-values",
+                            "text/csv",
+                            "application/csv",
+                            "text/plain",
+                            "*/*",
+                        ),
+                    )
+                }
+            },
             onSecurityClick = { showSecurityDialog = true },
             onRescanSmsClick = { showRescanSmsDialog = true },
             onBack = { showPreferencesScreen = false },
@@ -397,6 +440,14 @@ fun MoreScreen(
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
+                                iconRes = DesignR.drawable.ic_calendar,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
+                                title = stringResource(id = R.string.settings_recurring_payments_title),
+                                subtitle = stringResource(id = R.string.settings_recurring_payments_subtitle),
+                                onClick = { showRecurringPage = true },
+                            )
+                            HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                            SettingsNavRow(
                                 iconRes = DesignR.drawable.ic_bar_chart,
                                 iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_weekly_summary_title),
@@ -408,6 +459,28 @@ fun MoreScreen(
                                 iconTint = MaterialTheme.financialColors.textSecondary,
                                 title = stringResource(id = R.string.settings_export_statement_title),
                                 onClick = { showExportDialog = true },
+                            )
+                            HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+                            SettingsNavRow(
+                                iconRes = DesignR.drawable.ic_arrow_outward,
+                                iconTint = MaterialTheme.financialColors.textSecondary,
+                                title = stringResource(id = R.string.settings_import_statement_title),
+                                subtitle = stringResource(id = R.string.settings_import_statement_subtitle),
+                                onClick = {
+                                    if (onImportStatementClick != null) {
+                                        onImportStatementClick()
+                                    } else {
+                                        csvPickerLauncher.launch(
+                                            arrayOf(
+                                                "text/comma-separated-values",
+                                                "text/csv",
+                                                "application/csv",
+                                                "text/plain",
+                                                "*/*",
+                                            ),
+                                        )
+                                    }
+                                },
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
                             SettingsNavRow(
@@ -1129,6 +1202,7 @@ fun MoreScreen(
 
     // 5. Spend Categories Sheet
     if (showSpendCategoriesSheet) {
+        val excludedSpend = remember(categoriesRevision) { userPreferences.getExcludedExpenseCategories() }
         CategoriesManagerSheet(
             title = stringResource(id = R.string.settings_spend_categories_title),
             allCategories = allSpendCategories,
@@ -1139,23 +1213,47 @@ fun MoreScreen(
                 categoriesRevision++
             },
             onDismiss = { showSpendCategoriesSheet = false },
+            excludedCategories = excludedSpend,
+            onToggleExclude = { cat, excluded ->
+                userPreferences.setCategoryExcludedFromExpense(cat, excluded)
+                categoriesRevision++
+            },
         )
     }
 
     // 6. Add Spend Category Dialog
     if (showAddSpendCategoryDialog) {
         var catInput by remember { mutableStateOf("") }
+        var excludeExpense by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showAddSpendCategoryDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_add_category)) },
             text = {
-                OutlinedTextField(
-                    value = catInput,
-                    onValueChange = { catInput = it },
-                    label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = catInput,
+                        onValueChange = { catInput = it },
+                        label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.settings_exclude_from_expense_label),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.financialColors.textPrimary,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        )
+                        Switch(
+                            checked = excludeExpense,
+                            onCheckedChange = { excludeExpense = it },
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Button(
@@ -1163,6 +1261,9 @@ fun MoreScreen(
                         val trimmed = catInput.trim()
                         if (trimmed.isNotBlank()) {
                             userPreferences.addCustomSpendCategory(trimmed)
+                            if (excludeExpense) {
+                                userPreferences.setCategoryExcludedFromExpense(trimmed, true)
+                            }
                             categoriesRevision++
                         }
                         showAddSpendCategoryDialog = false
@@ -1186,6 +1287,7 @@ fun MoreScreen(
 
     // 7. Credit Categories Sheet
     if (showCreditCategoriesSheet) {
+        val excludedCredit = remember(categoriesRevision) { userPreferences.getExcludedIncomeCategories() }
         CategoriesManagerSheet(
             title = stringResource(id = R.string.settings_credit_categories_title),
             allCategories = allCreditCategories,
@@ -1196,23 +1298,47 @@ fun MoreScreen(
                 categoriesRevision++
             },
             onDismiss = { showCreditCategoriesSheet = false },
+            excludedCategories = excludedCredit,
+            onToggleExclude = { cat, excluded ->
+                userPreferences.setCategoryExcludedFromIncome(cat, excluded)
+                categoriesRevision++
+            },
         )
     }
 
     // 8. Add Credit Category Dialog
     if (showAddCreditCategoryDialog) {
         var catInput by remember { mutableStateOf("") }
+        var excludeIncome by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showAddCreditCategoryDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_add_category)) },
             text = {
-                OutlinedTextField(
-                    value = catInput,
-                    onValueChange = { catInput = it },
-                    label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = catInput,
+                        onValueChange = { catInput = it },
+                        label = { Text(text = stringResource(id = R.string.settings_category_name_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.settings_exclude_from_income_label),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.financialColors.textPrimary,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        )
+                        Switch(
+                            checked = excludeIncome,
+                            onCheckedChange = { excludeIncome = it },
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Button(
@@ -1220,6 +1346,9 @@ fun MoreScreen(
                         val trimmed = catInput.trim()
                         if (trimmed.isNotBlank()) {
                             userPreferences.addCustomCreditCategory(trimmed)
+                            if (excludeIncome) {
+                                userPreferences.setCategoryExcludedFromIncome(trimmed, true)
+                            }
                             categoriesRevision++
                         }
                         showAddCreditCategoryDialog = false
@@ -1637,7 +1766,6 @@ fun MoreScreen(
         var dailyTime by remember { mutableIntStateOf(userPreferences.dailySummaryMinuteOfDay) }
         var weeklySummary by remember { mutableStateOf(userPreferences.isWeeklySummaryEnabled) }
         var weeklyTime by remember { mutableIntStateOf(userPreferences.weeklySummaryMinuteOfDay) }
-        var billReminders by remember { mutableStateOf(userPreferences.isBillReminderEnabled) }
         val context = LocalContext.current
         val notificationsAllowed = NotificationManagerCompat.from(context).areNotificationsEnabled()
         val summaryChannelAllowed =
@@ -1645,20 +1773,21 @@ fun MoreScreen(
                 context.getSystemService(NotificationManager::class.java)
                     ?.getNotificationChannel(NotificationChannels.SPEND_SUMMARIES)
                     ?.importance != NotificationManager.IMPORTANCE_NONE
-        val exactSummaryTimeAllowed =
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
-                context.getSystemService(AlarmManager::class.java)?.canScheduleExactAlarms() == true
-        fun timeLabel(minutes: Int): String = String.format(Locale.getDefault(), "%02d:%02d", minutes / 60, minutes % 60)
         AlertDialog(
             onDismissRequest = { showNotificationsDialog = false },
             title = { Text(text = stringResource(id = R.string.settings_notifications_reminders_title)) },
             text = {
                 Column(
-                    modifier = Modifier.height(520.dp).verticalScroll(rememberScrollState()),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    SettingsToggleRow(stringResource(R.string.settings_expense_notifications_title), stringResource(R.string.settings_expense_notifications_subtitle), isNotifsEnabled) {
-                        isNotifsEnabled = it; userPreferences.isExpenseNotificationsEnabled = it
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_expense_notifications_title),
+                        stringResource(R.string.settings_expense_notifications_subtitle),
+                        isNotifsEnabled,
+                    ) {
+                        isNotifsEnabled = it
+                        userPreferences.isExpenseNotificationsEnabled = it
                     }
                     SettingsValueRow(
                         title = stringResource(R.string.settings_notification_permission_title),
@@ -1671,20 +1800,6 @@ fun MoreScreen(
                             Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                                 .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
                         )
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        SettingsValueRow(
-                            title = stringResource(R.string.settings_exact_summary_time_title),
-                            value = stringResource(
-                                if (exactSummaryTimeAllowed) R.string.settings_exact_summary_time_allowed
-                                else R.string.settings_exact_summary_time_blocked,
-                            ),
-                        ) {
-                            context.startActivity(
-                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                                    .setData(Uri.parse("package:${context.packageName}")),
-                            )
-                        }
                     }
                     SettingsValueRow(
                         title = stringResource(R.string.settings_summary_channel_title),
@@ -1701,7 +1816,11 @@ fun MoreScreen(
                             )
                         }
                     }
-                    SettingsToggleRow(stringResource(R.string.settings_hide_sms_title), stringResource(R.string.settings_hide_sms_desc), hideSmsNotifications) {
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_hide_sms_title),
+                        stringResource(R.string.settings_hide_sms_desc),
+                        hideSmsNotifications,
+                    ) {
                         if (it) {
                             userPreferences.hideDefaultSmsNotifications = true
                             hideSmsNotifications = true
@@ -1711,20 +1830,67 @@ fun MoreScreen(
                             userPreferences.hideDefaultSmsNotifications = false
                         }
                     }
-                    SettingsToggleRow(stringResource(R.string.settings_daily_summary_title), stringResource(R.string.settings_toggle_status, if (dailySummary) stringResource(R.string.settings_on) else stringResource(R.string.settings_off)), dailySummary) {
-                        dailySummary = it; userPreferences.isDailySummaryEnabled = it; onNotificationSettingsChanged()
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_daily_summary_title),
+                        stringResource(R.string.settings_daily_summary_subtitle),
+                        dailySummary,
+                    ) {
+                        dailySummary = it
+                        userPreferences.isDailySummaryEnabled = it
+                        onNotificationSettingsChanged()
                     }
-                    SettingsValueRow(stringResource(R.string.settings_daily_summary_time), timeLabel(dailyTime)) {
-                        TimePickerDialog(context, { _, hour, minute -> dailyTime = hour * 60 + minute; userPreferences.dailySummaryMinuteOfDay = dailyTime; onNotificationSettingsChanged() }, dailyTime / 60, dailyTime % 60, false).show()
+                    if (dailySummary) {
+                        SettingsValueRow(
+                            title = stringResource(R.string.settings_daily_summary_time),
+                            value = formatTimeMinuteOfDay(dailyTime),
+                        ) {
+                            android.app.TimePickerDialog(
+                                context,
+                                { _, hour, minute ->
+                                    dailyTime = hour * 60 + minute
+                                    userPreferences.dailySummaryMinuteOfDay = dailyTime
+                                    onNotificationSettingsChanged()
+                                },
+                                dailyTime / 60,
+                                dailyTime % 60,
+                                false,
+                            ).show()
+                        }
+                        if (onTestDailySummary != null) {
+                            SettingsValueRow(
+                                title = stringResource(R.string.settings_test_daily_summary),
+                                value = stringResource(R.string.settings_send_test_notification),
+                            ) {
+                                onTestDailySummary()
+                            }
+                        }
                     }
-                    SettingsToggleRow(stringResource(R.string.settings_weekly_summary_title), stringResource(R.string.settings_toggle_status, if (weeklySummary) stringResource(R.string.settings_on) else stringResource(R.string.settings_off)), weeklySummary) {
-                        weeklySummary = it; userPreferences.isWeeklySummaryEnabled = it; onNotificationSettingsChanged()
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_weekly_summary_title),
+                        stringResource(R.string.settings_weekly_summary_subtitle),
+                        weeklySummary,
+                    ) {
+                        weeklySummary = it
+                        userPreferences.isWeeklySummaryEnabled = it
+                        onNotificationSettingsChanged()
                     }
-                    SettingsValueRow(stringResource(R.string.settings_weekly_summary_time), timeLabel(weeklyTime)) {
-                        TimePickerDialog(context, { _, hour, minute -> weeklyTime = hour * 60 + minute; userPreferences.weeklySummaryMinuteOfDay = weeklyTime; onNotificationSettingsChanged() }, weeklyTime / 60, weeklyTime % 60, false).show()
-                    }
-                    SettingsValueRow(stringResource(R.string.settings_bill_reminders), stringResource(R.string.settings_bill_reminders_desc)) {
-                        billReminders = !billReminders; userPreferences.isBillReminderEnabled = billReminders
+                    if (weeklySummary) {
+                        SettingsValueRow(
+                            title = stringResource(R.string.settings_weekly_summary_time),
+                            value = formatTimeMinuteOfDay(weeklyTime),
+                        ) {
+                            android.app.TimePickerDialog(
+                                context,
+                                { _, hour, minute ->
+                                    weeklyTime = hour * 60 + minute
+                                    userPreferences.weeklySummaryMinuteOfDay = weeklyTime
+                                    onNotificationSettingsChanged()
+                                },
+                                weeklyTime / 60,
+                                weeklyTime % 60,
+                                false,
+                            ).show()
+                        }
                     }
                 }
             },
@@ -1975,6 +2141,7 @@ private fun PreferencesScreenView(
     userPreferences: UserPreferences,
     onManageAccountsClick: () -> Unit,
     onLinkAccountsClick: () -> Unit,
+    onRecurringPaymentsClick: () -> Unit = {},
     onSpendCategoriesClick: () -> Unit,
     onCreditCategoriesClick: () -> Unit,
     onRulesClick: () -> Unit,
@@ -1983,6 +2150,7 @@ private fun PreferencesScreenView(
     onTagsClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
     onBackupClick: () -> Unit = {},
+    onImportCsvClick: () -> Unit = {},
     onSecurityClick: () -> Unit = {},
     onRescanSmsClick: () -> Unit,
     onBack: () -> Unit,
@@ -2053,6 +2221,16 @@ private fun PreferencesScreenView(
                             title = stringResource(id = R.string.settings_link_accounts_title),
                             subtitle = stringResource(id = R.string.settings_link_accounts_subtitle),
                             onClick = onLinkAccountsClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
+                        // 4. Recurring payments
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_calendar,
+                            title = stringResource(id = R.string.settings_recurring_payments_title),
+                            subtitle = stringResource(id = R.string.settings_recurring_payments_subtitle),
+                            onClick = onRecurringPaymentsClick,
                         )
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
@@ -2143,6 +2321,16 @@ private fun PreferencesScreenView(
 
                         HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
 
+                        // 11. Import statement
+                        SettingsNavRow(
+                            iconRes = DesignR.drawable.ic_arrow_outward,
+                            title = stringResource(id = R.string.settings_import_statement_title),
+                            subtitle = stringResource(id = R.string.settings_import_statement_subtitle),
+                            onClick = onImportCsvClick,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)
+
                         SettingsGroupHeading(stringResource(R.string.settings_section_security))
                         // 11. Security
                         SettingsNavRow(
@@ -2179,6 +2367,8 @@ private fun CategoriesManagerSheet(
     onAddCategoryClick: () -> Unit,
     onDeleteCustomCategory: (String) -> Unit,
     onDismiss: () -> Unit,
+    excludedCategories: Set<String> = emptySet(),
+    onToggleExclude: ((String, Boolean) -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -2259,28 +2449,50 @@ private fun CategoriesManagerSheet(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false),
+                            ) {
                                 CategoryBadge(categoryName = cat, size = 28.dp)
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = cat,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White,
-                                )
-                            }
-                            if (isCustom) {
-                                IconButton(
-                                    onClick = { onDeleteCustomCategory(cat) },
-                                    modifier = Modifier.size(28.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription =
-                                            stringResource(id = R.string.settings_delete_category_title),
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(18.dp),
+                                Column {
+                                    Text(
+                                        text = cat,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White,
                                     )
+                                    if (excludedCategories.any { it.equals(cat, ignoreCase = true) }) {
+                                        Text(
+                                            text = stringResource(id = R.string.settings_category_not_counted_badge),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.financialColors.warning,
+                                        )
+                                    }
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (onToggleExclude != null && isCustom) {
+                                    val isExcluded = excludedCategories.any { it.equals(cat, ignoreCase = true) }
+                                    Switch(
+                                        checked = isExcluded,
+                                        onCheckedChange = { checked -> onToggleExclude(cat, checked) },
+                                        modifier = Modifier.padding(end = 4.dp),
+                                    )
+                                }
+                                if (isCustom) {
+                                    IconButton(
+                                        onClick = { onDeleteCustomCategory(cat) },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription =
+                                                stringResource(id = R.string.settings_delete_category_title),
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -3125,4 +3337,16 @@ private fun shareTextFile(
             }
         context.startActivity(Intent.createChooser(fallbackIntent, "Export $fileName"))
     }
+}
+
+private fun formatTimeMinuteOfDay(minuteOfDay: Int): String {
+    val hour = minuteOfDay.coerceIn(0, 1439) / 60
+    val minute = minuteOfDay.coerceIn(0, 1439) % 60
+    val isPm = hour >= 12
+    val displayHour = when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+    }
+    return String.format(java.util.Locale.ROOT, "%d:%02d %s", displayHour, minute, if (isPm) "PM" else "AM")
 }

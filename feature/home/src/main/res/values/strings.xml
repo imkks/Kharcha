@@ -42,6 +42,8 @@
     <string name="home_dues_set_reminder">Set reminder?</string>
     <string name="home_dues_yes">Yes</string>
     <string name="home_dues_no">No</string>
+    <string name="home_dues_empty_title">No upcoming dues or reminders</string>
+    <string name="home_dues_empty_subtitle">Tap + to add recurring bills, subscriptions or EMIs</string>
     <string name="home_categories_title">Categories</string>
     <string name="home_categories_categorise">Categorise</string>
     <string name="home_categories_set_budget">Set budget ›</string>

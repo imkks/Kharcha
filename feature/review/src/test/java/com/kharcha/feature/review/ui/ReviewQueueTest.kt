@@ -83,4 +83,23 @@ class ReviewQueueTest {
         // Skip advances index without modifying original
         assertFalse(original.isReviewed)
     }
+
+    @Test
+    fun testReviewCategoriesDirectionSpecific() {
+        val expenseTxn = createTxn(id = 5L, isReviewed = false)
+        val incomeTxn = createTxn(id = 6L, isReviewed = false).copy(type = TransactionType.Income)
+
+        val expenseAllowed = com.kharcha.core.model.TransactionCategory.categoriesFor(expenseTxn.type)
+        val incomeAllowed = com.kharcha.core.model.TransactionCategory.categoriesFor(incomeTxn.type)
+
+        // Expense should only contain expense types
+        assertTrue(expenseAllowed.all { it is com.kharcha.core.model.TransactionCategory.Expense })
+        assertTrue(expenseAllowed.any { it.name == "Food & Dining" })
+        assertFalse(expenseAllowed.any { it.name == "Salary" })
+
+        // Income should only contain income types
+        assertTrue(incomeAllowed.all { it is com.kharcha.core.model.TransactionCategory.Income })
+        assertTrue(incomeAllowed.any { it.name == "Salary" })
+        assertFalse(incomeAllowed.any { it.name == "Food & Dining" })
+    }
 }

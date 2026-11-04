@@ -13,6 +13,16 @@ class SummaryNotificationWorkerTest {
     }
 
     @Test
+    fun dailyScheduleUsesTodayWhenConfiguredTimeIsStillAhead() {
+        val now = Calendar.getInstance().apply {
+            set(2026, Calendar.OCTOBER, 31, 14, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val expectedDelay = (21 - 14) * 60 * 60 * 1000L
+        assertEquals(expectedDelay, SummaryNotificationWorker.millisUntilNextRun(21 * 60, now = now))
+    }
+
+    @Test
     fun dailyScheduleUsesTomorrowWhenConfiguredTimeHasPassed() {
         val now = Calendar.getInstance().apply {
             set(2026, Calendar.OCTOBER, 31, 23, 0, 0)

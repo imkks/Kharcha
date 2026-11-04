@@ -47,14 +47,20 @@ class MoreScreenTest {
             createTxn(id = 1L, category = "Food", confidence = 0.9f, isReviewed = true),
             // Not reviewed
             createTxn(id = 2L, category = "Food", confidence = 0.9f, isReviewed = false),
-            // "Other" category
+            // "Other" category (reviewed -> valid user category, not unreviewed)
             createTxn(id = 3L, category = "Other", confidence = 0.9f, isReviewed = true),
             // Low confidence
             createTxn(id = 4L, category = "Food", confidence = 0.6f, isReviewed = true),
+            // "Unknown" category
+            createTxn(id = 5L, category = "Unknown", confidence = 0.9f, isReviewed = true),
         )
 
         val unreviewedCount = txns.count {
-            !it.isReviewed || it.categorySource == "Other" || (it.parseConfidence ?: 1.0f) < 0.8f
+            !it.isReviewed ||
+                it.categorySource.isNullOrBlank() ||
+                it.categorySource.equals("Unknown", ignoreCase = true) ||
+                it.categorySource.equals("Unknown Category", ignoreCase = true) ||
+                (it.parseConfidence ?: 1.0f) < 0.8f
         }
 
         assertEquals(3, unreviewedCount)

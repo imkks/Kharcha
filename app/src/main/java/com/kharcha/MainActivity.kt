@@ -57,7 +57,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.kharcha.core.common.DefaultAccountRepository
+import com.kharcha.core.common.ImportCsvUseCase
 import com.kharcha.core.common.MoneyFormatter
+import com.kharcha.core.common.RecurringTransactionRepository
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.designsystem.R as DesignR
@@ -73,7 +75,10 @@ import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
 import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
+import com.kharcha.core.model.RecurringTransaction
 import com.kharcha.core.model.Transaction
+import com.kharcha.core.designsystem.component.DEFAULT_CREDIT_CATEGORIES
+import com.kharcha.core.designsystem.component.DEFAULT_SPEND_CATEGORIES
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
 import com.kharcha.engine.sms.ExpenseNotification
@@ -83,12 +88,18 @@ import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.review.ui.ReviewQueueScreen
 import com.kharcha.feature.settings.ui.MoreScreen
+import com.kharcha.feature.settings.ui.RecurringTransactionsScreenView
 import com.kharcha.feature.transactions.R as TransactionsR
 import com.kharcha.feature.transactions.ui.AccountDetailScreen
 import com.kharcha.feature.transactions.ui.EntityTransactionsScreen
 import com.kharcha.feature.transactions.ui.ReportUndetectedSmsScreen
 import com.kharcha.feature.transactions.ui.SearchScreen
 import com.kharcha.feature.transactions.ui.SetBudgetSheet
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kharcha.core.common.statement.ImportStatementUseCase
+import com.kharcha.feature.settings.ui.statement.ImportStatementScreen
+import com.kharcha.feature.settings.ui.statement.ImportStatementUiState
+import com.kharcha.feature.settings.ui.statement.ImportStatementViewModel
 import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import com.kharcha.feature.transactions.ui.TransactionsSubTab
@@ -102,6 +113,8 @@ import kotlinx.coroutines.launch
 data class SelectedEntity(
     val title: String,
     val isMerchant: Boolean,
+    val initialMonth: YearMonth? = null,
+    val isAllMonthsInitial: Boolean = false,
 )
 
 enum class AppDestination(
@@ -136,6 +149,15 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var userPreferences: UserPreferences
+
+    @Inject
+    lateinit var recurringTransactionRepository: RecurringTransactionRepository
+
+    @Inject
+    lateinit var importCsvUseCase: ImportCsvUseCase
+
+    @Inject
+    lateinit var importStatementUseCase: ImportStatementUseCase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -211,6 +233,9 @@ class MainActivity : FragmentActivity() {
                         MainAppShell(
                             transactionRepository = transactionRepository,
                             userPreferences = userPreferences,
+                            recurringTransactionRepository = recurringTransactionRepository,
+                            importCsvUseCase = importCsvUseCase,
+                            importStatementUseCase = importStatementUseCase,
                             notificationTransactionId =
                                 intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
                                     .takeIf { it >= 0L },
@@ -375,6 +400,9 @@ private const val APP_UNLOCK_RESUME_RETRY_DELAY_MS = 300L
 fun MainAppShell(
     transactionRepository: TransactionRepository,
     userPreferences: UserPreferences,
+    recurringTransactionRepository: RecurringTransactionRepository,
+    importCsvUseCase: ImportCsvUseCase,
+    importStatementUseCase: ImportStatementUseCase,
     onRescanSmsInbox: (String) -> Unit,
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
@@ -383,6 +411,7 @@ fun MainAppShell(
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
+    val recurringTransactions by recurringTransactionRepository.getRecurringTransactions().collectAsState(initial = emptyList())
     val context = LocalContext.current
     val accountRepository = remember { DefaultAccountRepository.getInstance(context) }
     val accounts by accountRepository.getAccounts().collectAsState(initial = emptyList())
@@ -404,6 +433,8 @@ fun MainAppShell(
     var showSearchScreen by rememberSaveable { mutableStateOf(false) }
     var showReportSmsScreen by rememberSaveable { mutableStateOf(false) }
     var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(openWeeklySummary) }
+    var showImportStatementScreen by rememberSaveable { mutableStateOf(false) }
+    var showRecurringPage by rememberSaveable { mutableStateOf(false) }
     var showSetBudgetSheet by rememberSaveable { mutableStateOf(false) }
     var showSplitInfoDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
@@ -460,6 +491,8 @@ fun MainAppShell(
 
     CompositionLocalProvider(LocalPrivacyMode provides isPrivacyMode) {
         BackHandler(enabled = showWeeklySummaryScreen) { showWeeklySummaryScreen = false }
+        BackHandler(enabled = showImportStatementScreen) { showImportStatementScreen = false }
+        BackHandler(enabled = showRecurringPage) { showRecurringPage = false }
         BackHandler(enabled = showSearchScreen) { showSearchScreen = false }
         BackHandler(enabled = showReportSmsScreen) { showReportSmsScreen = false }
         BackHandler(enabled = showReviewQueue) { showReviewQueue = false }
@@ -472,6 +505,8 @@ fun MainAppShell(
                 selectedEntityForDetail == null &&
                 selectedAccountForDetail == null &&
                 !showSearchScreen &&
+                !showImportStatementScreen &&
+                !showRecurringPage &&
                 !showWeeklySummaryScreen &&
                 !showReportSmsScreen &&
                 !showReviewQueue &&
@@ -511,6 +546,46 @@ fun MainAppShell(
                     destination = currentDestination,
                     transactions = transactions,
                     accounts = accounts,
+                    recurringTransactions = recurringTransactions,
+                    onSaveRecurringTransaction = { recurring ->
+                        scope.launch {
+                            recurringTransactionRepository.saveRecurringTransaction(recurring)
+                        }
+                    },
+                    onDeleteRecurringTransaction = { id ->
+                        scope.launch {
+                            recurringTransactionRepository.deleteRecurringTransaction(id)
+                        }
+                    },
+                    onToggleRecurringActive = { id, isActive ->
+                        scope.launch {
+                            recurringTransactionRepository.setActive(id, isActive)
+                        }
+                    },
+                    onImportCsv = { uri ->
+                        scope.launch {
+                            when (val result = importCsvUseCase.execute(uri)) {
+                                is ImportCsvUseCase.Result.Success -> {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(
+                                            R.string.import_csv_success,
+                                            result.imported,
+                                            result.skippedDuplicate,
+                                        ),
+                                    )
+                                }
+                                is ImportCsvUseCase.Result.Error -> {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(
+                                            R.string.import_csv_error,
+                                            result.message,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    onImportStatementClick = { showImportStatementScreen = true },
                     userPreferences = userPreferences,
                     showLocationPermissionAlert =
                         locationPermissionIssue != null && dismissedLocationPermissionIssue != locationPermissionIssueKey,
@@ -523,10 +598,20 @@ fun MainAppShell(
                     onReviewClick = { showReviewQueue = true },
                     onTransactionClick = { txn -> selectedTransactionForDetail = txn },
                     onCategoryClick = { cat ->
-                        selectedEntityForDetail = SelectedEntity(cat, isMerchant = false)
+                        selectedEntityForDetail = SelectedEntity(
+                            title = cat,
+                            isMerchant = false,
+                            initialMonth = transactionsYearMonth,
+                            isAllMonthsInitial = transactionsIsAllMonthsSelected,
+                        )
                     },
                     onMerchantClick = { merchant ->
-                        selectedEntityForDetail = SelectedEntity(merchant, isMerchant = true)
+                        selectedEntityForDetail = SelectedEntity(
+                            title = merchant,
+                            isMerchant = true,
+                            initialMonth = transactionsYearMonth,
+                            isAllMonthsInitial = transactionsIsAllMonthsSelected,
+                        )
                     },
                     filterCategory = filterCategoryForTransactions,
                     onClearCategoryFilter = { filterCategoryForTransactions = null },
@@ -635,9 +720,12 @@ fun MainAppShell(
                     },
                     onAccountClick = { selectedAccountForDetail = it },
                     onProfileClick = { currentDestination = AppDestination.MORE },
-                    onDuesClick = { currentDestination = AppDestination.INSIGHTS },
+                    onDuesClick = { showRecurringPage = true },
                     onNotificationSettingsChanged = {
-                        SummaryNotificationWorker.scheduleAll(context, userPreferences)
+                        SummaryNotificationWorker.scheduleAll(context, userPreferences, updateExisting = true)
+                    },
+                    onTestDailySummary = {
+                        SummaryNotificationWorker.triggerNow(context, weekly = false)
                     },
                     onSplitClick = { showSplitInfoDialog = true },
                 )
@@ -651,13 +739,19 @@ fun MainAppShell(
                 allTransactions = transactions,
                 accounts = accounts,
                 openCategoryPickerOnStart = categoryPickerTransactionId == txn.id,
+                userPreferences = userPreferences,
                 onBack = { selectedTransactionForDetail = null },
                 onNavigateToTransaction = { txnId ->
                     selectedTransactionForDetail = transactions.find { it.id == txnId }
                 },
                 onNavigateToMerchant = { merchantName ->
                     selectedTransactionForDetail = null
-                    selectedEntityForDetail = SelectedEntity(title = merchantName, isMerchant = true)
+                    selectedEntityForDetail = SelectedEntity(
+                        title = merchantName,
+                        isMerchant = true,
+                        initialMonth = transactionsYearMonth,
+                        isAllMonthsInitial = transactionsIsAllMonthsSelected,
+                    )
                 },
                 onLinkTransactions = { primaryId, secondaryId, isRefund ->
                     scope.launch {
@@ -735,6 +829,8 @@ fun MainAppShell(
                 title = entity.title,
                 isMerchant = entity.isMerchant,
                 allTransactions = transactions,
+                initialMonth = entity.initialMonth,
+                isAllMonthsInitial = entity.isAllMonthsInitial,
                 onBack = { selectedEntityForDetail = null },
                 onTransactionClick = { selectedTransactionForDetail = it },
             )
@@ -788,9 +884,18 @@ fun MainAppShell(
     }
 
     if (showReviewQueue) {
-        val unreviewed = remember(transactions) { transactions.filter { !it.isReviewed } }
+        val unreviewed = remember(transactions) {
+            transactions.filter {
+                !it.isReviewed ||
+                    it.categorySource.isNullOrBlank() ||
+                    it.categorySource.equals("Unknown", ignoreCase = true) ||
+                    it.categorySource.equals("Unknown Category", ignoreCase = true)
+            }
+        }
         ReviewQueueScreen(
             unreviewedTransactions = unreviewed,
+            customSpendCategories = remember(userPreferences) { userPreferences.getCustomSpendCategories() },
+            customCreditCategories = remember(userPreferences) { userPreferences.getCustomCreditCategories() },
             onCategorize = { txn, category, propagate ->
                 scope.launch {
                     if (propagate) {
@@ -808,10 +913,11 @@ fun MainAppShell(
                     } else {
                         val isTransferCat = category.equals("Transfer", ignoreCase = true) ||
                             category.equals("A/C Transfer", ignoreCase = true)
+                        val isExcluded = userPreferences.isCategoryExcluded(category, txn.type == TransactionType.Expense)
                         transactionRepository.updateTransaction(
                             txn.copy(
                                 categorySource = category,
-                                isCounted = !isTransferCat,
+                                isCounted = !isTransferCat && !isExcluded,
                                 isReviewed = true,
                             ),
                         )
@@ -944,6 +1050,55 @@ fun MainAppShell(
             },
         )
     }
+
+    if (showImportStatementScreen) {
+        val importStatementViewModel: ImportStatementViewModel = viewModel(
+            factory = ImportStatementViewModel.factory(importStatementUseCase),
+        )
+        BackHandler {
+            if (importStatementViewModel.uiState.value !is ImportStatementUiState.Idle) {
+                importStatementViewModel.resetState()
+            }
+            showImportStatementScreen = false
+        }
+        ImportStatementScreen(
+            viewModel = importStatementViewModel,
+            onNavigateBack = {
+                if (importStatementViewModel.uiState.value !is ImportStatementUiState.Idle) {
+                    importStatementViewModel.resetState()
+                }
+                showImportStatementScreen = false
+            },
+        )
+    }
+
+    if (showRecurringPage) {
+        BackHandler { showRecurringPage = false }
+        val allCategories = remember(userPreferences) {
+            (DEFAULT_SPEND_CATEGORIES + userPreferences.getCustomSpendCategories() +
+                DEFAULT_CREDIT_CATEGORIES + userPreferences.getCustomCreditCategories()).distinct()
+        }
+        RecurringTransactionsScreenView(
+            recurringTransactions = recurringTransactions,
+            categories = allCategories,
+            onSave = { recurring ->
+                scope.launch {
+                    recurringTransactionRepository.saveRecurringTransaction(recurring)
+                }
+            },
+            onDelete = { id ->
+                scope.launch {
+                    recurringTransactionRepository.deleteRecurringTransaction(id)
+                }
+            },
+            onToggleActive = { id, active ->
+                scope.launch {
+                    recurringTransactionRepository.setActive(id, active)
+                }
+            },
+            onBack = { showRecurringPage = false },
+        )
+    }
 }
 }
 
@@ -952,6 +1107,12 @@ fun BoxDestinationContent(
     destination: AppDestination,
     transactions: List<Transaction>,
     accounts: List<Account> = emptyList(),
+    recurringTransactions: List<RecurringTransaction> = emptyList(),
+    onSaveRecurringTransaction: (RecurringTransaction) -> Unit = {},
+    onDeleteRecurringTransaction: (Long) -> Unit = {},
+    onToggleRecurringActive: (Long, Boolean) -> Unit = { _, _ -> },
+    onImportCsv: (Uri) -> Unit = {},
+    onImportStatementClick: () -> Unit = {},
     userPreferences: UserPreferences,
     showLocationPermissionAlert: Boolean = false,
     onCheckLocationPermission: () -> Unit = {},
@@ -993,6 +1154,7 @@ fun BoxDestinationContent(
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
     onNotificationSettingsChanged: () -> Unit = {},
+    onTestDailySummary: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((Long, Set<Long>) -> Unit)? = null,
@@ -1006,6 +1168,7 @@ fun BoxDestinationContent(
             HomeScreen(
                 transactions = transactions,
                 accounts = accounts,
+                recurringTransactions = recurringTransactions,
                 userName = userPreferences.userName,
                 showLocationPermissionAlert = showLocationPermissionAlert,
                 onCheckLocationPermission = onCheckLocationPermission,
@@ -1092,6 +1255,12 @@ fun BoxDestinationContent(
             MoreScreen(
                 transactions = transactions,
                 accounts = accounts,
+                recurringTransactions = recurringTransactions,
+                onSaveRecurringTransaction = onSaveRecurringTransaction,
+                onDeleteRecurringTransaction = onDeleteRecurringTransaction,
+                onToggleRecurringActive = onToggleRecurringActive,
+                onImportCsv = onImportCsv,
+                onImportStatementClick = onImportStatementClick,
                 userPreferences = userPreferences,
                 onRescanSmsInbox = onRescanSmsInbox,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
@@ -1104,6 +1273,7 @@ fun BoxDestinationContent(
                 onAccountClick = onAccountClick,
                 onTransactionClick = onTransactionClick,
                 onNotificationSettingsChanged = onNotificationSettingsChanged,
+                onTestDailySummary = onTestDailySummary,
                 modifier = modifier,
             )
         }

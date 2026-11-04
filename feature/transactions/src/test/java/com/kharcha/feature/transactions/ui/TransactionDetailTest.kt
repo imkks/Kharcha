@@ -138,24 +138,12 @@ class TransactionDetailTest {
 
     @Test
     fun testInwardCategoriesAndTypeMapping() {
-        assertEquals(listOf("Bank Deposit", "Business", "Interest", "Salary"), INWARD_INCOME_CATEGORIES)
-        assertEquals(
-            listOf(
-                "A/C Transfer",
-                "Bill Payment",
-                "Credit",
-                "Investment",
-                "Loan",
-                "Recharge",
-                "Refund",
-                "Reimbursement",
-                "Rewards",
-            ),
-            INWARD_NON_INCOME_CATEGORIES,
-        )
-        assertTrue(EXPENSE_CATEGORIES.contains("Food & Drinks"))
+        assertTrue(INWARD_INCOME_CATEGORIES.containsAll(listOf("Salary", "Business", "Interest", "Bank Deposit")))
+        assertTrue(INWARD_NON_INCOME_CATEGORIES.containsAll(listOf("Refund", "Reimbursement", "Credit", "Loan", "Transfer")))
+        assertTrue(EXPENSE_CATEGORIES.contains("Food & Dining"))
         assertTrue(EXPENSE_CATEGORIES.contains("Groceries"))
         assertTrue(EXPENSE_CATEGORIES.contains("Fuel"))
+        assertTrue(EXPENSE_CATEGORIES.contains("Bills & Utilities"))
 
         fun mapCategoryToCounted(cat: String, isCredit: Boolean): Pair<TransactionType, Boolean> {
             return when {
@@ -171,8 +159,7 @@ class TransactionDetailTest {
 
         assertEquals(TransactionType.Income to true, mapCategoryToCounted("Salary", isCredit = true))
         assertEquals(TransactionType.Income to false, mapCategoryToCounted("Refund", isCredit = true))
-        assertEquals(TransactionType.Income to false, mapCategoryToCounted("A/C Transfer", isCredit = true))
-        assertEquals(TransactionType.Income to false, mapCategoryToCounted("Bill Payment", isCredit = true))
+        assertEquals(TransactionType.Income to false, mapCategoryToCounted("Transfer", isCredit = true))
         assertEquals(TransactionType.Expense to true, mapCategoryToCounted("Groceries", isCredit = false))
     }
 

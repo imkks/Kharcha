@@ -54,6 +54,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,13 +76,18 @@ import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
+import com.kharcha.core.model.RecurringFrequency
+import com.kharcha.core.model.RecurringTransaction
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.buildRefundMap
+import com.kharcha.core.model.forTotals
 import com.kharcha.core.model.isCounted
 import com.kharcha.feature.home.R
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -98,6 +104,8 @@ data class CreditCardItem(
     val cardNumberMasked: String,
     val outstandingFormatted: String,
     val creditLimitFormatted: String = "₹1,79,000",
+    val billingCycle: String = "Current cycle",
+    val dueInfo: String = "Active card",
 )
 
 /**
@@ -124,6 +132,7 @@ data class CreditCardItem(
 fun HomeScreen(
     transactions: List<Transaction> = emptyList(),
     accounts: List<Account> = emptyList(),
+    recurringTransactions: List<RecurringTransaction> = emptyList(),
     monthlyBudgetMinor: Long = 0L,
     userName: String? = null,
     onSeeAllClick: () -> Unit = {},
@@ -166,17 +175,23 @@ fun HomeScreen(
             }
         }
 
+    val globalRefundMap = remember(transactions) { transactions.buildRefundMap() }
+    val countedCurrentMonthTxns =
+        remember(currentMonthTransactions, globalRefundMap) {
+            currentMonthTransactions.forTotals(globalRefundMap)
+        }
+
     val spentThisMonth =
-        remember(currentMonthTransactions) {
-            currentMonthTransactions
-                .filter { it.type == TransactionType.Expense && it.isCounted }
+        remember(countedCurrentMonthTxns) {
+            countedCurrentMonthTxns
+                .filter { it.type == TransactionType.Expense }
                 .sumOf { it.amount }
         }
 
     val incomeThisMonth =
-        remember(currentMonthTransactions) {
-            currentMonthTransactions
-                .filter { it.type == TransactionType.Income && it.isCounted }
+        remember(countedCurrentMonthTxns) {
+            countedCurrentMonthTxns
+                .filter { it.type == TransactionType.Income }
                 .sumOf { it.amount }
         }
 
@@ -197,37 +212,62 @@ fun HomeScreen(
 
     // Data models for Section 7.1 continuous scrolling feed
     val duesList =
-        remember {
-            listOf(
-                DueReminderItem(1L, "Repeats Monthly · 01 Nov 26", "Netflix", 19900L),
-                DueReminderItem(2L, "Repeats Monthly · 05 Nov 26", "Airtel Fiber", 117900L),
-                DueReminderItem(3L, "Repeats Yearly · 15 Dec 26", "Term Insurance", 850000L),
-            )
+        remember(recurringTransactions) {
+            recurringTransactions
+                .filter { it.isActive }
+                .sortedBy { it.nextDueDateEpoch }
+                .map { recurring ->
+                    val frequencyLabel =
+                        when (recurring.frequency) {
+                            RecurringFrequency.DAILY -> "Repeats Daily"
+                            RecurringFrequency.WEEKLY -> "Repeats Weekly"
+                            RecurringFrequency.MONTHLY -> "Repeats Monthly"
+                        }
+                    val dateLabel =
+                        try {
+                            val instant = Instant.ofEpochMilli(recurring.nextDueDateEpoch)
+                            val localDate = instant.atZone(ZoneId.systemDefault()).toLocalDate()
+                            val formatter = DateTimeFormatter.ofPattern("dd MMM yy", Locale.ENGLISH)
+                            localDate.format(formatter)
+                        } catch (_: Exception) {
+                            ""
+                        }
+                    val subtitle = if (dateLabel.isNotBlank()) "$frequencyLabel · $dateLabel" else frequencyLabel
+                    DueReminderItem(
+                        id = recurring.id,
+                        frequency = subtitle,
+                        name = recurring.merchantName.ifBlank { recurring.category },
+                        amountMinor = recurring.amountMinor,
+                    )
+                }
         }
     val reminderToggles = remember { mutableStateMapOf<Long, Boolean>() }
     val totalDuesMinor = remember(duesList) { duesList.sumOf { it.amountMinor } }
 
     val unknownSpend =
-        remember(currentMonthTransactions) {
-            currentMonthTransactions
+        remember(countedCurrentMonthTxns) {
+            countedCurrentMonthTxns
                 .filter {
                     it.type == TransactionType.Expense &&
-                        it.isCounted &&
-                        (it.categorySource == "Unknown" || it.categorySource == "Other" || !it.isReviewed)
+                        (it.categorySource.isNullOrBlank() ||
+                            it.categorySource.equals("Unknown", ignoreCase = true) ||
+                            it.categorySource.equals("Unknown Category", ignoreCase = true) ||
+                            !it.isReviewed)
                 }
                 .sumOf { it.amount }
         }
 
     val topSpendCategories =
-        remember(currentMonthTransactions) {
-            currentMonthTransactions
+        remember(countedCurrentMonthTxns) {
+            countedCurrentMonthTxns
                 .filter {
                     it.type == TransactionType.Expense &&
-                        it.isCounted &&
-                        it.categorySource != "Unknown" &&
-                        it.categorySource != "Other"
+                        !it.categorySource.isNullOrBlank() &&
+                        !it.categorySource.equals("Unknown", ignoreCase = true) &&
+                        !it.categorySource.equals("Unknown Category", ignoreCase = true) &&
+                        it.isReviewed
                 }
-                .groupBy { it.categorySource ?: "Others" }
+                .groupBy { it.categorySource ?: "Other" }
                 .mapValues { entry -> entry.value.sumOf { it.amount } }
                 .toList()
                 .sortedByDescending { it.second }
@@ -237,34 +277,19 @@ fun HomeScreen(
     val accountModels =
         remember(accounts, isPrivacy) {
             val primaryAccounts = accounts.filter { it.type != AccountType.CreditCard }
-            if (primaryAccounts.isNotEmpty()) {
-                primaryAccounts.map { acc ->
-                    AccountCardModel(
-                        id = acc.id,
-                        bankName = acc.bankName ?: acc.name,
-                        accountNumberMasked = acc.last4?.let { "•••• $it" } ?: acc.name,
-                        balanceFormatted =
-                            if (isPrivacy) {
-                                "₹ ••••••"
-                            } else {
-                                acc.currentBalance?.let { MoneyFormatter.formatMinorUnits(it) } ?: "₹0.00"
-                            },
-                        isWallet = acc.type == AccountType.Wallet,
-                        lastTxnInfo = if (acc.type == AccountType.Wallet) "Active wallet" else null,
-                    )
-                }
-            } else {
-                listOf(
-                    AccountCardModel(1L, "HDFC Bank", "•••• 1999", if (isPrivacy) "₹ ••••••" else "₹24,850.00"),
-                    AccountCardModel(2L, "SBI", "•••• 4208", if (isPrivacy) "₹ ••••••" else "₹12,400.00"),
-                    AccountCardModel(
-                        3L,
-                        "Amazon Pay",
-                        "Digital Wallet",
-                        if (isPrivacy) "₹ ••••••" else "₹850.00",
-                        isWallet = true,
-                        lastTxnInfo = "24 Oct · ₹120.00",
-                    ),
+            primaryAccounts.map { acc ->
+                AccountCardModel(
+                    id = acc.id,
+                    bankName = acc.bankName ?: acc.name,
+                    accountNumberMasked = acc.last4?.let { "•••• $it" } ?: acc.name,
+                    balanceFormatted =
+                        if (isPrivacy) {
+                            "₹ ••••••"
+                        } else {
+                            acc.currentBalance?.let { MoneyFormatter.formatMinorUnits(it) } ?: "₹0.00"
+                        },
+                    isWallet = acc.type == AccountType.Wallet,
+                    lastTxnInfo = if (acc.type == AccountType.Wallet) "Active wallet" else null,
                 )
             }
         }
@@ -272,24 +297,17 @@ fun HomeScreen(
     val creditCards =
         remember(accounts, isPrivacy) {
             val cardAccounts = accounts.filter { it.type == AccountType.CreditCard }
-            if (cardAccounts.isNotEmpty()) {
-                cardAccounts.map { card ->
-                    CreditCardItem(
-                        id = card.id,
-                        bankName = card.bankName ?: "Credit Card",
-                        cardNumberMasked = card.last4?.let { "XXXX XXXX XXXX $it" } ?: card.name,
-                        outstandingFormatted =
-                            if (isPrivacy) {
-                                "₹ ••••••"
-                            } else {
-                                card.currentBalance?.let { MoneyFormatter.formatMinorUnits(it) } ?: "₹0.00"
-                            },
-                    )
-                }
-            } else {
-                listOf(
-                    CreditCardItem(null, "HDFC Bank", "XXXX XXXX XXXX 1999", if (isPrivacy) "₹ ••••••" else "₹18,450.00"),
-                    CreditCardItem(null, "ICICI Bank", "XXXX XXXX XXXX 4007", if (isPrivacy) "₹ ••••••" else "₹13,746.00"),
+            cardAccounts.map { card ->
+                CreditCardItem(
+                    id = card.id,
+                    bankName = card.bankName ?: "Credit Card",
+                    cardNumberMasked = card.last4?.let { "XXXX XXXX XXXX $it" } ?: card.name,
+                    outstandingFormatted =
+                        if (isPrivacy) {
+                            "₹ ••••••"
+                        } else {
+                            card.currentBalance?.let { MoneyFormatter.formatMinorUnits(it) } ?: "₹0.00"
+                        },
                 )
             }
         }
@@ -303,19 +321,6 @@ fun HomeScreen(
                 for (m in matches) {
                     val tag = m.groupValues[1]
                     counts[tag] = (counts[tag] ?: 0) + 1
-                }
-            }
-            val defaults = listOf("Online", "Rent", "School", "Friends", "Family", "Office")
-            for (d in defaults) {
-                if (!counts.containsKey(d)) {
-                    counts[d] = when (d) {
-                        "Online" -> 22
-                        "Rent" -> 1
-                        "School" -> 4
-                        "Friends" -> 12
-                        "Family" -> 5
-                        else -> 2
-                    }
                 }
             }
             counts.toList().sortedByDescending { it.second }
@@ -830,178 +835,200 @@ fun HomeScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Horizontally scrolling mini-cards
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            items(duesList, key = { it.id }) { due ->
-                                val isReminderSet = reminderToggles[due.id] ?: false
-                                val dueAmount =
-                                    if (isPrivacy) {
-                                        "₹ ••••••"
-                                    } else {
-                                        MoneyFormatter.formatMinorUnits(due.amountMinor)
-                                    }
+                        if (duesList.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.home_dues_empty_title),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.financialColors.textSecondary,
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = stringResource(id = R.string.home_dues_empty_subtitle),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.financialColors.textSecondary.copy(alpha = 0.7f),
+                                )
+                            }
+                        } else {
+                            // Horizontally scrolling mini-cards
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                items(duesList, key = { it.id }) { due ->
+                                    val isReminderSet = reminderToggles[due.id] ?: false
+                                    val dueAmount =
+                                        if (isPrivacy) {
+                                            "₹ ••••••"
+                                        } else {
+                                            MoneyFormatter.formatMinorUnits(due.amountMinor)
+                                        }
 
-                                Card(
-                                    modifier = Modifier.width(200.dp),
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors =
-                                        CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.financialColors.raisedRowBackground,
-                                        ),
-                                    border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Text(
-                                            text = due.frequency,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.financialColors.textSecondary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = due.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.financialColors.textPrimary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = dueAmount,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.financialColors.textPrimary,
-                                        )
-                                        Spacer(modifier = Modifier.height(10.dp))
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier.fillMaxWidth(),
-                                        ) {
+                                    Card(
+                                        modifier = Modifier.width(200.dp),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors =
+                                            CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.financialColors.raisedRowBackground,
+                                            ),
+                                        border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
                                             Text(
-                                                text = stringResource(id = R.string.home_dues_set_reminder),
+                                                text = due.frequency,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.financialColors.textSecondary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
                                             )
-                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                Surface(
-                                                    shape = RoundedCornerShape(100.dp),
-                                                    color =
-                                                        if (!isReminderSet) {
-                                                            MaterialTheme.financialColors.cardBackground
-                                                        } else {
-                                                            Color.Transparent
-                                                        },
-                                                    border =
-                                                        if (!isReminderSet) {
-                                                            BorderStroke(
-                                                                1.dp,
-                                                                MaterialTheme.financialColors.hairlineDivider,
-                                                            )
-                                                        } else {
-                                                            null
-                                                        },
-                                                    modifier =
-                                                        Modifier
-                                                            .clip(RoundedCornerShape(100.dp))
-                                                            .clickable { reminderToggles[due.id] = false },
-                                                ) {
-                                                    Text(
-                                                        text = stringResource(id = R.string.home_dues_no),
-                                                        style = MaterialTheme.typography.labelSmall,
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = due.name,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.financialColors.textPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = dueAmount,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.financialColors.textPrimary,
+                                            )
+                                            Spacer(modifier = Modifier.height(10.dp))
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            ) {
+                                                Text(
+                                                    text = stringResource(id = R.string.home_dues_set_reminder),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.financialColors.textSecondary,
+                                                )
+                                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(100.dp),
                                                         color =
                                                             if (!isReminderSet) {
-                                                                MaterialTheme.financialColors.textPrimary
+                                                                MaterialTheme.financialColors.cardBackground
                                                             } else {
-                                                                MaterialTheme.financialColors.textSecondary
+                                                                Color.Transparent
                                                             },
-                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                                    )
-                                                }
-                                                Surface(
-                                                    shape = RoundedCornerShape(100.dp),
-                                                    color =
-                                                        if (isReminderSet) {
-                                                            MaterialTheme.financialColors.limeAccent
-                                                        } else {
-                                                            Color.Transparent
-                                                        },
-                                                    border =
-                                                        if (!isReminderSet) {
-                                                            BorderStroke(
-                                                                1.dp,
-                                                                MaterialTheme.financialColors.hairlineDivider,
-                                                            )
-                                                        } else {
-                                                            null
-                                                        },
-                                                    modifier =
-                                                        Modifier
-                                                            .clip(RoundedCornerShape(100.dp))
-                                                            .clickable { reminderToggles[due.id] = true },
-                                                ) {
-                                                    Text(
-                                                        text = stringResource(id = R.string.home_dues_yes),
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        fontWeight =
-                                                            if (isReminderSet) {
-                                                                FontWeight.Bold
+                                                        border =
+                                                            if (!isReminderSet) {
+                                                                BorderStroke(
+                                                                    1.dp,
+                                                                    MaterialTheme.financialColors.hairlineDivider,
+                                                                )
                                                             } else {
-                                                                FontWeight.Normal
+                                                                null
                                                             },
+                                                        modifier =
+                                                            Modifier
+                                                                .clip(RoundedCornerShape(100.dp))
+                                                                .clickable { reminderToggles[due.id] = false },
+                                                    ) {
+                                                        Text(
+                                                            text = stringResource(id = R.string.home_dues_no),
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color =
+                                                                if (!isReminderSet) {
+                                                                    MaterialTheme.financialColors.textPrimary
+                                                                } else {
+                                                                    MaterialTheme.financialColors.textSecondary
+                                                                },
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                        )
+                                                    }
+                                                    Surface(
+                                                        shape = RoundedCornerShape(100.dp),
                                                         color =
                                                             if (isReminderSet) {
-                                                                Color.Black
+                                                                MaterialTheme.financialColors.limeAccent
                                                             } else {
-                                                                MaterialTheme.financialColors.textSecondary
+                                                                Color.Transparent
                                                             },
-                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                                    )
+                                                        border =
+                                                            if (!isReminderSet) {
+                                                                BorderStroke(
+                                                                    1.dp,
+                                                                    MaterialTheme.financialColors.hairlineDivider,
+                                                                )
+                                                            } else {
+                                                                null
+                                                            },
+                                                        modifier =
+                                                            Modifier
+                                                                .clip(RoundedCornerShape(100.dp))
+                                                                .clickable { reminderToggles[due.id] = true },
+                                                    ) {
+                                                        Text(
+                                                            text = stringResource(id = R.string.home_dues_yes),
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            fontWeight =
+                                                                if (isReminderSet) {
+                                                                    FontWeight.Bold
+                                                                } else {
+                                                                    FontWeight.Normal
+                                                                },
+                                                            color =
+                                                                if (isReminderSet) {
+                                                                    Color.Black
+                                                                } else {
+                                                                    MaterialTheme.financialColors.textSecondary
+                                                                },
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        Spacer(modifier = Modifier.height(14.dp))
-                        HorizontalDivider(
-                            thickness = 1.dp,
-                            color = MaterialTheme.financialColors.hairlineDivider,
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
+                            HorizontalDivider(
+                                thickness = 1.dp,
+                                color = MaterialTheme.financialColors.hairlineDivider,
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onDuesClick() },
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            val totalDuesFormatted =
-                                if (isPrivacy) {
-                                    "₹ ••••••"
-                                } else {
-                                    MoneyFormatter.formatMinorUnits(totalDuesMinor)
-                                }
-                            Text(
-                                text = stringResource(id = R.string.home_dues_total, totalDuesFormatted),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.financialColors.textPrimary,
-                            )
-                            Icon(
-                                painter = painterResource(id = DesignR.drawable.ic_chevron_right),
-                                contentDescription = null,
-                                tint = MaterialTheme.financialColors.textSecondary,
-                                modifier = Modifier.size(20.dp),
-                            )
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onDuesClick() },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                val totalDuesFormatted =
+                                    if (isPrivacy) {
+                                        "₹ ••••••"
+                                    } else {
+                                        MoneyFormatter.formatMinorUnits(totalDuesMinor)
+                                    }
+                                Text(
+                                    text = stringResource(id = R.string.home_dues_total, totalDuesFormatted),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.financialColors.textPrimary,
+                                )
+                                Icon(
+                                    painter = painterResource(id = DesignR.drawable.ic_chevron_right),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.financialColors.textSecondary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -1134,89 +1161,91 @@ fun HomeScreen(
             }
 
             // 10. Accounts Carousel
-            item {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.home_accounts_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.financialColors.textPrimary,
-                        )
-                        Icon(
-                            painter = painterResource(id = DesignR.drawable.ic_chevron_right),
-                            contentDescription = null,
-                            tint = MaterialTheme.financialColors.textSecondary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    AccountCarousel(
-                        accounts = accountModels,
-                        onAccountClick = { model ->
-                            accounts.firstOrNull { it.id == model.id }?.let(onAccountClick)
-                        },
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-
-
-            // 12. Credit Cards Carousel
-            item {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.home_credit_cards_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.financialColors.textPrimary,
-                        )
-                        Icon(
-                            painter = painterResource(id = DesignR.drawable.ic_chevron_right),
-                            contentDescription = null,
-                            tint = MaterialTheme.financialColors.textSecondary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        items(creditCards) { card ->
-                            CreditCardFace(
-                                bankName = card.bankName,
-                                cardNumberMasked = card.cardNumberMasked,
-                                outstandingFormatted = card.outstandingFormatted,
-                                billingCycle = "17 Oct - 16 Nov",
-                                dueInfo = "09:27 AM • 2, Apr",
-                                creditLimitFormatted = card.creditLimitFormatted,
-                                onRefreshClick = {},
-                                onClick = {
-                                    if (card.id != null) {
-                                        accounts.find { it.id == card.id }?.let(onAccountClick)
-                                    }
-                                },
+            if (accountModels.isNotEmpty()) {
+                item {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.home_accounts_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.financialColors.textPrimary,
+                            )
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_chevron_right),
+                                contentDescription = null,
+                                tint = MaterialTheme.financialColors.textSecondary,
+                                modifier = Modifier.size(20.dp),
                             )
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AccountCarousel(
+                            accounts = accountModels,
+                            onAccountClick = { model ->
+                                accounts.firstOrNull { it.id == model.id }?.let(onAccountClick)
+                            },
+                        )
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // 11. Credit Cards Carousel
+            if (creditCards.isNotEmpty()) {
+                item {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.home_credit_cards_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.financialColors.textPrimary,
+                            )
+                            Icon(
+                                painter = painterResource(id = DesignR.drawable.ic_chevron_right),
+                                contentDescription = null,
+                                tint = MaterialTheme.financialColors.textSecondary,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            items(creditCards) { card ->
+                                CreditCardFace(
+                                    bankName = card.bankName,
+                                    cardNumberMasked = card.cardNumberMasked,
+                                    outstandingFormatted = card.outstandingFormatted,
+                                    billingCycle = card.billingCycle,
+                                    dueInfo = card.dueInfo,
+                                    creditLimitFormatted = card.creditLimitFormatted,
+                                    onRefreshClick = {},
+                                    onClick = {
+                                        if (card.id != null) {
+                                            accounts.find { it.id == card.id }?.let(onAccountClick)
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
 
             // 13. Splits Empty State Card
@@ -1233,39 +1262,41 @@ fun HomeScreen(
             }
 
             // 14. Tags Cloud Card
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.financialColors.cardBackground,
-                        ),
-                    border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = stringResource(id = R.string.home_tags_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.financialColors.textPrimary,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            tagsCloud.forEach { (tag, count) ->
-                                TagChip(
-                                    tag = tag,
-                                    count = count,
-                                    onClick = { onTagClick(tag) },
-                                )
+            if (tagsCloud.isNotEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.financialColors.cardBackground,
+                            ),
+                        border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = stringResource(id = R.string.home_tags_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.financialColors.textPrimary,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                tagsCloud.forEach { (tag, count) ->
+                                    TagChip(
+                                        tag = tag,
+                                        count = count,
+                                        onClick = { onTagClick(tag) },
+                                    )
+                                }
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // 15. Footer
@@ -1463,15 +1494,18 @@ fun HomeTransactionRow(
         Spacer(modifier = Modifier.width(8.dp))
         Column(horizontalAlignment = Alignment.End) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val amountColor = when {
+                    !isCounted -> MaterialTheme.financialColors.textSecondary.copy(alpha = 0.7f)
+                    isTransfer -> MaterialTheme.financialColors.transfer
+                    isDebit -> MaterialTheme.financialColors.textPrimary
+                    else -> MaterialTheme.financialColors.limeAccent
+                }
+                val textDecoration = if (!isCounted) TextDecoration.LineThrough else TextDecoration.None
                 Text(
                     text = "$arrowGlyph $amountFormatted",
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.copy(textDecoration = textDecoration),
                     fontWeight = FontWeight.Bold,
-                    color = when {
-                        isTransfer -> MaterialTheme.financialColors.transfer
-                        isDebit -> MaterialTheme.financialColors.textPrimary
-                        else -> MaterialTheme.financialColors.limeAccent
-                    },
+                    color = amountColor,
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))

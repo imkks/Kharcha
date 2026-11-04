@@ -86,6 +86,7 @@
     <string name="detail_action_delete">Delete</string>
     <string name="detail_menu_options_title">Menu options</string>
     <string name="detail_menu_link_refund">Link refund</string>
+    <string name="detail_menu_link_expense">Link to expense</string>
     <string name="detail_menu_link_duplicate">Link duplicate</string>
     <string name="detail_menu_delete_transaction">Delete transaction</string>
     <string name="detail_category_not_categorised">Unknown Category</string>

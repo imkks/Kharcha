@@ -4,8 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.kharcha.core.common.DefaultAccountRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
@@ -152,7 +150,8 @@ class SmsReceiver : BroadcastReceiver() {
                                 balanceAfter = parsed.balanceAfterMinor,
                                 smsBody = body.trim(),
                                 parseConfidence = parsed.confidence,
-                                isReviewed = isUserCategorized,
+                                isReviewed = isUserCategorized ||
+                                    (!category.equals("Unknown", ignoreCase = true) && !category.equals("Unknown Category", ignoreCase = true)),
                                 latitude = capturedLocation?.latitude,
                                 longitude = capturedLocation?.longitude,
                                 locationLabel = capturedLocation?.label,
@@ -170,7 +169,6 @@ class SmsReceiver : BroadcastReceiver() {
                         val preferences = DefaultUserPreferences(context)
                         if (!alreadySaved &&
                             preferences.isExpenseNotificationsEnabled &&
-                            txn.type == TransactionType.Expense &&
                             txn.isCounted
                         ) {
                             val accountDescription =
@@ -203,14 +201,6 @@ class SmsReceiver : BroadcastReceiver() {
                     } catch (_: Exception) {
                     }
                 }
-            }
-
-            try {
-                val workRequest =
-                    OneTimeWorkRequestBuilder<ImportWorker>()
-                        .build()
-                WorkManager.getInstance(context).enqueue(workRequest)
-            } catch (_: Throwable) {
             }
         }
     }

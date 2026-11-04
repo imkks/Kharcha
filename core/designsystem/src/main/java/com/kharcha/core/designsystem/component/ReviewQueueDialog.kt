@@ -37,53 +37,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.kharcha.core.designsystem.R
+import com.kharcha.core.model.DEFAULT_CATEGORIES
+import com.kharcha.core.model.DEFAULT_CREDIT_CATEGORIES
+import com.kharcha.core.model.DEFAULT_SPEND_CATEGORIES
 import com.kharcha.core.model.Transaction
+import com.kharcha.core.model.TransactionType
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-val DEFAULT_CATEGORIES =
-    listOf(
-        "Food & Dining",
-        "Groceries",
-        "Shopping",
-        "Transport",
-        "Bills & Utilities",
-        "Entertainment",
-        "Health",
-        "Investments",
-        "Salary",
-        "Transfer",
-        "Other",
-    )
-
-val DEFAULT_SPEND_CATEGORIES =
-    listOf(
-        "Food & Dining",
-        "Groceries",
-        "Shopping",
-        "Transport",
-        "Bills & Utilities",
-        "Entertainment",
-        "Health",
-        "Investments",
-        "Education",
-        "Travel",
-        "Personal Care",
-        "Other",
-    )
-
-val DEFAULT_CREDIT_CATEGORIES =
-    listOf(
-        "Salary",
-        "Refund",
-        "Cashback",
-        "Investment Return",
-        "Allowance",
-        "Reimbursement",
-        "Other",
-    )
+val DEFAULT_CATEGORIES = com.kharcha.core.model.DEFAULT_CATEGORIES
+val DEFAULT_SPEND_CATEGORIES = com.kharcha.core.model.DEFAULT_SPEND_CATEGORIES
+val DEFAULT_CREDIT_CATEGORIES = com.kharcha.core.model.DEFAULT_CREDIT_CATEGORIES
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -202,7 +168,12 @@ fun ReviewQueueDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        DEFAULT_CATEGORIES.take(6).forEach { category ->
+                        val allowed = if (currentTxn.type == TransactionType.Income) {
+                            DEFAULT_CREDIT_CATEGORIES
+                        } else {
+                            DEFAULT_SPEND_CATEGORIES
+                        }
+                        allowed.take(6).forEach { category ->
                             FilterChip(
                                 selected = currentTxn.categorySource == category,
                                 onClick = {

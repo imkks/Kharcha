@@ -51,6 +51,7 @@ import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.forTotals
 import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -71,7 +72,7 @@ fun buildCategorySlices(
     otherLabel: String = "Others",
     maxCategories: Int = 5,
 ): List<DonutSliceData> {
-    val expenses = transactions.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    val expenses = transactions.forTotals().filter { it.type == TransactionType.Expense && it.amount > 0 }
     val totalExpense = expenses.sumOf { it.amount }
     if (totalExpense <= 0L) return emptyList()
 

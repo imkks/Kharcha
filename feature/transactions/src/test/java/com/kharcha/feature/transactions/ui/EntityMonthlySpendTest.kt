@@ -115,4 +115,67 @@ class EntityMonthlySpendTest {
         assertEquals(680000L, octData.spendMinor)
         assertEquals(0L, mayData.spendMinor)
     }
+
+    @Test
+    fun calculateEntityMonthlySpendIgnoresUncountedExpenses() {
+        val octEpoch =
+            LocalDate.of(2026, 10, 5)
+                .atStartOfDay(zoneId)
+                .toInstant()
+                .toEpochMilli()
+
+        val txns = listOf(
+            Transaction(
+                id = 1L,
+                amount = 100000L,
+                dateTime = octEpoch,
+                type = TransactionType.Expense,
+                categorySource = "Bills",
+                isCounted = true,
+            ),
+            Transaction(
+                id = 2L,
+                amount = 50000L,
+                dateTime = octEpoch,
+                type = TransactionType.Expense,
+                categorySource = "Bills",
+                isCounted = false, // Not counted
+            ),
+        )
+
+        val results = calculateEntityMonthlySpend(txns, refDate, 7, zoneId)
+        val octData = results.first { it.yearMonth == YearMonth.of(2026, 10) }
+        assertEquals(100000L, octData.spendMinor)
+    }
+
+    @Test
+    fun calculateEntityMonthlySpendDeductsLinkedRefunds() {
+        val octEpoch =
+            LocalDate.of(2026, 10, 5)
+                .atStartOfDay(zoneId)
+                .toInstant()
+                .toEpochMilli()
+
+        val expense = Transaction(
+            id = 10L,
+            amount = 100000L,
+            dateTime = octEpoch,
+            type = TransactionType.Expense,
+            categorySource = "Shopping",
+            isCounted = true,
+        )
+        val refund = Transaction(
+            id = 11L,
+            amount = 40000L,
+            dateTime = octEpoch,
+            type = TransactionType.Income,
+            categorySource = "Shopping",
+            isCounted = false,
+            linkedTransactionId = 10L,
+        )
+
+        val results = calculateEntityMonthlySpend(listOf(expense, refund), refDate, 7, zoneId)
+        val octData = results.first { it.yearMonth == YearMonth.of(2026, 10) }
+        assertEquals(60000L, octData.spendMinor) // 100000 - 40000
+    }
 }

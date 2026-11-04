@@ -59,7 +59,17 @@ class DefaultTransactionRepository(
     override suspend fun insertTransactions(transactions: List<Transaction>) {
         if (transactions.isEmpty()) return
         withContext(ioDispatcher) {
-            val combined = _transactions.value + transactions
+            val current = _transactions.value
+            val maxId = current.maxOfOrNull { it.id } ?: 0L
+            var nextId = maxId + 1L
+            val assigned = transactions.map { txn ->
+                if (txn.id == 0L) {
+                    txn.copy(id = nextId++)
+                } else {
+                    txn
+                }
+            }
+            val combined = current + assigned
             val deduplicated = deduplicateList(combined).toMutableList()
             reconcileTransfers(deduplicated)
             reconcileRefunds(deduplicated)
@@ -143,11 +153,16 @@ class DefaultTransactionRepository(
 
                 if (matches) {
                     val targetType = newType ?: t.type
+                    val isTransferCat = newCategory.equals("Transfer", ignoreCase = true) ||
+                        newCategory.equals("A/C Transfer", ignoreCase = true)
+                    val isExcluded = userPreferences?.isCategoryExcluded(newCategory, targetType == TransactionType.Expense) ?: false
+                    val isCounted = !isTransferCat && !isExcluded
 
                     current[i] =
                         t.copy(
                             categorySource = newCategory,
                             type = targetType,
+                            isCounted = isCounted,
                             isReviewed = true,
                             updatedAt = now,
                         )
@@ -197,14 +212,28 @@ class DefaultTransactionRepository(
             val i1 = current.indexOfFirst { it.id == transactionId }
             if (i1 != -1) {
                 val now = System.currentTimeMillis()
+                val userPrefs = try { DefaultUserPreferences(context) } catch (_: Exception) { null }
                 val t1 = current[i1]
                 val partnerId = t1.linkedTransactionId
-                current[i1] = t1.copy(linkedTransactionId = null, updatedAt = now)
+                val t1Restored = if (t1.type == TransactionType.Income && !t1.isCounted) {
+                    val isExcluded = userPrefs?.isCategoryExcluded(t1.categorySource ?: "", false) ?: false
+                    t1.copy(isCounted = !isExcluded)
+                } else {
+                    t1
+                }
+                current[i1] = t1Restored.copy(linkedTransactionId = null, updatedAt = now)
 
                 if (partnerId != null) {
                     val i2 = current.indexOfFirst { it.id == partnerId }
                     if (i2 != -1) {
-                        current[i2] = current[i2].copy(
+                        val t2 = current[i2]
+                        val t2Restored = if (t2.type == TransactionType.Income && !t2.isCounted) {
+                            val isExcluded = userPrefs?.isCategoryExcluded(t2.categorySource ?: "", false) ?: false
+                            t2.copy(isCounted = !isExcluded)
+                        } else {
+                            t2
+                        }
+                        current[i2] = t2Restored.copy(
                             linkedTransactionId = null,
                             updatedAt = now,
                         )
@@ -314,7 +343,7 @@ class DefaultTransactionRepository(
         val seenRefs = mutableMapOf<String, Int>()
 
         for (txn in transactions) {
-            val idxById = seenIds[txn.id]
+            val idxById = if (txn.id != 0L) seenIds[txn.id] else null
             val idxByHash = txn.smsHash?.let { seenHashes[it] }
             val ref = txn.refNumber?.trim()
             val bankAccountKey =
@@ -358,7 +387,7 @@ class DefaultTransactionRepository(
             if (!isDuplicate) {
                 val newIdx = result.size
                 result.add(txn)
-                seenIds[txn.id] = newIdx
+                if (txn.id != 0L) seenIds[txn.id] = newIdx
                 txn.smsHash?.let { seenHashes[it] = newIdx }
                 if (refKey != null) seenRefs[refKey] = newIdx
             }

@@ -37,8 +37,14 @@ interface UserPreferences {
     fun getCustomCreditCategories(): Set<String>
     fun addCustomCreditCategory(category: String)
     fun removeCustomCreditCategory(category: String)
+    fun getExcludedExpenseCategories(): Set<String>
+    fun setCategoryExcludedFromExpense(category: String, excluded: Boolean)
+    fun getExcludedIncomeCategories(): Set<String>
+    fun setCategoryExcludedFromIncome(category: String, excluded: Boolean)
+    fun isCategoryExcluded(category: String, isExpense: Boolean): Boolean
     fun getUnlinkedAccountIds(): Set<Long>
     fun setAccountUnlinked(accountId: Long, unlinked: Boolean)
+    var statementColumnMappings: String?
     fun clear()
 }
 
@@ -75,7 +81,7 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         set(value) = prefs.edit().putBoolean(KEY_DAILY_SUMMARY_ENABLED, value).apply()
 
     override var dailySummaryMinuteOfDay: Int
-        get() = prefs.getInt(KEY_DAILY_SUMMARY_TIME, 22 * 60)
+        get() = prefs.getInt(KEY_DAILY_SUMMARY_TIME, 21 * 60)
         set(value) = prefs.edit().putInt(KEY_DAILY_SUMMARY_TIME, value.coerceIn(0, 1439)).apply()
 
     override var isWeeklySummaryEnabled: Boolean
@@ -195,6 +201,10 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         current.remove(trimmed)
         val jsonArray = org.json.JSONArray(current.toList())
         prefs.edit().putString(KEY_CUSTOM_SPEND_CATEGORIES, jsonArray.toString()).apply()
+        val rawExcluded = prefs.getString(KEY_EXCLUDED_EXPENSE_CATEGORIES, null)
+        if (rawExcluded != null) {
+            setCategoryExcludedFromExpense(trimmed, false)
+        }
     }
 
     override fun getCustomCreditCategories(): Set<String> {
@@ -230,6 +240,76 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         current.remove(trimmed)
         val jsonArray = org.json.JSONArray(current.toList())
         prefs.edit().putString(KEY_CUSTOM_CREDIT_CATEGORIES, jsonArray.toString()).apply()
+        val rawExcluded = prefs.getString(KEY_EXCLUDED_INCOME_CATEGORIES, null)
+        if (rawExcluded != null) {
+            setCategoryExcludedFromIncome(trimmed, false)
+        }
+    }
+
+    override fun getExcludedExpenseCategories(): Set<String> {
+        val raw = prefs.getString(KEY_EXCLUDED_EXPENSE_CATEGORIES, null) ?: return emptySet()
+        return try {
+            val jsonArray = org.json.JSONArray(raw)
+            val set = mutableSetOf<String>()
+            for (i in 0 until jsonArray.length()) {
+                val item = jsonArray.optString(i)?.trim()
+                if (!item.isNullOrBlank()) {
+                    set.add(item)
+                }
+            }
+            set
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    override fun setCategoryExcludedFromExpense(category: String, excluded: Boolean) {
+        val trimmed = category.trim()
+        if (trimmed.isBlank()) return
+        val current = getExcludedExpenseCategories().toMutableSet()
+        if (excluded) {
+            current.add(trimmed)
+        } else {
+            current.remove(trimmed)
+        }
+        val jsonArray = org.json.JSONArray(current.toList())
+        prefs.edit().putString(KEY_EXCLUDED_EXPENSE_CATEGORIES, jsonArray.toString()).apply()
+    }
+
+    override fun getExcludedIncomeCategories(): Set<String> {
+        val raw = prefs.getString(KEY_EXCLUDED_INCOME_CATEGORIES, null) ?: return emptySet()
+        return try {
+            val jsonArray = org.json.JSONArray(raw)
+            val set = mutableSetOf<String>()
+            for (i in 0 until jsonArray.length()) {
+                val item = jsonArray.optString(i)?.trim()
+                if (!item.isNullOrBlank()) {
+                    set.add(item)
+                }
+            }
+            set
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    override fun setCategoryExcludedFromIncome(category: String, excluded: Boolean) {
+        val trimmed = category.trim()
+        if (trimmed.isBlank()) return
+        val current = getExcludedIncomeCategories().toMutableSet()
+        if (excluded) {
+            current.add(trimmed)
+        } else {
+            current.remove(trimmed)
+        }
+        val jsonArray = org.json.JSONArray(current.toList())
+        prefs.edit().putString(KEY_EXCLUDED_INCOME_CATEGORIES, jsonArray.toString()).apply()
+    }
+
+    override fun isCategoryExcluded(category: String, isExpense: Boolean): Boolean {
+        val normalized = category.trim().lowercase()
+        val excluded = if (isExpense) getExcludedExpenseCategories() else getExcludedIncomeCategories()
+        return excluded.any { it.trim().lowercase() == normalized }
     }
 
     override fun getAllCategoryBudgets(): Map<String, Long> {
@@ -291,6 +371,10 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         prefs.edit().putString(KEY_UNLINKED_ACCOUNT_IDS, jsonArray.toString()).apply()
     }
 
+    override var statementColumnMappings: String?
+        get() = prefs.getString(KEY_STATEMENT_COLUMN_MAPPINGS, null)
+        set(value) = prefs.edit().putString(KEY_STATEMENT_COLUMN_MAPPINGS, value).apply()
+
     override fun clear() {
         prefs.edit().clear().apply()
     }
@@ -314,9 +398,12 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_CUSTOM_CATEGORIES = "key_custom_categories_json"
         private const val KEY_CUSTOM_SPEND_CATEGORIES = "key_custom_spend_categories_json"
         private const val KEY_CUSTOM_CREDIT_CATEGORIES = "key_custom_credit_categories_json"
+        private const val KEY_EXCLUDED_EXPENSE_CATEGORIES = "key_excluded_expense_categories_json"
+        private const val KEY_EXCLUDED_INCOME_CATEGORIES = "key_excluded_income_categories_json"
         private const val KEY_LAUNCH_IN_MONEY_MANAGER = "key_launch_in_money_manager"
         private const val KEY_AUTO_TRANSFER_THRESHOLD = "key_auto_transfer_threshold"
         private const val KEY_UNLINKED_ACCOUNT_IDS = "key_unlinked_account_ids_json"
+        private const val KEY_STATEMENT_COLUMN_MAPPINGS = "key_statement_column_mappings_json"
         private const val KEY_USER_NAME = "key_user_name"
         private const val KEY_USER_EMAIL = "key_user_email"
         private const val KEY_LEGACY_USER_PHONE = "key_user_phone"

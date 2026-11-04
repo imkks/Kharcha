@@ -1,9 +1,13 @@
 package com.kharcha.core.common
 
 import com.kharcha.core.model.Channel
+import com.kharcha.core.model.DEFAULT_CREDIT_CATEGORIES
+import com.kharcha.core.model.DEFAULT_SPEND_CATEGORIES
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.sanitizeCategory
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TransactionClassifierHelperTest {
@@ -15,7 +19,7 @@ class TransactionClassifierHelperTest {
             body = body1,
         )
         assertEquals(TransactionType.Expense, type1)
-        assertEquals("Bills", TransactionClassifierHelper.guessCategory("Credit Card", false, isTransfer = true, body = body1))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Credit Card", false, isTransfer = true, body = body1))
 
         val body2 = "Rs 5,000 debited for self transfer to SBI"
         val type2 = TransactionClassifierHelper.classifyType(
@@ -31,7 +35,7 @@ class TransactionClassifierHelperTest {
             body = autoDebitBody,
         )
         assertEquals(TransactionType.Expense, autoDebitType)
-        assertEquals("Bills", TransactionClassifierHelper.guessCategory("HDFC", false, body = autoDebitBody))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("HDFC", false, body = autoDebitBody))
 
         val cardBillReceivedType = TransactionClassifierHelper.classifyType(
             direction = Direction.CREDIT,
@@ -211,7 +215,7 @@ class TransactionClassifierHelperTest {
             isCredit = true,
             body = "Credit Alert! Rs.21167.33 credited to HDFC Bank A/c XX1999 on 02-10-26 from VPA skdheraj-1@okicici",
         )
-        assertEquals("A/C Transfer", p2pCategory)
+        assertEquals("Transfer", p2pCategory)
 
         // Inward: Real Salary
         val salaryCategory = TransactionClassifierHelper.guessCategory(
@@ -235,14 +239,14 @@ class TransactionClassifierHelperTest {
         )
         assertEquals("Salary", qualcommSalary)
 
-        // Inward: Broker Payout / Investment Return
+        // Inward: Broker Payout / Investment Return (MUST NOT be "Investment" debit category)
         val zerodhaCategory = TransactionClassifierHelper.guessCategory(
             merchant = "Clearing",
             isCredit = true,
             body = "Update! INR 16,891.59 deposited in HDFC Bank A/c XX1999 on 05-SEP-26 " +
                 "for NEFT Cr-ZERODHA BROKING LTD",
         )
-        assertEquals("Investment", zerodhaCategory)
+        assertEquals("Investment Return", zerodhaCategory)
 
         // Outward: Spends mapped to proper categories
         assertEquals("Groceries", TransactionClassifierHelper.guessCategory("Vijetha Super Markets", isCredit = false))
@@ -253,6 +257,9 @@ class TransactionClassifierHelperTest {
         assertEquals("Travel", TransactionClassifierHelper.guessCategory("Telangana State Road Tran", isCredit = false))
         assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Auto Debit", isCredit = false))
         assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Bill Payment", isCredit = false))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Bharti Airtel", isCredit = false))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Airtel Recharge", isCredit = false))
+        assertEquals("Bills & Utilities", TransactionClassifierHelper.guessCategory("Jio Prepaid", isCredit = false))
         assertEquals("Other", TransactionClassifierHelper.guessCategory("SBI ATM", isCredit = false))
         assertEquals("Other", TransactionClassifierHelper.guessCategory("Cash Withdrawal", isCredit = false))
 
@@ -263,14 +270,14 @@ class TransactionClassifierHelperTest {
         assertEquals("Entertainment", TransactionClassifierHelper.guessCategory("BookMyShow Media", isCredit = false))
         assertEquals("Investments", TransactionClassifierHelper.guessCategory("Groww Investments", isCredit = false))
 
-        // Credit Card Bill Payment inward message: category Bills & type Income
+        // Credit Card Bill Payment inward message: category Credit & type Income
         val ccBillPaymentBody = "Thank you for payment of INR 10,641.62 towards your FIRST Wealth Credit Card XX5625 on 05 Jun 2026. IDFC FIRST Bank"
         val ccBillCat = TransactionClassifierHelper.guessCategory(
             merchant = "IDFC FIRST Bank",
             isCredit = true,
             body = ccBillPaymentBody,
         )
-        assertEquals("Bills", ccBillCat)
+        assertEquals("Credit", ccBillCat)
         val ccBillType = TransactionClassifierHelper.classifyType(
             direction = Direction.CREDIT,
             body = ccBillPaymentBody,
@@ -299,19 +306,96 @@ class TransactionClassifierHelperTest {
         )
         assertEquals("Zepto Marketplace", zeptoCleanedName)
 
-        // HDFC VPA credit alert: category A/C Transfer & type Income
+        // HDFC VPA credit alert: category Transfer & type Income
         val hdfcAlertBody = "Credit Alert! Rs.2511.00 credited to HDFC Bank A/c XX1999 on 21-10-26 from VPA *pany@ptybl (UPI 185726917017)"
         val alertCat = TransactionClassifierHelper.guessCategory(
             merchant = "pany@ptybl",
             isCredit = true,
             body = hdfcAlertBody,
         )
-        assertEquals("A/C Transfer", alertCat)
+        assertEquals("Transfer", alertCat)
         val alertType = TransactionClassifierHelper.classifyType(
             direction = Direction.CREDIT,
             body = hdfcAlertBody,
             merchant = "pany@ptybl",
         )
         assertEquals(TransactionType.Income, alertType)
+    }
+
+    @Test
+    fun strictlyAdheresToPrescribedCategorySets() {
+        // Credit transactions MUST only produce categories in DEFAULT_CREDIT_CATEGORIES
+        val creditTestCases = listOf(
+            Triple("Zerodha", "credited settlement payout Rs 5000", "Investment Return"),
+            Triple("Groww", "credited dividend of Rs 250", "Investment Return"),
+            Triple("Employer", "salary credited for month", "Salary"),
+            Triple("Friend", "UPI transfer credited Rs 1000", "Transfer"),
+            Triple("Amazon", "refund credited Rs 500", "Refund"),
+            Triple("Google Pay", "cashback credited Rs 25", "Cashback"),
+            Triple("Unknown Source", "UPI credit alert Rs 500", "Transfer"),
+            Triple("Something Weird", "inward misc payment", "Other"),
+            Triple("Totally Random Merchant", "received money in account", "Unknown"),
+        )
+
+        for ((merchant, body, expected) in creditTestCases) {
+            val cat = TransactionClassifierHelper.guessCategory(merchant = merchant, isCredit = true, body = body)
+            assertEquals("Credit txn for $merchant should match $expected", expected, cat)
+            assertTrue("Credit category '$cat' must belong to DEFAULT_CREDIT_CATEGORIES", DEFAULT_CREDIT_CATEGORIES.contains(cat))
+        }
+
+        // Debit transactions MUST only produce categories in DEFAULT_SPEND_CATEGORIES
+        val debitTestCases = listOf(
+            Pair("Swiggy", "Food & Dining"),
+            Pair("Zepto", "Groceries"),
+            Pair("Amazon", "Shopping"),
+            Pair("Uber", "Transport"),
+            Pair("Emirates", "Travel"),
+            Pair("HPCL Petrol Pump", "Fuel"),
+            Pair("Airtel Recharge", "Bills & Utilities"),
+            Pair("BookMyShow", "Entertainment"),
+            Pair("Apollo Pharmacy", "Health"),
+            Pair("Zerodha", "Investments"),
+            Pair("Bajaj Finance", "EMI"),
+            Pair("Charity Foundation", "Donation"),
+            Pair("SBI ATM", "Other"),
+            Pair("Misc Payments", "Other"),
+            Pair("Completely Random Merchant 12345", "Unknown"),
+        )
+
+        for ((merchant, expected) in debitTestCases) {
+            val cat = TransactionClassifierHelper.guessCategory(merchant = merchant, isCredit = false)
+            assertEquals("Debit txn for $merchant should match $expected", expected, cat)
+            assertTrue("Debit category '$cat' must belong to DEFAULT_SPEND_CATEGORIES", DEFAULT_SPEND_CATEGORIES.contains(cat))
+        }
+    }
+
+    @Test
+    fun sanitizeCategoryEnforcesValidCategoriesStrictly() {
+        // Credit mapping tests
+        assertEquals("Investment Return", sanitizeCategory("Investment", isCredit = true))
+        assertEquals("Investment Return", sanitizeCategory("Investments", isCredit = true))
+        assertEquals("Investment Return", sanitizeCategory("dividend", isCredit = true))
+        assertEquals("Transfer", sanitizeCategory("A/C Transfer", isCredit = true))
+        assertEquals("Transfer", sanitizeCategory("ac transfer", isCredit = true))
+        assertEquals("Cashback", sanitizeCategory("Cash back", isCredit = true))
+        assertEquals("Rewards", sanitizeCategory("reward", isCredit = true))
+        assertEquals("Refund", sanitizeCategory("refunded", isCredit = true))
+        assertEquals("Other", sanitizeCategory("Other", isCredit = true))
+        assertEquals("Unknown", sanitizeCategory("Unknown", isCredit = true))
+        assertEquals("Unknown", sanitizeCategory("NonExistentCategory", isCredit = true))
+
+        // Debit mapping tests
+        assertEquals("Bills & Utilities", sanitizeCategory("Bills", isCredit = false))
+        assertEquals("Bills & Utilities", sanitizeCategory("Bill Payment", isCredit = false))
+        assertEquals("Bills & Utilities", sanitizeCategory("Utilities", isCredit = false))
+        assertEquals("Food & Dining", sanitizeCategory("Food", isCredit = false))
+        assertEquals("Groceries", sanitizeCategory("Grocery", isCredit = false))
+        assertEquals("Transport", sanitizeCategory("Transportation", isCredit = false))
+        assertEquals("Investments", sanitizeCategory("Investment", isCredit = false))
+        assertEquals("Unknown", sanitizeCategory("Unknown Category", isCredit = false))
+        assertEquals("Unknown", sanitizeCategory("Unknown", isCredit = false))
+        assertEquals("Other", sanitizeCategory("Others", isCredit = false))
+        assertEquals("Other", sanitizeCategory("Other", isCredit = false))
+        assertEquals("Unknown", sanitizeCategory("NonExistentCategory", isCredit = false))
     }
 }

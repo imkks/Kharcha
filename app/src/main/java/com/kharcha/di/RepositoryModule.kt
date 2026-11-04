@@ -1,10 +1,17 @@
 package com.kharcha.di
 
 import android.content.Context
+import com.kharcha.core.common.AccountRepository
+import com.kharcha.core.common.CsvTransactionImporter
+import com.kharcha.core.common.DefaultAccountRepository
+import com.kharcha.core.common.DefaultRecurringTransactionRepository
 import com.kharcha.core.common.DefaultTransactionRepository
 import com.kharcha.core.common.DefaultUserPreferences
+import com.kharcha.core.common.ImportCsvUseCase
+import com.kharcha.core.common.RecurringTransactionRepository
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
+import com.kharcha.core.common.statement.ImportStatementUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,5 +32,52 @@ object RepositoryModule {
     @Singleton
     fun provideUserPreferences(@ApplicationContext context: Context): UserPreferences {
         return DefaultUserPreferences(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideRecurringTransactionRepository(
+        @ApplicationContext context: Context,
+        transactionRepository: TransactionRepository,
+    ): RecurringTransactionRepository {
+        return DefaultRecurringTransactionRepository(context, transactionRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCsvTransactionImporter(): CsvTransactionImporter {
+        return CsvTransactionImporter()
+    }
+
+    @Provides
+    @Singleton
+    fun provideImportCsvUseCase(
+        @ApplicationContext context: Context,
+        importer: CsvTransactionImporter,
+        transactionRepository: TransactionRepository,
+    ): ImportCsvUseCase {
+        return ImportCsvUseCase(context, importer, transactionRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAccountRepository(@ApplicationContext context: Context): AccountRepository {
+        return DefaultAccountRepository.getInstance(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideImportStatementUseCase(
+        @ApplicationContext context: Context,
+        transactionRepository: TransactionRepository,
+        accountRepository: AccountRepository,
+        userPreferences: UserPreferences,
+    ): ImportStatementUseCase {
+        return ImportStatementUseCase(
+            context = context,
+            transactionRepository = transactionRepository,
+            accountRepository = accountRepository,
+            preferences = userPreferences,
+        )
     }
 }

@@ -39,10 +39,16 @@ class CategoryBudgetTest {
                     color = CategoryColors.forCategory("Food & Dining").color,
                 ),
                 DonutSliceData(
-                    categoryName = "Others",
+                    categoryName = "Unknown",
                     amountMinor = 5_000_00L,
                     percentage = 20f,
                     color = CategoryColors.forCategory(null).color,
+                ),
+                DonutSliceData(
+                    categoryName = "Other",
+                    amountMinor = 3_000_00L,
+                    percentage = 12f,
+                    color = CategoryColors.forCategory("Other").color,
                 ),
                 DonutSliceData(
                     categoryName = "Shopping",
@@ -54,14 +60,15 @@ class CategoryBudgetTest {
 
         val (unknownSlices, knownSlices) =
             slices.partition {
-                it.categoryName.equals("Others", ignoreCase = true) ||
-                    it.categoryName.equals("Unknown", ignoreCase = true) ||
+                it.categoryName.equals("Unknown", ignoreCase = true) ||
+                    it.categoryName.equals("Unknown Category", ignoreCase = true) ||
                     it.categoryName.equals("Uncategorized", ignoreCase = true)
             }
 
         assertEquals(1, unknownSlices.size)
-        assertEquals("Others", unknownSlices.first().categoryName)
-        assertEquals(2, knownSlices.size)
+        assertEquals("Unknown", unknownSlices.first().categoryName)
+        assertEquals(3, knownSlices.size)
+        assertTrue(knownSlices.any { it.categoryName == "Other" })
     }
 
     @Test

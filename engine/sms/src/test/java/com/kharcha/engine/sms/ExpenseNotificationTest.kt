@@ -51,7 +51,7 @@ class ExpenseNotificationTest {
     }
 
     @Test
-    fun doesNotPublishNonExpense() {
+    fun publishesIncomeNotification() {
         val transaction = expense().copy(type = TransactionType.Income)
         publisher().show(transaction, "Employer", "Salary", "HDFC Bank")
 
@@ -59,7 +59,13 @@ class ExpenseNotificationTest {
             shadowOf(context.getSystemService(NotificationManager::class.java))
                 .getNotification(transaction.id.toInt())
 
-        assertNull(notification)
+        assertNotNull(notification)
+        assertEquals("Received ₹25.00 from Employer", notification.extras.getString("android.title"))
+        assertEquals("Salary · HDFC Bank", notification.extras.getString("android.text"))
+        assertEquals(3, notification.actions.size)
+        assertEquals("Edit", notification.actions[0].title)
+        assertEquals("Not income", notification.actions[1].title)
+        assertEquals("Show SMS", notification.actions[2].title)
     }
 
     private fun publisher() =

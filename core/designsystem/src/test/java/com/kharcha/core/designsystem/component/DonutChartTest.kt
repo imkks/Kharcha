@@ -131,4 +131,30 @@ class DonutChartTest {
         assertEquals("Food", slices[0].categoryName)
         assertEquals("Rent", slices[1].categoryName)
     }
+
+    @Test
+    fun buildCategorySlicesExcludesUncountedTransactions() {
+        val txns = listOf(
+            createTxn(1L, 1000_00L, category = "Food").copy(isCounted = true),
+            createTxn(2L, 500_00L, category = "Food").copy(isCounted = false),
+            createTxn(3L, 2000_00L, category = "Shopping").copy(isCounted = false),
+        )
+
+        val slices = buildCategorySlices(txns)
+        assertEquals(1, slices.size)
+        assertEquals("Food", slices[0].categoryName)
+        assertEquals(1000_00L, slices[0].amountMinor)
+    }
+
+    @Test
+    fun buildCategorySlicesDeductsLinkedRefundFromExpense() {
+        val expense = createTxn(1L, 1000_00L, category = "Shopping")
+        val refund = createTxn(2L, 300_00L, type = TransactionType.Income, category = "Shopping")
+            .copy(isCounted = false, linkedTransactionId = 1L)
+
+        val slices = buildCategorySlices(listOf(expense, refund))
+        assertEquals(1, slices.size)
+        assertEquals("Shopping", slices[0].categoryName)
+        assertEquals(700_00L, slices[0].amountMinor)
+    }
 }

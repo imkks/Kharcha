@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -48,6 +49,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,6 +65,7 @@ import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.forTotals
 import com.kharcha.core.model.isCounted
 import com.kharcha.feature.transactions.R
 import java.time.Instant
@@ -84,6 +87,8 @@ fun EntityTransactionsScreen(
     title: String,
     isMerchant: Boolean,
     allTransactions: List<Transaction>,
+    initialMonth: YearMonth? = null,
+    isAllMonthsInitial: Boolean = false,
     onBack: () -> Unit,
     onTransactionClick: (Transaction) -> Unit,
     modifier: Modifier = Modifier,
@@ -119,14 +124,31 @@ fun EntityTransactionsScreen(
             }
         }
 
+    val availableMonths =
+        remember(allTransactions) {
+            val months =
+                allTransactions
+                    .map {
+                        val date = Instant.ofEpochMilli(it.dateTime).atZone(zoneId).toLocalDate()
+                        YearMonth.from(date)
+                    }
+                    .distinct()
+                    .sortedDescending()
+            if (months.isEmpty()) listOf(YearMonth.now()) else months
+        }
+
     val monthlyBarData =
         remember(entityTransactions, latestDate) {
             calculateEntityMonthlySpend(entityTransactions, latestDate, monthsCount = 7, zoneId)
         }
 
     var selectedMonth by rememberSaveable {
-        mutableStateOf<YearMonth?>(YearMonth.from(latestDate))
+        mutableStateOf<YearMonth?>(
+            if (isAllMonthsInitial) null else (initialMonth ?: YearMonth.from(latestDate))
+        )
     }
+
+    var showMonthPickerSheet by remember { mutableStateOf(false) }
 
     val filteredTransactions =
         remember(entityTransactions, selectedMonth) {
@@ -142,7 +164,7 @@ fun EntityTransactionsScreen(
 
     val subtitle =
         if (selectedMonth != null) {
-            selectedMonth!!.format(DateTimeFormatter.ofPattern("MMM", Locale.getDefault()))
+            selectedMonth!!.format(DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault()))
         } else {
             stringResource(id = R.string.entity_screen_all_time)
         }
@@ -161,11 +183,27 @@ fun EntityTransactionsScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF9E9E9E),
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showMonthPickerSheet = true }
+                                .padding(vertical = 2.dp, horizontal = 2.dp),
+                        ) {
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.financialColors.income,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = stringResource(id = R.string.transactions_select_month),
+                                tint = MaterialTheme.financialColors.income,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -272,6 +310,24 @@ fun EntityTransactionsScreen(
                 }
             }
         }
+    }
+
+    if (showMonthPickerSheet) {
+        MonthPickerSheet(
+            availableMonths = availableMonths,
+            selectedYearMonth = selectedMonth ?: (availableMonths.firstOrNull() ?: YearMonth.now()),
+            isAllMonthsSelected = selectedMonth == null,
+            transactions = entityTransactions,
+            onSelectMonth = { ym ->
+                selectedMonth = ym
+                showMonthPickerSheet = false
+            },
+            onSelectAllMonths = {
+                selectedMonth = null
+                showMonthPickerSheet = false
+            },
+            onDismiss = { showMonthPickerSheet = false },
+        )
     }
 }
 
@@ -430,7 +486,7 @@ fun EntityTransactionRow(
             .clickable(onClick = onClick)
             .then(
                 if (!isCounted) {
-                    Modifier.alpha(0.72f)
+                    Modifier.alpha(0.68f)
                 } else {
                     Modifier
                 },
@@ -483,7 +539,11 @@ fun EntityTransactionRow(
                                 .padding(horizontal = 6.dp, vertical = 2.dp),
                     ) {
                         Text(
-                            text = stringResource(id = R.string.row_not_counted),
+                            text = if (transaction.isTransfer) {
+                                stringResource(id = DesignR.string.add_txn_type_transfer)
+                            } else {
+                                stringResource(id = R.string.row_not_counted)
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
@@ -499,18 +559,29 @@ fun EntityTransactionRow(
         // Amount & Date
         Column(horizontalAlignment = Alignment.End) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val amountColor = when {
+                    !isCounted -> Color.White.copy(alpha = 0.5f)
+                    transaction.isTransfer -> MaterialTheme.financialColors.transfer
+                    transaction.type == TransactionType.Income -> MaterialTheme.financialColors.income
+                    else -> Color.White
+                }
+                val textDecoration = if (!isCounted) TextDecoration.LineThrough else TextDecoration.None
+
                 Text(
                     text = amountFormatted,
-                    style = MaterialTheme.typography.titleMedium,
+                    style =
+                        MaterialTheme.typography.titleMedium.copy(
+                            textDecoration = textDecoration,
+                        ),
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = amountColor,
                     modifier = if (isIncomeMasked && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (!isCounted) Color.White.copy(alpha = 0.5f) else Color.White,
                     modifier = Modifier.size(14.dp),
                 )
             }
@@ -536,6 +607,7 @@ fun calculateEntityMonthlySpend(
     val startYm = currentYm.minusMonths((monthsCount - 1).toLong())
     val formatter = DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
 
+    val countedTxns = transactions.forTotals()
     val results = mutableListOf<MonthSpendBarData>()
     var cursor = startYm
     while (!cursor.isAfter(currentYm)) {
@@ -549,7 +621,7 @@ fun calculateEntityMonthlySpend(
                 .toEpochMilli()
 
         val spend =
-            transactions
+            countedTxns
                 .filter { it.dateTime in monthStart..monthEnd && it.type == TransactionType.Expense }
                 .sumOf { it.amount }
 

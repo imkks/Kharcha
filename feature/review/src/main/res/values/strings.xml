@@ -16,6 +16,8 @@
     <string name="review_done_button">Done</string>
     <string name="review_low_confidence_badge">Low Confidence (%1$d%%)</string>
     <string name="review_category_sheet_title">Select Category</string>
+    <string name="review_category_sheet_title_expense">Select Expense Category</string>
+    <string name="review_category_sheet_title_income">Select Income Category</string>
     <string name="review_category_search_hint">Search category…</string>
     <string name="review_back_content_description">Back</string>
 </resources>

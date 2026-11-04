@@ -47,6 +47,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -369,14 +370,38 @@ fun SearchTransactionRow(
         CategoryBadge(categoryName = category, size = 36.dp)
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = merchant,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.financialColors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = merchant,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.financialColors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (!isCounted) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                    ) {
+                        Text(
+                            text = if (isTransfer) {
+                                stringResource(id = DesignR.string.add_txn_type_transfer)
+                            } else {
+                                stringResource(id = R.string.row_not_counted)
+                            },
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                        )
+                    }
+                }
+            }
             Text(
                 text = category,
                 style = MaterialTheme.typography.bodySmall,
@@ -384,15 +409,18 @@ fun SearchTransactionRow(
             )
         }
         Column(horizontalAlignment = Alignment.End) {
+            val amountColor = when {
+                !isCounted -> MaterialTheme.financialColors.textSecondary.copy(alpha = 0.7f)
+                isTransfer -> MaterialTheme.financialColors.transfer
+                isDebit -> MaterialTheme.financialColors.textPrimary
+                else -> MaterialTheme.financialColors.limeAccent
+            }
+            val textDecoration = if (!isCounted) TextDecoration.LineThrough else TextDecoration.None
             Text(
                 text = "$arrowGlyph ${if (isPrivacy || isIncomeMasked) "₹ ••••••" else MoneyFormatter.formatMinorUnits(transaction.amount)}",
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall.copy(textDecoration = textDecoration),
                 fontWeight = FontWeight.Bold,
-                color = when {
-                    isTransfer -> MaterialTheme.financialColors.transfer
-                    isDebit -> MaterialTheme.financialColors.textPrimary
-                    else -> MaterialTheme.financialColors.limeAccent
-                },
+                color = amountColor,
                 modifier = if (isIncomeMasked && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
             )
             Text(

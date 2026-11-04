@@ -466,15 +466,19 @@ fun MoreScreen(
                                 title = stringResource(id = R.string.settings_import_statement_title),
                                 subtitle = stringResource(id = R.string.settings_import_statement_subtitle),
                                 onClick = {
-                                    csvPickerLauncher.launch(
-                                        arrayOf(
-                                            "text/comma-separated-values",
-                                            "text/csv",
-                                            "application/csv",
-                                            "text/plain",
-                                            "*/*",
-                                        ),
-                                    )
+                                    if (onImportStatementClick != null) {
+                                        onImportStatementClick()
+                                    } else {
+                                        csvPickerLauncher.launch(
+                                            arrayOf(
+                                                "text/comma-separated-values",
+                                                "text/csv",
+                                                "application/csv",
+                                                "text/plain",
+                                                "*/*",
+                                            ),
+                                        )
+                                    }
                                 },
                             )
                             HorizontalDivider(color = MaterialTheme.financialColors.hairlineDivider)

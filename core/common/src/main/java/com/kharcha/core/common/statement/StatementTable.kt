@@ -3,12 +3,12 @@ package com.kharcha.core.common.statement
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.opencsv.CSVReaderBuilder
+import com.opencsv.RFC4180ParserBuilder
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.BufferedReader
 import java.io.ByteArrayInputStream
-import java.io.PushbackReader
 import java.io.StringReader
 import java.math.BigDecimal
 import java.security.MessageDigest
@@ -113,75 +113,13 @@ object StatementTableParser {
 
     fun readCsv(text: String): List<List<String>> {
         val separator = detectSeparator(text.lineSequence().take(20).joinToString("\n"))
-        val rows = parseCsvRows(StringReader(text), separator)
+        val reader = CSVReaderBuilder(StringReader(text))
+            .withCSVParser(RFC4180ParserBuilder().withSeparator(separator).build())
+            .build()
+        val rows = reader.use { r ->
+            generateSequence { r.readNext() }.take(XlsxReader.MAX_ROWS + 1).map { it.toList() }.toList()
+        }
         if (rows.size > XlsxReader.MAX_ROWS) throw TooManyRowsException()
-        return rows
-    }
-
-    internal fun parseCsvRows(reader: java.io.Reader, separator: Char): List<List<String>> {
-        val pushback = PushbackReader(if (reader is BufferedReader) reader else BufferedReader(reader))
-        val rows = mutableListOf<List<String>>()
-        val currentField = StringBuilder()
-        val currentRow = mutableListOf<String>()
-        var inQuotes = false
-
-        while (true) {
-            val code = pushback.read()
-            if (code == -1) break
-            val c = code.toChar()
-
-            if (inQuotes) {
-                if (c == '"') {
-                    val next = pushback.read()
-                    if (next != -1 && next.toChar() == '"') {
-                        currentField.append('"')
-                    } else {
-                        inQuotes = false
-                        if (next != -1) {
-                            pushback.unread(next)
-                        }
-                    }
-                } else {
-                    currentField.append(c)
-                }
-            } else {
-                when (c) {
-                    '"' -> inQuotes = true
-                    separator -> {
-                        currentRow.add(currentField.toString())
-                        currentField.setLength(0)
-                    }
-                    '\r' -> {
-                        val next = pushback.read()
-                        if (next != -1 && next.toChar() != '\n') {
-                            pushback.unread(next)
-                        }
-                        currentRow.add(currentField.toString())
-                        currentField.setLength(0)
-                        if (currentRow.any { it.isNotBlank() }) {
-                            rows.add(ArrayList(currentRow))
-                        }
-                        currentRow.clear()
-                    }
-                    '\n' -> {
-                        currentRow.add(currentField.toString())
-                        currentField.setLength(0)
-                        if (currentRow.any { it.isNotBlank() }) {
-                            rows.add(ArrayList(currentRow))
-                        }
-                        currentRow.clear()
-                    }
-                    else -> currentField.append(c)
-                }
-            }
-        }
-
-        if (currentField.isNotEmpty() || currentRow.isNotEmpty()) {
-            currentRow.add(currentField.toString())
-            if (currentRow.any { it.isNotBlank() }) {
-                rows.add(ArrayList(currentRow))
-            }
-        }
         return rows
     }
 

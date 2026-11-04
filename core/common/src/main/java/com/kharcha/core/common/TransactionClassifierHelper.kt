@@ -3,6 +3,7 @@ package com.kharcha.core.common
 import com.kharcha.core.model.Channel
 import com.kharcha.core.model.Direction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.sanitizeCategory
 
 object TransactionClassifierHelper {
     private val ACCOUNT_OR_CARD_NOISE_REGEX =
@@ -224,7 +225,7 @@ object TransactionClassifierHelper {
             listOf(
                 "refund", "refunded", "reversal", "reversed",
                 "credited back", "initiated for refund", "refund of",
-                "cashback", "cash back", "returned", "chargeback",
+                "returned", "chargeback",
             )
         return refundPhrases.any { b.contains(it) || m.contains(it) }
     }
@@ -256,6 +257,26 @@ object TransactionClassifierHelper {
         isRefund: Boolean = false,
         body: String? = null,
         userRules: Map<String, String> = emptyMap(),
+        customCategories: Set<String> = emptySet(),
+    ): String {
+        val raw = internalGuessCategory(
+            merchant = merchant,
+            isCredit = isCredit,
+            isTransfer = isTransfer,
+            isRefund = isRefund,
+            body = body,
+            userRules = userRules,
+        )
+        return sanitizeCategory(raw, isCredit, customCategories)
+    }
+
+    private fun internalGuessCategory(
+        merchant: String,
+        isCredit: Boolean,
+        isTransfer: Boolean,
+        isRefund: Boolean,
+        body: String?,
+        userRules: Map<String, String>,
     ): String {
         val m = merchant.trim().lowercase()
         val b = body?.lowercase() ?: ""
@@ -270,7 +291,7 @@ object TransactionClassifierHelper {
         if (partialMatch != null) return partialMatch
 
         if (isCreditCardBillPayment(b, m) || b.contains("credit card bil") || b.contains("card bill")) {
-            return "Bills"
+            return if (isCredit) "Credit" else "Bills & Utilities"
         }
 
         if (isRefund || isRefundNarrative(b, m)) {
@@ -295,7 +316,7 @@ object TransactionClassifierHelper {
         if (b.contains("salary") || b.contains("payroll") || b.contains("stipend") ||
             b.contains("wages") || b.contains("epfo") ||
             m.contains("wells fargo") || m == "wells" || m.contains("qualcomm") ||
-            (b.contains("clearing") && !b.contains("zerodha"))
+            (b.contains("clearing") && !b.contains("zerodha") && !b.contains("groww"))
         ) {
             return "Salary"
         }
@@ -303,22 +324,40 @@ object TransactionClassifierHelper {
             return "Interest"
         }
         if (m.contains("zerodha") || m.contains("groww") || b.contains("zerodha") ||
-            b.contains("settlement payout") || b.contains("dividend")
+            b.contains("groww") || b.contains("settlement payout") || b.contains("dividend")
         ) {
-            return "Investment"
+            return "Investment Return"
         }
         if (isCreditCardBillPayment(b, m) || b.contains("bill payment") || b.contains("card bil")) {
-            return "Bills"
+            return "Credit"
         }
-        if (m.contains("reward") || m.contains("cashback") || m.contains("cliq cash") ||
-            b.contains("cashback") || b.contains("cash back") || b.contains("reward")
-        ) {
+        if (m.contains("reward") || m.contains("cliq cash") || b.contains("reward")) {
             return "Rewards"
         }
-        if (m.contains("@") || b.contains("upi") || b.contains("credit alert") || b.contains("transfer")) {
-            return "A/C Transfer"
+        if (m.contains("cashback") || b.contains("cashback") || b.contains("cash back")) {
+            return "Cashback"
         }
-        return "Credit"
+        if (b.contains("reimbursement") || m.contains("reimbursement")) {
+            return "Reimbursement"
+        }
+        if (b.contains("loan") || m.contains("loan") || b.contains("disbursal") || b.contains("disbursement")) {
+            return "Loan"
+        }
+        if (b.contains("allowance") || m.contains("allowance")) {
+            return "Allowance"
+        }
+        if (b.contains("business") || m.contains("business") || b.contains("merchant settlement")) {
+            return "Business"
+        }
+        if (b.contains("deposit") || m.contains("deposit") || b.contains("cash dep")) {
+            return "Bank Deposit"
+        }
+        if (m.contains("@") || b.contains("upi") || b.contains("credit alert") || b.contains("transfer") ||
+            b.contains("neft") || b.contains("rtgs") || b.contains("imps")
+        ) {
+            return "Transfer"
+        }
+        return "Other"
     }
 
     private fun guessExpenseCategory(m: String): String {
@@ -333,15 +372,14 @@ object TransactionClassifierHelper {
         if (m.contains("atm") || m.contains("cash wdl") || m.contains("cash withdrawal")) {
             return "Other"
         }
+        val hasEmiWord = m.split(" ", "-", "/", "_").any { it == "emi" }
+        if (hasEmiWord || m.contains("loan") || m.contains("bajaj finance")) {
+            return "EMI"
+        }
 
         val mapped = SharedCategoryMapping.getCategory(m)
-        if (mapped != "Others") {
-            return when (mapped) {
-                "Credit Card Payment" -> if (m.contains("credit card") || m.contains("card")) "Bill Payment" else "Bills & Utilities"
-                "Transportation" -> "Travel"
-                "Healthcare" -> "Health"
-                else -> mapped
-            }
+        if (mapped != "Other") {
+            return mapped
         }
 
         return when {
@@ -387,7 +425,7 @@ object TransactionClassifierHelper {
 
             m.contains("other") || m.contains("misc") -> "Other"
 
-            else -> "Unknown Category"
+            else -> "Other"
         }
     }
 }

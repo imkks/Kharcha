@@ -887,18 +887,18 @@ object SharedCategoryMapping {
     private val RULES: List<Rule> = listOf(
         Rule("Bills & Utilities", TAX),
         Rule("Bills & Utilities", BANK_CHARGE),
-        Rule("Credit Card Payment", CC_PAYMENT),
+        Rule("Bills & Utilities", CC_PAYMENT),
         Rule("Food & Dining", FOOD),
         Rule("Groceries", GROCERY),
-        Rule("Travel", TRANSPORT),
+        Rule("Transport", TRANSPORT),
         Rule("Shopping", SHOPPING + SHOPPING_EXTENDED, SHOPPING_EXCLUDE),
         Rule("Bills & Utilities", UTILITIES),
         Rule("Entertainment", ENTERTAINMENT),
         Rule("Health", HEALTHCARE),
         Rule("Investments", INVESTMENT),
         Rule("Bills & Utilities", BANKING),
-        Rule("Health", PERSONAL_CARE),
-        Rule("Bills & Utilities", EDUCATION),
+        Rule("Personal Care", PERSONAL_CARE),
+        Rule("Education", EDUCATION),
         Rule("Bills & Utilities", MOBILE),
         Rule("Health", FITNESS),
         Rule("Bills & Utilities", INSURANCE),
@@ -915,7 +915,7 @@ object SharedCategoryMapping {
                 return rule.categoryName
             }
         }
-        return "Others"
+        return "Other"
     }
 
     /**
@@ -930,8 +930,10 @@ object SharedCategoryMapping {
                 merchantLower.contains("refund") -> "Refund"
                 merchantLower.contains("cashback") -> "Cashback"
                 merchantLower.contains("interest") -> "Interest"
-                merchantLower.contains("dividend") -> "Dividends"
-                else -> "Income"
+                merchantLower.contains("dividend") || merchantLower.contains("zerodha") ||
+                    merchantLower.contains("groww") -> "Investment Return"
+                merchantLower.contains("transfer") || merchantLower.contains("upi") -> "Transfer"
+                else -> "Other"
             }
         }
 

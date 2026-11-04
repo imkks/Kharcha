@@ -1,6 +1,10 @@
 package com.kharcha.feature.home.ui
 
+import com.kharcha.core.model.Account
+import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Channel
+import com.kharcha.core.model.RecurringFrequency
+import com.kharcha.core.model.RecurringTransaction
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.core.model.buildRefundMap
@@ -371,5 +375,92 @@ class HomeScreenCalculationTest {
 
         assertEquals(200_00L, spent)
         assertEquals(0L, income)
+    }
+
+    @Test
+    fun testDuesListDerivedFromActiveRecurringTransactions() {
+        val r1 =
+            RecurringTransaction(
+                id = 1L,
+                merchantName = "Netflix",
+                amountMinor = 199_00L,
+                frequency = RecurringFrequency.MONTHLY,
+                nextDueDateEpoch = 1_000L,
+                isActive = true,
+            )
+        val r2 =
+            RecurringTransaction(
+                id = 2L,
+                merchantName = "Gym",
+                amountMinor = 1_500_00L,
+                frequency = RecurringFrequency.MONTHLY,
+                nextDueDateEpoch = 500L,
+                isActive = true,
+            )
+        val r3 =
+            RecurringTransaction(
+                id = 3L,
+                merchantName = "Old Service",
+                amountMinor = 500_00L,
+                frequency = RecurringFrequency.MONTHLY,
+                nextDueDateEpoch = 200L,
+                isActive = false,
+            )
+
+        val activeRecurring =
+            listOf(r1, r2, r3)
+                .filter { it.isActive }
+                .sortedBy { it.nextDueDateEpoch }
+
+        assertEquals(2, activeRecurring.size)
+        assertEquals(2L, activeRecurring[0].id)
+        assertEquals(1L, activeRecurring[1].id)
+        assertEquals(1_699_00L, activeRecurring.sumOf { it.amountMinor })
+    }
+
+    @Test
+    fun testAccountsAndCreditCardsPartitioning() {
+        val acc1 =
+            Account(
+                id = 1L,
+                name = "HDFC",
+                bankName = "HDFC Bank",
+                last4 = "1234",
+                type = AccountType.Savings,
+                currentBalance = 25_000_00L,
+            )
+        val acc2 =
+            Account(
+                id = 2L,
+                name = "Amazon Pay",
+                bankName = "Amazon Pay",
+                last4 = null,
+                type = AccountType.Wallet,
+                currentBalance = 500_00L,
+            )
+        val card1 =
+            Account(
+                id = 3L,
+                name = "ICICI Card",
+                bankName = "ICICI Bank",
+                last4 = "4321",
+                type = AccountType.CreditCard,
+                currentBalance = 12_000_00L,
+            )
+
+        val allAccounts = listOf(acc1, acc2, card1)
+        val primaryAccounts = allAccounts.filter { it.type != AccountType.CreditCard }
+        val creditCards = allAccounts.filter { it.type == AccountType.CreditCard }
+
+        assertEquals(2, primaryAccounts.size)
+        assertEquals(1, creditCards.size)
+        assertEquals("HDFC Bank", primaryAccounts[0].bankName)
+        assertEquals("ICICI Bank", creditCards[0].bankName)
+
+        val emptyAccounts = emptyList<Account>()
+        val emptyPrimary = emptyAccounts.filter { it.type != AccountType.CreditCard }
+        val emptyCards = emptyAccounts.filter { it.type == AccountType.CreditCard }
+        assertEquals(0, emptyPrimary.size)
+        assertEquals(0, emptyCards.size)
     }
 }

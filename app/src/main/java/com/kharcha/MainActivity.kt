@@ -77,6 +77,8 @@ import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.RecurringTransaction
 import com.kharcha.core.model.Transaction
+import com.kharcha.core.designsystem.component.DEFAULT_CREDIT_CATEGORIES
+import com.kharcha.core.designsystem.component.DEFAULT_SPEND_CATEGORIES
 import com.kharcha.core.model.TransactionFilter
 import com.kharcha.core.model.TransactionType
 import com.kharcha.engine.sms.ExpenseNotification
@@ -86,6 +88,7 @@ import com.kharcha.feature.insights.InsightsScreen
 import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.review.ui.ReviewQueueScreen
 import com.kharcha.feature.settings.ui.MoreScreen
+import com.kharcha.feature.settings.ui.RecurringTransactionsScreenView
 import com.kharcha.feature.transactions.R as TransactionsR
 import com.kharcha.feature.transactions.ui.AccountDetailScreen
 import com.kharcha.feature.transactions.ui.EntityTransactionsScreen
@@ -431,6 +434,7 @@ fun MainAppShell(
     var showReportSmsScreen by rememberSaveable { mutableStateOf(false) }
     var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(openWeeklySummary) }
     var showImportStatementScreen by rememberSaveable { mutableStateOf(false) }
+    var showRecurringPage by rememberSaveable { mutableStateOf(false) }
     var showSetBudgetSheet by rememberSaveable { mutableStateOf(false) }
     var showSplitInfoDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
@@ -488,6 +492,7 @@ fun MainAppShell(
     CompositionLocalProvider(LocalPrivacyMode provides isPrivacyMode) {
         BackHandler(enabled = showWeeklySummaryScreen) { showWeeklySummaryScreen = false }
         BackHandler(enabled = showImportStatementScreen) { showImportStatementScreen = false }
+        BackHandler(enabled = showRecurringPage) { showRecurringPage = false }
         BackHandler(enabled = showSearchScreen) { showSearchScreen = false }
         BackHandler(enabled = showReportSmsScreen) { showReportSmsScreen = false }
         BackHandler(enabled = showReviewQueue) { showReviewQueue = false }
@@ -501,6 +506,7 @@ fun MainAppShell(
                 selectedAccountForDetail == null &&
                 !showSearchScreen &&
                 !showImportStatementScreen &&
+                !showRecurringPage &&
                 !showWeeklySummaryScreen &&
                 !showReportSmsScreen &&
                 !showReviewQueue &&
@@ -714,7 +720,7 @@ fun MainAppShell(
                     },
                     onAccountClick = { selectedAccountForDetail = it },
                     onProfileClick = { currentDestination = AppDestination.MORE },
-                    onDuesClick = { currentDestination = AppDestination.INSIGHTS },
+                    onDuesClick = { showRecurringPage = true },
                     onNotificationSettingsChanged = {
                         SummaryNotificationWorker.scheduleAll(context, userPreferences, updateExisting = true)
                     },
@@ -1065,6 +1071,34 @@ fun MainAppShell(
             },
         )
     }
+
+    if (showRecurringPage) {
+        BackHandler { showRecurringPage = false }
+        val allCategories = remember(userPreferences) {
+            (DEFAULT_SPEND_CATEGORIES + userPreferences.getCustomSpendCategories() +
+                DEFAULT_CREDIT_CATEGORIES + userPreferences.getCustomCreditCategories()).distinct()
+        }
+        RecurringTransactionsScreenView(
+            recurringTransactions = recurringTransactions,
+            categories = allCategories,
+            onSave = { recurring ->
+                scope.launch {
+                    recurringTransactionRepository.saveRecurringTransaction(recurring)
+                }
+            },
+            onDelete = { id ->
+                scope.launch {
+                    recurringTransactionRepository.deleteRecurringTransaction(id)
+                }
+            },
+            onToggleActive = { id, active ->
+                scope.launch {
+                    recurringTransactionRepository.setActive(id, active)
+                }
+            },
+            onBack = { showRecurringPage = false },
+        )
+    }
 }
 }
 
@@ -1134,6 +1168,7 @@ fun BoxDestinationContent(
             HomeScreen(
                 transactions = transactions,
                 accounts = accounts,
+                recurringTransactions = recurringTransactions,
                 userName = userPreferences.userName,
                 showLocationPermissionAlert = showLocationPermissionAlert,
                 onCheckLocationPermission = onCheckLocationPermission,

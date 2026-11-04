@@ -141,7 +141,7 @@ class ImportWorker
                                                 balanceAfter = parsed.balanceAfterMinor,
                                                 smsBody = sms.body.trim(),
                                                 parseConfidence = parsed.confidence,
-                                                isReviewed = true,
+                                                isReviewed = !category.equals("Unknown", ignoreCase = true) && !category.equals("Unknown Category", ignoreCase = true),
                                                 templateId = parsed.templateId ?: "generic_fallback",
                                                 accountLast4 = resolvedAccountLast4,
                                                 bankName = parsed.bankName,

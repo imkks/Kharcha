@@ -334,6 +334,7 @@ class TransactionClassifierHelperTest {
             Triple("Google Pay", "cashback credited Rs 25", "Cashback"),
             Triple("Unknown Source", "UPI credit alert Rs 500", "Transfer"),
             Triple("Something Weird", "inward misc payment", "Other"),
+            Triple("Totally Random Merchant", "received money in account", "Unknown"),
         )
 
         for ((merchant, body, expected) in creditTestCases) {
@@ -356,7 +357,9 @@ class TransactionClassifierHelperTest {
             Pair("Zerodha", "Investments"),
             Pair("Bajaj Finance", "EMI"),
             Pair("Charity Foundation", "Donation"),
-            Pair("Completely Random Merchant 12345", "Other"),
+            Pair("SBI ATM", "Other"),
+            Pair("Misc Payments", "Other"),
+            Pair("Completely Random Merchant 12345", "Unknown"),
         )
 
         for ((merchant, expected) in debitTestCases) {
@@ -377,7 +380,9 @@ class TransactionClassifierHelperTest {
         assertEquals("Cashback", sanitizeCategory("Cash back", isCredit = true))
         assertEquals("Rewards", sanitizeCategory("reward", isCredit = true))
         assertEquals("Refund", sanitizeCategory("refunded", isCredit = true))
-        assertEquals("Other", sanitizeCategory("NonExistentCategory", isCredit = true))
+        assertEquals("Other", sanitizeCategory("Other", isCredit = true))
+        assertEquals("Unknown", sanitizeCategory("Unknown", isCredit = true))
+        assertEquals("Unknown", sanitizeCategory("NonExistentCategory", isCredit = true))
 
         // Debit mapping tests
         assertEquals("Bills & Utilities", sanitizeCategory("Bills", isCredit = false))
@@ -387,8 +392,10 @@ class TransactionClassifierHelperTest {
         assertEquals("Groceries", sanitizeCategory("Grocery", isCredit = false))
         assertEquals("Transport", sanitizeCategory("Transportation", isCredit = false))
         assertEquals("Investments", sanitizeCategory("Investment", isCredit = false))
-        assertEquals("Other", sanitizeCategory("Unknown Category", isCredit = false))
+        assertEquals("Unknown", sanitizeCategory("Unknown Category", isCredit = false))
+        assertEquals("Unknown", sanitizeCategory("Unknown", isCredit = false))
         assertEquals("Other", sanitizeCategory("Others", isCredit = false))
-        assertEquals("Other", sanitizeCategory("NonExistentCategory", isCredit = false))
+        assertEquals("Other", sanitizeCategory("Other", isCredit = false))
+        assertEquals("Unknown", sanitizeCategory("NonExistentCategory", isCredit = false))
     }
 }

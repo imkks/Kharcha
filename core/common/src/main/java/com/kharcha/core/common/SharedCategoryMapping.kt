@@ -915,7 +915,7 @@ object SharedCategoryMapping {
                 return rule.categoryName
             }
         }
-        return "Other"
+        return "Unknown"
     }
 
     /**
@@ -933,7 +933,7 @@ object SharedCategoryMapping {
                 merchantLower.contains("dividend") || merchantLower.contains("zerodha") ||
                     merchantLower.contains("groww") -> "Investment Return"
                 merchantLower.contains("transfer") || merchantLower.contains("upi") -> "Transfer"
-                else -> "Other"
+                else -> "Unknown"
             }
         }
 

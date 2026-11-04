@@ -23,6 +23,7 @@ val DEFAULT_SPEND_CATEGORIES: List<String> =
         "Shared",
         "Transfer",
         "Other",
+        "Unknown",
     )
 
 val DEFAULT_CREDIT_CATEGORIES: List<String> =
@@ -41,6 +42,7 @@ val DEFAULT_CREDIT_CATEGORIES: List<String> =
         "Loan",
         "Transfer",
         "Other",
+        "Unknown",
     )
 
 val DEFAULT_CREDIT_NON_INCOME_CATEGORIES: Set<String> =
@@ -70,7 +72,7 @@ fun sanitizeCategory(
     customCategories: Set<String> = emptySet(),
 ): String {
     if (rawCategory.isNullOrBlank()) {
-        return "Other"
+        return "Unknown"
     }
 
     val trimmed = rawCategory.trim()
@@ -90,6 +92,13 @@ fun sanitizeCategory(
 
     // 3. Known aliases & cross-category mappings
     val lower = trimmed.lowercase()
+    if (lower in setOf("unknown", "unknown category", "uncategorised", "uncategorized", "not categorised")) {
+        return "Unknown"
+    }
+    if (lower in setOf("other", "others", "misc", "miscellaneous")) {
+        return "Other"
+    }
+
     return if (isCredit) {
         when {
             lower in setOf("investment", "investments", "dividend", "dividends", "payout", "settlement payout", "stock", "stocks") ->
@@ -118,7 +127,7 @@ fun sanitizeCategory(
                 "Loan"
             lower in setOf("allowance") ->
                 "Allowance"
-            else -> "Other"
+            else -> "Unknown"
         }
     } else {
         when {
@@ -144,7 +153,7 @@ fun sanitizeCategory(
                 "Personal Care"
             lower in setOf("charity", "seva") ->
                 "Donation"
-            else -> "Other"
+            else -> "Unknown"
         }
     }
 }

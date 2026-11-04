@@ -150,7 +150,8 @@ class SmsReceiver : BroadcastReceiver() {
                                 balanceAfter = parsed.balanceAfterMinor,
                                 smsBody = body.trim(),
                                 parseConfidence = parsed.confidence,
-                                isReviewed = isUserCategorized,
+                                isReviewed = isUserCategorized ||
+                                    (!category.equals("Unknown", ignoreCase = true) && !category.equals("Unknown Category", ignoreCase = true)),
                                 latitude = capturedLocation?.latitude,
                                 longitude = capturedLocation?.longitude,
                                 locationLabel = capturedLocation?.label,

@@ -357,7 +357,10 @@ object TransactionClassifierHelper {
         ) {
             return "Transfer"
         }
-        return "Other"
+        if (m.contains("other") || m.contains("misc") || b.contains("misc")) {
+            return "Other"
+        }
+        return "Unknown"
     }
 
     private fun guessExpenseCategory(m: String): String {
@@ -378,7 +381,7 @@ object TransactionClassifierHelper {
         }
 
         val mapped = SharedCategoryMapping.getCategory(m)
-        if (mapped != "Other") {
+        if (mapped != "Unknown") {
             return mapped
         }
 
@@ -425,7 +428,7 @@ object TransactionClassifierHelper {
 
             m.contains("other") || m.contains("misc") -> "Other"
 
-            else -> "Other"
+            else -> "Unknown"
         }
     }
 }

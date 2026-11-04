@@ -1168,15 +1168,15 @@ fun CategoriesTabContent(
     val categoryTxnCounts =
         remember(expenses) {
             expenses
-                .groupBy { it.categorySource?.trim().takeUnless { s -> s.isNullOrEmpty() } ?: "Others" }
+                .groupBy { it.categorySource?.trim().takeUnless { s -> s.isNullOrEmpty() } ?: "Unknown" }
                 .mapValues { it.value.size }
         }
 
     val (unknownSlices, knownSlices) =
         remember(slices) {
             slices.partition {
-                it.categoryName.equals("Others", ignoreCase = true) ||
-                    it.categoryName.equals("Unknown", ignoreCase = true) ||
+                it.categoryName.equals("Unknown", ignoreCase = true) ||
+                    it.categoryName.equals("Unknown Category", ignoreCase = true) ||
                     it.categoryName.equals("Uncategorized", ignoreCase = true)
             }
         }

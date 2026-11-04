@@ -927,7 +927,7 @@ object SharedCategoryMapping {
             val merchantLower = merchantName.lowercase()
             return when {
                 merchantLower.contains("salary") -> "Salary"
-                merchantLower.contains("refund") -> "Refunds"
+                merchantLower.contains("refund") -> "Refund"
                 merchantLower.contains("cashback") -> "Cashback"
                 merchantLower.contains("interest") -> "Interest"
                 merchantLower.contains("dividend") -> "Dividends"

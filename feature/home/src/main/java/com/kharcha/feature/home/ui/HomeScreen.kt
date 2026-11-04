@@ -54,6 +54,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1474,15 +1475,18 @@ fun HomeTransactionRow(
         Spacer(modifier = Modifier.width(8.dp))
         Column(horizontalAlignment = Alignment.End) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val amountColor = when {
+                    !isCounted -> MaterialTheme.financialColors.textSecondary.copy(alpha = 0.7f)
+                    isTransfer -> MaterialTheme.financialColors.transfer
+                    isDebit -> MaterialTheme.financialColors.textPrimary
+                    else -> MaterialTheme.financialColors.limeAccent
+                }
+                val textDecoration = if (!isCounted) TextDecoration.LineThrough else TextDecoration.None
                 Text(
                     text = "$arrowGlyph $amountFormatted",
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.copy(textDecoration = textDecoration),
                     fontWeight = FontWeight.Bold,
-                    color = when {
-                        isTransfer -> MaterialTheme.financialColors.transfer
-                        isDebit -> MaterialTheme.financialColors.textPrimary
-                        else -> MaterialTheme.financialColors.limeAccent
-                    },
+                    color = amountColor,
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))

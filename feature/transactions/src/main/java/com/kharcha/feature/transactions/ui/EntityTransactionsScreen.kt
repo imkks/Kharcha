@@ -48,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -431,7 +432,7 @@ fun EntityTransactionRow(
             .clickable(onClick = onClick)
             .then(
                 if (!isCounted) {
-                    Modifier.alpha(0.72f)
+                    Modifier.alpha(0.68f)
                 } else {
                     Modifier
                 },
@@ -484,7 +485,11 @@ fun EntityTransactionRow(
                                 .padding(horizontal = 6.dp, vertical = 2.dp),
                     ) {
                         Text(
-                            text = stringResource(id = R.string.row_not_counted),
+                            text = if (transaction.isTransfer) {
+                                stringResource(id = DesignR.string.add_txn_type_transfer)
+                            } else {
+                                stringResource(id = R.string.row_not_counted)
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
@@ -500,18 +505,29 @@ fun EntityTransactionRow(
         // Amount & Date
         Column(horizontalAlignment = Alignment.End) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val amountColor = when {
+                    !isCounted -> Color.White.copy(alpha = 0.5f)
+                    transaction.isTransfer -> MaterialTheme.financialColors.transfer
+                    transaction.type == TransactionType.Income -> MaterialTheme.financialColors.income
+                    else -> Color.White
+                }
+                val textDecoration = if (!isCounted) TextDecoration.LineThrough else TextDecoration.None
+
                 Text(
                     text = amountFormatted,
-                    style = MaterialTheme.typography.titleMedium,
+                    style =
+                        MaterialTheme.typography.titleMedium.copy(
+                            textDecoration = textDecoration,
+                        ),
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = amountColor,
                     modifier = if (isIncomeMasked && !isPrivacy) Modifier.clickable { revealIncome?.invoke() } else Modifier,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     painter = painterResource(id = DesignR.drawable.ic_arrow_outward),
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (!isCounted) Color.White.copy(alpha = 0.5f) else Color.White,
                     modifier = Modifier.size(14.dp),
                 )
             }

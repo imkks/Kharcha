@@ -269,7 +269,7 @@ fun TransactionsScreen(
                 when {
                     activeFilter.types.isEmpty() -> true
                     activeFilter.types == setOf(TransactionType.Expense) ->
-                        txn.type == TransactionType.Expense || !txn.isCounted
+                        txn.type == TransactionType.Expense
                     activeFilter.types == setOf(TransactionType.Income) ->
                         txn.type == TransactionType.Income
                     else -> activeFilter.types.contains(txn.type)

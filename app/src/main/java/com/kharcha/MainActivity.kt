@@ -704,6 +704,7 @@ fun MainAppShell(
                 allTransactions = transactions,
                 accounts = accounts,
                 openCategoryPickerOnStart = categoryPickerTransactionId == txn.id,
+                userPreferences = userPreferences,
                 onBack = { selectedTransactionForDetail = null },
                 onNavigateToTransaction = { txnId ->
                     selectedTransactionForDetail = transactions.find { it.id == txnId }

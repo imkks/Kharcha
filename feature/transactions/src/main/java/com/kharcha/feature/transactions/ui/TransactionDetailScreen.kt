@@ -107,11 +107,15 @@ import com.kharcha.core.designsystem.theme.CategoryColors
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.LocalIncomeHidden
 import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
+import com.kharcha.core.common.UserPreferences
 import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
 import com.kharcha.core.model.AccountType
 import com.kharcha.core.model.Channel
+import com.kharcha.core.model.DEFAULT_CREDIT_CATEGORIES
+import com.kharcha.core.model.DEFAULT_CREDIT_NON_INCOME_CATEGORIES
+import com.kharcha.core.model.DEFAULT_SPEND_CATEGORIES
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.core.model.isCounted
@@ -139,6 +143,7 @@ fun TransactionDetailScreen(
     onLinkTransactions: ((primaryId: Long, secondaryId: Long, isRefund: Boolean) -> Unit)? = null,
     onUnlinkTransaction: ((id: Long) -> Unit)? = null,
     openCategoryPickerOnStart: Boolean = false,
+    userPreferences: UserPreferences? = null,
 ) {
     var selectedType by remember { mutableStateOf(transaction.type) }
     var selectedCategory by remember { mutableStateOf(transaction.categorySource ?: "Other") }
@@ -1494,18 +1499,19 @@ fun TransactionDetailScreen(
             CategoryPickerSheetContent(
                 selectedCategory = selectedCategory,
                 isCredit = isCreditTxn,
+                userPreferences = userPreferences,
                 onCategorySelected = { cat ->
                     selectedCategory = cat
                     if (isCreditTxn) {
                         selectedType = TransactionType.Income
-                        if (cat !in INWARD_INCOME_CATEGORIES) {
-                            isCountedInTotals = false
-                        }
+                        val isCounted = cat !in DEFAULT_CREDIT_NON_INCOME_CATEGORIES &&
+                            !(userPreferences?.getExcludedIncomeCategories()?.any { it.equals(cat, ignoreCase = true) } == true)
+                        isCountedInTotals = isCounted
                     } else {
                         selectedType = TransactionType.Expense
-                        if (cat.equals("Transfer", ignoreCase = true) || cat.equals("A/C Transfer", ignoreCase = true)) {
-                            isCountedInTotals = false
-                        }
+                        val isCounted = !cat.equals("Transfer", ignoreCase = true) &&
+                            !(userPreferences?.getExcludedExpenseCategories()?.any { it.equals(cat, ignoreCase = true) } == true)
+                        isCountedInTotals = isCounted
                     }
                     showCategorySheet = false
                 },
@@ -2036,44 +2042,13 @@ fun TransactionDetailScreen(
     }
 }
 
-internal val EXPENSE_CATEGORIES =
-    listOf(
-        "Bills",
-        "Donation",
-        "EMI",
-        "Entertainment",
-        "Food & Drinks",
-        "Fuel",
-        "Groceries",
-        "Health",
-        "Investment",
-        "Shopping",
-        "Transfer",
-        "Travel",
-        "Shared",
-        "Other",
-    )
+internal val EXPENSE_CATEGORIES = DEFAULT_SPEND_CATEGORIES
 
 internal val INWARD_INCOME_CATEGORIES =
-    listOf(
-        "Bank Deposit",
-        "Business",
-        "Interest",
-        "Salary",
-    )
+    DEFAULT_CREDIT_CATEGORIES.filter { it !in DEFAULT_CREDIT_NON_INCOME_CATEGORIES }
 
 internal val INWARD_NON_INCOME_CATEGORIES =
-    listOf(
-        "A/C Transfer",
-        "Bill Payment",
-        "Credit",
-        "Investment",
-        "Loan",
-        "Recharge",
-        "Refund",
-        "Reimbursement",
-        "Rewards",
-    )
+    DEFAULT_CREDIT_CATEGORIES.filter { it in DEFAULT_CREDIT_NON_INCOME_CATEGORIES }
 
 @Composable
 internal fun CategoryPickerSheetContent(
@@ -2083,11 +2058,35 @@ internal fun CategoryPickerSheetContent(
     isCredit: Boolean = false,
     modifier: Modifier = Modifier,
     onCategorySelectedWithType: ((category: String, isCounted: Boolean) -> Unit)? = null,
+    userPreferences: UserPreferences? = null,
 ) {
     var newCategoryText by remember { mutableStateOf("") }
     var currentSelected by remember { mutableStateOf(selectedCategory) }
-    val isCurrentIncome = currentSelected in INWARD_INCOME_CATEGORIES
-    var newCategoryMarkAsIncome by remember(isCredit, currentSelected) {
+
+    val customSpend = remember(userPreferences) { userPreferences?.getCustomSpendCategories() ?: emptySet() }
+    val customCredit = remember(userPreferences) { userPreferences?.getCustomCreditCategories() ?: emptySet() }
+    val excludedIncome = remember(userPreferences) { userPreferences?.getExcludedIncomeCategories() ?: emptySet() }
+    val excludedExpense = remember(userPreferences) { userPreferences?.getExcludedExpenseCategories() ?: emptySet() }
+
+    val allSpendCategories = remember(customSpend) {
+        (DEFAULT_SPEND_CATEGORIES + customSpend).distinct()
+    }
+    val allCreditCategories = remember(customCredit) {
+        (DEFAULT_CREDIT_CATEGORIES + customCredit).distinct()
+    }
+
+    val incomeCategories = remember(allCreditCategories, excludedIncome) {
+        allCreditCategories.filter { cat ->
+            cat !in DEFAULT_CREDIT_NON_INCOME_CATEGORIES && !excludedIncome.any { it.equals(cat, ignoreCase = true) }
+        }
+    }
+
+    val nonIncomeCategories = remember(allCreditCategories, incomeCategories) {
+        allCreditCategories.filter { it !in incomeCategories }
+    }
+
+    val isCurrentIncome = currentSelected in incomeCategories
+    var newCategoryMarkAsIncome by remember(isCredit, currentSelected, isCurrentIncome) {
         mutableStateOf(if (isCredit) isCurrentIncome else true)
     }
 
@@ -2133,11 +2132,15 @@ internal fun CategoryPickerSheetContent(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 CategoryGrid(
-                    categories = INWARD_INCOME_CATEGORIES,
+                    categories = incomeCategories,
                     selectedCategory = currentSelected,
                     onCategorySelected = { cat ->
                         currentSelected = cat
-                        onCategorySelected(cat)
+                        if (onCategorySelectedWithType != null) {
+                            onCategorySelectedWithType(cat, true)
+                        } else {
+                            onCategorySelected(cat)
+                        }
                     },
                 )
 
@@ -2148,20 +2151,30 @@ internal fun CategoryPickerSheetContent(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 CategoryGrid(
-                    categories = INWARD_NON_INCOME_CATEGORIES,
+                    categories = nonIncomeCategories,
                     selectedCategory = currentSelected,
                     onCategorySelected = { cat ->
                         currentSelected = cat
-                        onCategorySelected(cat)
+                        if (onCategorySelectedWithType != null) {
+                            onCategorySelectedWithType(cat, false)
+                        } else {
+                            onCategorySelected(cat)
+                        }
                     },
                 )
             } else {
                 CategoryGrid(
-                    categories = EXPENSE_CATEGORIES,
+                    categories = allSpendCategories,
                     selectedCategory = currentSelected,
                     onCategorySelected = { cat ->
                         currentSelected = cat
-                        onCategorySelected(cat)
+                        val isCounted = !cat.equals("Transfer", ignoreCase = true) &&
+                            !excludedExpense.any { it.equals(cat, ignoreCase = true) }
+                        if (onCategorySelectedWithType != null) {
+                            onCategorySelectedWithType(cat, isCounted)
+                        } else {
+                            onCategorySelected(cat)
+                        }
                     },
                 )
             }
@@ -2225,6 +2238,17 @@ internal fun CategoryPickerSheetContent(
                                     val trimmed = newCategoryText.trim()
                                     if (trimmed.isNotBlank()) {
                                         currentSelected = trimmed
+                                        if (isCredit) {
+                                            userPreferences?.addCustomCreditCategory(trimmed)
+                                            if (!newCategoryMarkAsIncome) {
+                                                userPreferences?.setCategoryExcludedFromIncome(trimmed, true)
+                                            }
+                                        } else {
+                                            userPreferences?.addCustomSpendCategory(trimmed)
+                                            if (!newCategoryMarkAsIncome) {
+                                                userPreferences?.setCategoryExcludedFromExpense(trimmed, true)
+                                            }
+                                        }
                                         if (onCategorySelectedWithType != null) {
                                             onCategorySelectedWithType(trimmed, newCategoryMarkAsIncome)
                                         } else {

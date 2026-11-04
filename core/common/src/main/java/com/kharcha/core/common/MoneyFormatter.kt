@@ -28,7 +28,7 @@ object MoneyFormatter {
     }
 
     fun parseMinorUnits(amountStr: String): Long? {
-        val trimmed = amountStr.trim()
+        val trimmed = amountStr.replace(",", "").replace("₹", "").replace("$", "").trim()
         if (trimmed.isEmpty()) return null
         return try {
             val parts = trimmed.split(".")

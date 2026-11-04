@@ -92,6 +92,11 @@ import com.kharcha.feature.transactions.ui.EntityTransactionsScreen
 import com.kharcha.feature.transactions.ui.ReportUndetectedSmsScreen
 import com.kharcha.feature.transactions.ui.SearchScreen
 import com.kharcha.feature.transactions.ui.SetBudgetSheet
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kharcha.core.common.statement.ImportStatementUseCase
+import com.kharcha.feature.settings.ui.statement.ImportStatementScreen
+import com.kharcha.feature.settings.ui.statement.ImportStatementUiState
+import com.kharcha.feature.settings.ui.statement.ImportStatementViewModel
 import com.kharcha.feature.transactions.ui.TransactionDetailScreen
 import com.kharcha.feature.transactions.ui.TransactionsScreen
 import com.kharcha.feature.transactions.ui.TransactionsSubTab
@@ -147,6 +152,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var importCsvUseCase: ImportCsvUseCase
+
+    @Inject
+    lateinit var importStatementUseCase: ImportStatementUseCase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -224,6 +232,7 @@ class MainActivity : FragmentActivity() {
                             userPreferences = userPreferences,
                             recurringTransactionRepository = recurringTransactionRepository,
                             importCsvUseCase = importCsvUseCase,
+                            importStatementUseCase = importStatementUseCase,
                             notificationTransactionId =
                                 intent.getLongExtra(ExpenseNotification.EXTRA_TRANSACTION_ID, -1L)
                                     .takeIf { it >= 0L },
@@ -390,6 +399,7 @@ fun MainAppShell(
     userPreferences: UserPreferences,
     recurringTransactionRepository: RecurringTransactionRepository,
     importCsvUseCase: ImportCsvUseCase,
+    importStatementUseCase: ImportStatementUseCase,
     onRescanSmsInbox: (String) -> Unit,
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
@@ -420,6 +430,7 @@ fun MainAppShell(
     var showSearchScreen by rememberSaveable { mutableStateOf(false) }
     var showReportSmsScreen by rememberSaveable { mutableStateOf(false) }
     var showWeeklySummaryScreen by rememberSaveable { mutableStateOf(openWeeklySummary) }
+    var showImportStatementScreen by rememberSaveable { mutableStateOf(false) }
     var showSetBudgetSheet by rememberSaveable { mutableStateOf(false) }
     var showSplitInfoDialog by rememberSaveable { mutableStateOf(false) }
     var filterCategoryForTransactions by rememberSaveable { mutableStateOf<String?>(null) }
@@ -476,6 +487,7 @@ fun MainAppShell(
 
     CompositionLocalProvider(LocalPrivacyMode provides isPrivacyMode) {
         BackHandler(enabled = showWeeklySummaryScreen) { showWeeklySummaryScreen = false }
+        BackHandler(enabled = showImportStatementScreen) { showImportStatementScreen = false }
         BackHandler(enabled = showSearchScreen) { showSearchScreen = false }
         BackHandler(enabled = showReportSmsScreen) { showReportSmsScreen = false }
         BackHandler(enabled = showReviewQueue) { showReviewQueue = false }
@@ -488,6 +500,7 @@ fun MainAppShell(
                 selectedEntityForDetail == null &&
                 selectedAccountForDetail == null &&
                 !showSearchScreen &&
+                !showImportStatementScreen &&
                 !showWeeklySummaryScreen &&
                 !showReportSmsScreen &&
                 !showReviewQueue &&
@@ -566,6 +579,7 @@ fun MainAppShell(
                             }
                         }
                     },
+                    onImportStatementClick = { showImportStatementScreen = true },
                     userPreferences = userPreferences,
                     showLocationPermissionAlert =
                         locationPermissionIssue != null && dismissedLocationPermissionIssue != locationPermissionIssueKey,
@@ -1025,6 +1039,27 @@ fun MainAppShell(
             },
         )
     }
+
+    if (showImportStatementScreen) {
+        val importStatementViewModel: ImportStatementViewModel = viewModel(
+            factory = ImportStatementViewModel.factory(importStatementUseCase),
+        )
+        BackHandler {
+            if (importStatementViewModel.uiState.value !is ImportStatementUiState.Idle) {
+                importStatementViewModel.resetState()
+            }
+            showImportStatementScreen = false
+        }
+        ImportStatementScreen(
+            viewModel = importStatementViewModel,
+            onNavigateBack = {
+                if (importStatementViewModel.uiState.value !is ImportStatementUiState.Idle) {
+                    importStatementViewModel.resetState()
+                }
+                showImportStatementScreen = false
+            },
+        )
+    }
 }
 }
 
@@ -1038,6 +1073,7 @@ fun BoxDestinationContent(
     onDeleteRecurringTransaction: (Long) -> Unit = {},
     onToggleRecurringActive: (Long, Boolean) -> Unit = { _, _ -> },
     onImportCsv: (Uri) -> Unit = {},
+    onImportStatementClick: () -> Unit = {},
     userPreferences: UserPreferences,
     showLocationPermissionAlert: Boolean = false,
     onCheckLocationPermission: () -> Unit = {},
@@ -1183,6 +1219,7 @@ fun BoxDestinationContent(
                 onDeleteRecurringTransaction = onDeleteRecurringTransaction,
                 onToggleRecurringActive = onToggleRecurringActive,
                 onImportCsv = onImportCsv,
+                onImportStatementClick = onImportStatementClick,
                 userPreferences = userPreferences,
                 onRescanSmsInbox = onRescanSmsInbox,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },

@@ -44,6 +44,7 @@ interface UserPreferences {
     fun isCategoryExcluded(category: String, isExpense: Boolean): Boolean
     fun getUnlinkedAccountIds(): Set<Long>
     fun setAccountUnlinked(accountId: Long, unlinked: Boolean)
+    var statementColumnMappings: String?
     fun clear()
 }
 
@@ -370,6 +371,10 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         prefs.edit().putString(KEY_UNLINKED_ACCOUNT_IDS, jsonArray.toString()).apply()
     }
 
+    override var statementColumnMappings: String?
+        get() = prefs.getString(KEY_STATEMENT_COLUMN_MAPPINGS, null)
+        set(value) = prefs.edit().putString(KEY_STATEMENT_COLUMN_MAPPINGS, value).apply()
+
     override fun clear() {
         prefs.edit().clear().apply()
     }
@@ -398,6 +403,7 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         private const val KEY_LAUNCH_IN_MONEY_MANAGER = "key_launch_in_money_manager"
         private const val KEY_AUTO_TRANSFER_THRESHOLD = "key_auto_transfer_threshold"
         private const val KEY_UNLINKED_ACCOUNT_IDS = "key_unlinked_account_ids_json"
+        private const val KEY_STATEMENT_COLUMN_MAPPINGS = "key_statement_column_mappings_json"
         private const val KEY_USER_NAME = "key_user_name"
         private const val KEY_USER_EMAIL = "key_user_email"
         private const val KEY_LEGACY_USER_PHONE = "key_user_phone"

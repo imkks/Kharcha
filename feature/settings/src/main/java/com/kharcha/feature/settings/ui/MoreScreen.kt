@@ -147,6 +147,7 @@ fun MoreScreen(
     onTransactionClick: (Transaction) -> Unit = {},
     onNotificationSettingsChanged: () -> Unit = {},
     onImportCsv: (Uri) -> Unit = {},
+    onImportStatementClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val csvPickerLauncher = rememberLauncherForActivityResult(
@@ -280,15 +281,19 @@ fun MoreScreen(
             onNotificationsClick = { showNotificationsDialog = true },
             onBackupClick = { showExportDialog = true },
             onImportCsvClick = {
-                csvPickerLauncher.launch(
-                    arrayOf(
-                        "text/comma-separated-values",
-                        "text/csv",
-                        "application/csv",
-                        "text/plain",
-                        "*/*",
-                    ),
-                )
+                if (onImportStatementClick != null) {
+                    onImportStatementClick()
+                } else {
+                    csvPickerLauncher.launch(
+                        arrayOf(
+                            "text/comma-separated-values",
+                            "text/csv",
+                            "application/csv",
+                            "text/plain",
+                            "*/*",
+                        ),
+                    )
+                }
             },
             onSecurityClick = { showSecurityDialog = true },
             onRescanSmsClick = { showRescanSmsDialog = true },

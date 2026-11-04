@@ -33,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.kharcha.core.designsystem.R
+import com.kharcha.core.model.DEFAULT_CREDIT_CATEGORIES
+import com.kharcha.core.model.DEFAULT_SPEND_CATEGORIES
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 
@@ -185,7 +187,12 @@ fun TransactionDetailDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    DEFAULT_CATEGORIES.forEach { category ->
+                    val allowed = if (selectedType == TransactionType.Income) {
+                        DEFAULT_CREDIT_CATEGORIES
+                    } else {
+                        DEFAULT_SPEND_CATEGORIES
+                    }
+                    allowed.forEach { category ->
                         FilterChip(
                             selected = selectedCategory == category,
                             onClick = {

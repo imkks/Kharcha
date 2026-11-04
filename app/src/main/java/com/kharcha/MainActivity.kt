@@ -885,6 +885,8 @@ fun MainAppShell(
         }
         ReviewQueueScreen(
             unreviewedTransactions = unreviewed,
+            customSpendCategories = remember(userPreferences) { userPreferences.getCustomSpendCategories() },
+            customCreditCategories = remember(userPreferences) { userPreferences.getCustomCreditCategories() },
             onCategorize = { txn, category, propagate ->
                 scope.launch {
                     if (propagate) {

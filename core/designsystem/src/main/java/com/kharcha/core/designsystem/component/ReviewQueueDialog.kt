@@ -41,6 +41,7 @@ import com.kharcha.core.model.DEFAULT_CATEGORIES
 import com.kharcha.core.model.DEFAULT_CREDIT_CATEGORIES
 import com.kharcha.core.model.DEFAULT_SPEND_CATEGORIES
 import com.kharcha.core.model.Transaction
+import com.kharcha.core.model.TransactionType
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -167,7 +168,12 @@ fun ReviewQueueDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        DEFAULT_CATEGORIES.take(6).forEach { category ->
+                        val allowed = if (currentTxn.type == TransactionType.Income) {
+                            DEFAULT_CREDIT_CATEGORIES
+                        } else {
+                            DEFAULT_SPEND_CATEGORIES
+                        }
+                        allowed.take(6).forEach { category ->
                             FilterChip(
                                 selected = currentTxn.categorySource == category,
                                 onClick = {

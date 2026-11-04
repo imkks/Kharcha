@@ -72,7 +72,6 @@ import androidx.compose.ui.unit.dp
 import com.kharcha.core.common.DateTimeFormatterHelper
 import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.designsystem.component.CategoryBadge
-import com.kharcha.core.designsystem.component.DEFAULT_CATEGORIES
 import com.kharcha.core.designsystem.theme.LocalPrivacyMode
 import com.kharcha.core.designsystem.theme.LocalIncomeHidden
 import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
@@ -80,6 +79,9 @@ import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
+import com.kharcha.core.model.allowedCategoryNames
+import com.kharcha.core.model.commonSuggestions
+import com.kharcha.core.model.sanitizeCategory
 import com.kharcha.feature.review.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +92,8 @@ fun ReviewQueueScreen(
     onIgnore: (Transaction) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    customSpendCategories: Set<String> = emptySet(),
+    customCreditCategories: Set<String> = emptySet(),
 ) {
     var currentIndex by rememberSaveable { mutableIntStateOf(0) }
     var reviewedCount by rememberSaveable { mutableIntStateOf(0) }
@@ -169,6 +173,9 @@ fun ReviewQueueScreen(
                 )
             } else {
                 val txn = unreviewedTransactions[currentIndex]
+                val currentCustomCategories =
+                    if (txn.type == TransactionType.Income) customCreditCategories else customSpendCategories
+
                 AnimatedContent(
                     targetState = txn,
                     transitionSpec = {
@@ -195,11 +202,14 @@ fun ReviewQueueScreen(
                         },
                         onOpenCategoryPicker = { showCategorySheet = true },
                         modifier = Modifier.fillMaxSize(),
+                        customCategories = currentCustomCategories,
                     )
                 }
 
                 if (showCategorySheet) {
                     ReviewCategoryPickerSheet(
+                        transactionType = txn.type,
+                        customCategories = currentCustomCategories,
                         onCategorySelected = { chosenCategory ->
                             showCategorySheet = false
                             onCategorize(txn, chosenCategory, true)
@@ -224,6 +234,7 @@ private fun ReviewCardContent(
     onSkip: () -> Unit,
     onOpenCategoryPicker: () -> Unit,
     modifier: Modifier = Modifier,
+    customCategories: Set<String> = emptySet(),
 ) {
     val haptic = LocalHapticFeedback.current
     val isPrivacy = LocalPrivacyMode.current
@@ -254,8 +265,8 @@ private fun ReviewCardContent(
     }
 
     val suggestedCategories =
-        remember(transaction.id) {
-            extractSuggestedCategories(transaction)
+        remember(transaction.id, transaction.type, customCategories) {
+            extractSuggestedCategories(transaction, customCategories)
         }
 
     Column(
@@ -558,19 +569,30 @@ private fun ReviewCompletionContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ReviewCategoryPickerSheet(
+    transactionType: TransactionType,
     onCategorySelected: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    customCategories: Set<String> = emptySet(),
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    val categoriesForType = remember(transactionType, customCategories) {
+        transactionType.allowedCategoryNames(customCategories)
+    }
     val filteredCategories =
-        remember(searchQuery) {
+        remember(searchQuery, categoriesForType) {
             if (searchQuery.isBlank()) {
-                DEFAULT_CATEGORIES
+                categoriesForType
             } else {
-                DEFAULT_CATEGORIES.filter { it.contains(searchQuery.trim(), ignoreCase = true) }
+                categoriesForType.filter { it.contains(searchQuery.trim(), ignoreCase = true) }
             }
         }
+
+    val sheetTitle = if (transactionType == TransactionType.Income) {
+        stringResource(id = R.string.review_category_sheet_title_income)
+    } else {
+        stringResource(id = R.string.review_category_sheet_title_expense)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -584,7 +606,7 @@ private fun ReviewCategoryPickerSheet(
                     .padding(bottom = 32.dp),
         ) {
             Text(
-                text = stringResource(id = R.string.review_category_sheet_title),
+                text = sheetTitle,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -644,7 +666,11 @@ private fun ReviewCategoryPickerSheet(
     }
 }
 
-private fun extractSuggestedCategories(transaction: Transaction): List<String> {
+private fun extractSuggestedCategories(
+    transaction: Transaction,
+    customCategories: Set<String> = emptySet(),
+): List<String> {
+    val isCredit = transaction.type == TransactionType.Income
     val existing =
         transaction.categorySource?.takeIf {
             it.isNotBlank() &&
@@ -655,10 +681,17 @@ private fun extractSuggestedCategories(transaction: Transaction): List<String> {
                 !it.equals("Uncategorised", ignoreCase = true) &&
                 !it.equals("Not Categorised", ignoreCase = true)
         }
-    val common = listOf("Food & Dining", "Groceries", "Shopping", "Transport", "Bills & Utilities")
+
+    val sanitizedExisting = existing?.let {
+        sanitizeCategory(it, isCredit, customCategories)
+    }?.takeIf {
+        !it.equals("Unknown", ignoreCase = true) && !it.equals("Other", ignoreCase = true)
+    }
+
+    val common = transaction.type.commonSuggestions().map { it.name }
     val list = mutableListOf<String>()
-    if (existing != null) {
-        list.add(existing)
+    if (sanitizedExisting != null) {
+        list.add(sanitizedExisting)
     }
     for (cat in common) {
         if (!list.contains(cat)) {

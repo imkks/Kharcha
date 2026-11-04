@@ -1,49 +1,161 @@
 package com.kharcha.core.model
 
 /**
+ * Strongly-typed category representation separating Expense (debit) and Income (credit) categories
+ * at compile-time and runtime.
+ */
+sealed interface TransactionCategory {
+    val name: String
+
+    @JvmInline
+    value class Expense(override val name: String) : TransactionCategory {
+        companion object {
+            val FoodAndDining = Expense("Food & Dining")
+            val Groceries = Expense("Groceries")
+            val Shopping = Expense("Shopping")
+            val Transport = Expense("Transport")
+            val Fuel = Expense("Fuel")
+            val BillsAndUtilities = Expense("Bills & Utilities")
+            val Entertainment = Expense("Entertainment")
+            val Health = Expense("Health")
+            val Investments = Expense("Investments")
+            val Education = Expense("Education")
+            val Travel = Expense("Travel")
+            val PersonalCare = Expense("Personal Care")
+            val Donation = Expense("Donation")
+            val EMI = Expense("EMI")
+            val Shared = Expense("Shared")
+            val Transfer = Expense("Transfer")
+            val Other = Expense("Other")
+            val Unknown = Expense("Unknown")
+
+            val ALL: List<Expense> = listOf(
+                FoodAndDining,
+                Groceries,
+                Shopping,
+                Transport,
+                Fuel,
+                BillsAndUtilities,
+                Entertainment,
+                Health,
+                Investments,
+                Education,
+                Travel,
+                PersonalCare,
+                Donation,
+                EMI,
+                Shared,
+                Transfer,
+                Other,
+                Unknown,
+            )
+
+            val COMMON_SUGGESTIONS: List<Expense> = listOf(
+                FoodAndDining,
+                Groceries,
+                Shopping,
+                Transport,
+                BillsAndUtilities,
+            )
+
+            fun from(raw: String?, customCategories: Set<String> = emptySet()): Expense =
+                Expense(sanitizeCategory(raw, isCredit = false, customCategories))
+        }
+    }
+
+    @JvmInline
+    value class Income(override val name: String) : TransactionCategory {
+        companion object {
+            val Salary = Income("Salary")
+            val Business = Income("Business")
+            val Interest = Income("Interest")
+            val InvestmentReturn = Income("Investment Return")
+            val BankDeposit = Income("Bank Deposit")
+            val Allowance = Income("Allowance")
+            val Cashback = Income("Cashback")
+            val Rewards = Income("Rewards")
+            val Refund = Income("Refund")
+            val Reimbursement = Income("Reimbursement")
+            val Credit = Income("Credit")
+            val Loan = Income("Loan")
+            val Transfer = Income("Transfer")
+            val Other = Income("Other")
+            val Unknown = Income("Unknown")
+
+            val ALL: List<Income> = listOf(
+                Salary,
+                Business,
+                Interest,
+                InvestmentReturn,
+                BankDeposit,
+                Allowance,
+                Cashback,
+                Rewards,
+                Refund,
+                Reimbursement,
+                Credit,
+                Loan,
+                Transfer,
+                Other,
+                Unknown,
+            )
+
+            val COMMON_SUGGESTIONS: List<Income> = listOf(
+                Salary,
+                InvestmentReturn,
+                Cashback,
+                Refund,
+                Transfer,
+            )
+
+            fun from(raw: String?, customCategories: Set<String> = emptySet()): Income =
+                Income(sanitizeCategory(raw, isCredit = true, customCategories))
+        }
+    }
+
+    companion object {
+        fun categoriesFor(type: TransactionType, customCategories: Set<String> = emptySet()): List<TransactionCategory> =
+            when (type) {
+                TransactionType.Expense -> (Expense.ALL.map { it.name } + customCategories)
+                    .distinct()
+                    .map { Expense(it) }
+                TransactionType.Income -> (Income.ALL.map { it.name } + customCategories)
+                    .distinct()
+                    .map { Income(it) }
+            }
+
+        fun commonSuggestionsFor(type: TransactionType): List<TransactionCategory> =
+            when (type) {
+                TransactionType.Expense -> Expense.COMMON_SUGGESTIONS
+                TransactionType.Income -> Income.COMMON_SUGGESTIONS
+            }
+
+        fun from(raw: String?, type: TransactionType, customCategories: Set<String> = emptySet()): TransactionCategory =
+            when (type) {
+                TransactionType.Expense -> Expense.from(raw, customCategories)
+                TransactionType.Income -> Income.from(raw, customCategories)
+            }
+    }
+}
+
+fun TransactionType.allowedCategories(customCategories: Set<String> = emptySet()): List<TransactionCategory> =
+    TransactionCategory.categoriesFor(this, customCategories)
+
+fun TransactionType.allowedCategoryNames(customCategories: Set<String> = emptySet()): List<String> =
+    allowedCategories(customCategories).map { it.name }
+
+fun TransactionType.commonSuggestions(): List<TransactionCategory> =
+    TransactionCategory.commonSuggestionsFor(this)
+
+/**
  * Standard default categories for Kharcha.
  * Unified across Settings, Transaction Detail, Review Queue, and categorization engines.
  */
 val DEFAULT_SPEND_CATEGORIES: List<String> =
-    listOf(
-        "Food & Dining",
-        "Groceries",
-        "Shopping",
-        "Transport",
-        "Fuel",
-        "Bills & Utilities",
-        "Entertainment",
-        "Health",
-        "Investments",
-        "Education",
-        "Travel",
-        "Personal Care",
-        "Donation",
-        "EMI",
-        "Shared",
-        "Transfer",
-        "Other",
-        "Unknown",
-    )
+    TransactionCategory.Expense.ALL.map { it.name }
 
 val DEFAULT_CREDIT_CATEGORIES: List<String> =
-    listOf(
-        "Salary",
-        "Business",
-        "Interest",
-        "Investment Return",
-        "Bank Deposit",
-        "Allowance",
-        "Cashback",
-        "Rewards",
-        "Refund",
-        "Reimbursement",
-        "Credit",
-        "Loan",
-        "Transfer",
-        "Other",
-        "Unknown",
-    )
+    TransactionCategory.Income.ALL.map { it.name }
 
 val DEFAULT_CREDIT_NON_INCOME_CATEGORIES: Set<String> =
     setOf(

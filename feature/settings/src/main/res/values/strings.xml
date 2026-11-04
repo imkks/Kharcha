@@ -28,6 +28,8 @@
     <string name="settings_daily_summary_subtitle">Recap today\'s spend at 9:00 PM</string>
     <string name="settings_weekly_summary_subtitle">Recap this week\'s spend on Sunday</string>
     <string name="settings_daily_summary_time">Daily summary time</string>
+    <string name="settings_test_daily_summary">Test daily summary</string>
+    <string name="settings_send_test_notification">Send now</string>
     <string name="settings_weekly_summary_time">Weekly summary time</string>
     <string name="settings_bill_reminders">Bill reminders</string>
     <string name="settings_bill_reminders_desc">2 days before and on the due date</string>

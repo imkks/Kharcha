@@ -716,7 +716,10 @@ fun MainAppShell(
                     onProfileClick = { currentDestination = AppDestination.MORE },
                     onDuesClick = { currentDestination = AppDestination.INSIGHTS },
                     onNotificationSettingsChanged = {
-                        SummaryNotificationWorker.scheduleAll(context, userPreferences)
+                        SummaryNotificationWorker.scheduleAll(context, userPreferences, updateExisting = true)
+                    },
+                    onTestDailySummary = {
+                        SummaryNotificationWorker.triggerNow(context, weekly = false)
                     },
                     onSplitClick = { showSplitInfoDialog = true },
                 )
@@ -1117,6 +1120,7 @@ fun BoxDestinationContent(
     onDepositClick: () -> Unit = {},
     onDuesClick: () -> Unit = {},
     onNotificationSettingsChanged: () -> Unit = {},
+    onTestDailySummary: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onSaveAccount: (Account) -> Unit = {},
     onMergeAccounts: ((Long, Set<Long>) -> Unit)? = null,
@@ -1234,6 +1238,7 @@ fun BoxDestinationContent(
                 onAccountClick = onAccountClick,
                 onTransactionClick = onTransactionClick,
                 onNotificationSettingsChanged = onNotificationSettingsChanged,
+                onTestDailySummary = onTestDailySummary,
                 modifier = modifier,
             )
         }

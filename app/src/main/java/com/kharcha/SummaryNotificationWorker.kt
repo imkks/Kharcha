@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -13,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -41,6 +43,18 @@ class SummaryNotificationWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val weekly = inputData.getBoolean(KEY_WEEKLY, false)
         val enabled = if (weekly) preferences.isWeeklySummaryEnabled else preferences.isDailySummaryEnabled
+
+        val minuteOfDay = if (weekly) preferences.weeklySummaryMinuteOfDay else preferences.dailySummaryMinuteOfDay
+        val nextDelay = millisUntilNextRun(minuteOfDay, weekly)
+        runCatching {
+            WorkManager.getInstance(applicationContext).updateWork(
+                PeriodicWorkRequestBuilder<SummaryNotificationWorker>(if (weekly) 7L else 1L, TimeUnit.DAYS)
+                    .setId(id)
+                    .setNextScheduleTimeOverride(System.currentTimeMillis() + nextDelay)
+                    .build(),
+            )
+        }
+
         if (!enabled) return Result.success()
 
         publishSummary(weekly)
@@ -53,8 +67,14 @@ class SummaryNotificationWorker @AssistedInject constructor(
         ) return
 
         val now = System.currentTimeMillis()
-        val days = if (weekly) 7 else 1
-        val start = now - TimeUnit.DAYS.toMillis(days.toLong())
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = now
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val start = if (weekly) now - TimeUnit.DAYS.toMillis(7) else calendar.timeInMillis
         val total = repository.getTransactionsSync()
             .forTotals()
             .asSequence()
@@ -64,6 +84,7 @@ class SummaryNotificationWorker @AssistedInject constructor(
         ensureSummaryChannel(applicationContext)
         val openIntent = applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)
             ?.putExtra(EXTRA_OPEN_WEEKLY_SUMMARY, weekly)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val pendingIntent = openIntent?.let {
             PendingIntent.getActivity(applicationContext, if (weekly) 102 else 101, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
@@ -89,13 +110,19 @@ class SummaryNotificationWorker @AssistedInject constructor(
         private const val WEEKLY_WORK = "weekly_spend_summary"
         const val EXTRA_OPEN_WEEKLY_SUMMARY = "open_weekly_summary"
 
-        fun scheduleAll(context: Context, preferences: UserPreferences) {
+        fun scheduleAll(context: Context, preferences: UserPreferences, updateExisting: Boolean = false) {
             ensureSummaryChannel(context)
-            sync(context, weekly = false, preferences.isDailySummaryEnabled, preferences.dailySummaryMinuteOfDay)
-            sync(context, weekly = true, preferences.isWeeklySummaryEnabled, preferences.weeklySummaryMinuteOfDay)
+            sync(context, weekly = false, preferences.isDailySummaryEnabled, preferences.dailySummaryMinuteOfDay, updateExisting)
+            sync(context, weekly = true, preferences.isWeeklySummaryEnabled, preferences.weeklySummaryMinuteOfDay, updateExisting)
         }
 
-        fun sync(context: Context, weekly: Boolean, enabled: Boolean, minuteOfDay: Int = 21 * 60) {
+        fun sync(
+            context: Context,
+            weekly: Boolean,
+            enabled: Boolean,
+            minuteOfDay: Int = 21 * 60,
+            updateExisting: Boolean = false,
+        ) {
             val workManager = WorkManager.getInstance(context)
             val workName = if (weekly) WEEKLY_WORK else DAILY_WORK
             if (!enabled) {
@@ -110,11 +137,25 @@ class SummaryNotificationWorker @AssistedInject constructor(
                 .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
                 .build()
 
+            val policy = if (updateExisting) {
+                ExistingPeriodicWorkPolicy.UPDATE
+            } else {
+                ExistingPeriodicWorkPolicy.KEEP
+            }
+
             workManager.enqueueUniquePeriodicWork(
                 workName,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                policy,
                 request,
             )
+        }
+
+        fun triggerNow(context: Context, weekly: Boolean = false) {
+            ensureSummaryChannel(context)
+            val request = OneTimeWorkRequestBuilder<SummaryNotificationWorker>()
+                .setInputData(androidx.work.Data.Builder().putBoolean(KEY_WEEKLY, weekly).build())
+                .build()
+            WorkManager.getInstance(context).enqueue(request)
         }
 
         fun scheduleFromSystem(context: Context) {

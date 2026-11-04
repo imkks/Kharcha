@@ -88,7 +88,7 @@ class UserPreferencesTest {
     fun reminderAndSecurityPreferencesHaveScreenshotDefaults() {
         every { sharedPreferences.getBoolean("key_hide_default_sms_notifications", false) } returns false
         every { sharedPreferences.getBoolean("key_daily_summary_enabled", true) } returns true
-        every { sharedPreferences.getInt("key_daily_summary_time", 22 * 60) } returns 22 * 60
+        every { sharedPreferences.getInt("key_daily_summary_time", 21 * 60) } returns 21 * 60
         every { sharedPreferences.getBoolean("key_weekly_summary_enabled", true) } returns true
         every { sharedPreferences.getInt("key_weekly_summary_time", 11 * 60) } returns 11 * 60
         every { sharedPreferences.getBoolean("key_bill_reminder_enabled", true) } returns true
@@ -97,7 +97,7 @@ class UserPreferencesTest {
 
         assertFalse(userPreferences.hideDefaultSmsNotifications)
         assertTrue(userPreferences.isDailySummaryEnabled)
-        assertEquals(22 * 60, userPreferences.dailySummaryMinuteOfDay)
+        assertEquals(21 * 60, userPreferences.dailySummaryMinuteOfDay)
         assertTrue(userPreferences.isWeeklySummaryEnabled)
         assertEquals(11 * 60, userPreferences.weeklySummaryMinuteOfDay)
         assertTrue(userPreferences.isBillReminderEnabled)

@@ -146,6 +146,7 @@ fun MoreScreen(
     onAccountClick: (Account) -> Unit = {},
     onTransactionClick: (Transaction) -> Unit = {},
     onNotificationSettingsChanged: () -> Unit = {},
+    onTestDailySummary: (() -> Unit)? = null,
     onImportCsv: (Uri) -> Unit = {},
     onImportStatementClick: (() -> Unit)? = null,
 ) {
@@ -1762,7 +1763,9 @@ fun MoreScreen(
         var isNotifsEnabled by remember { mutableStateOf(userPreferences.isExpenseNotificationsEnabled) }
         var hideSmsNotifications by remember { mutableStateOf(userPreferences.hideDefaultSmsNotifications) }
         var dailySummary by remember { mutableStateOf(userPreferences.isDailySummaryEnabled) }
+        var dailyTime by remember { mutableIntStateOf(userPreferences.dailySummaryMinuteOfDay) }
         var weeklySummary by remember { mutableStateOf(userPreferences.isWeeklySummaryEnabled) }
+        var weeklyTime by remember { mutableIntStateOf(userPreferences.weeklySummaryMinuteOfDay) }
         val context = LocalContext.current
         val notificationsAllowed = NotificationManagerCompat.from(context).areNotificationsEnabled()
         val summaryChannelAllowed =
@@ -1836,6 +1839,32 @@ fun MoreScreen(
                         userPreferences.isDailySummaryEnabled = it
                         onNotificationSettingsChanged()
                     }
+                    if (dailySummary) {
+                        SettingsValueRow(
+                            title = stringResource(R.string.settings_daily_summary_time),
+                            value = formatTimeMinuteOfDay(dailyTime),
+                        ) {
+                            android.app.TimePickerDialog(
+                                context,
+                                { _, hour, minute ->
+                                    dailyTime = hour * 60 + minute
+                                    userPreferences.dailySummaryMinuteOfDay = dailyTime
+                                    onNotificationSettingsChanged()
+                                },
+                                dailyTime / 60,
+                                dailyTime % 60,
+                                false,
+                            ).show()
+                        }
+                        if (onTestDailySummary != null) {
+                            SettingsValueRow(
+                                title = stringResource(R.string.settings_test_daily_summary),
+                                value = stringResource(R.string.settings_send_test_notification),
+                            ) {
+                                onTestDailySummary()
+                            }
+                        }
+                    }
                     SettingsToggleRow(
                         stringResource(R.string.settings_weekly_summary_title),
                         stringResource(R.string.settings_weekly_summary_subtitle),
@@ -1844,6 +1873,24 @@ fun MoreScreen(
                         weeklySummary = it
                         userPreferences.isWeeklySummaryEnabled = it
                         onNotificationSettingsChanged()
+                    }
+                    if (weeklySummary) {
+                        SettingsValueRow(
+                            title = stringResource(R.string.settings_weekly_summary_time),
+                            value = formatTimeMinuteOfDay(weeklyTime),
+                        ) {
+                            android.app.TimePickerDialog(
+                                context,
+                                { _, hour, minute ->
+                                    weeklyTime = hour * 60 + minute
+                                    userPreferences.weeklySummaryMinuteOfDay = weeklyTime
+                                    onNotificationSettingsChanged()
+                                },
+                                weeklyTime / 60,
+                                weeklyTime % 60,
+                                false,
+                            ).show()
+                        }
                     }
                 }
             },
@@ -3290,4 +3337,16 @@ private fun shareTextFile(
             }
         context.startActivity(Intent.createChooser(fallbackIntent, "Export $fileName"))
     }
+}
+
+private fun formatTimeMinuteOfDay(minuteOfDay: Int): String {
+    val hour = minuteOfDay.coerceIn(0, 1439) / 60
+    val minute = minuteOfDay.coerceIn(0, 1439) % 60
+    val isPm = hour >= 12
+    val displayHour = when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+    }
+    return String.format(java.util.Locale.ROOT, "%d:%02d %s", displayHour, minute, if (isPm) "PM" else "AM")
 }

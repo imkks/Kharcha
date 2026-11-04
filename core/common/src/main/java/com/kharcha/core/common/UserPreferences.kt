@@ -81,7 +81,7 @@ class DefaultUserPreferences(context: Context) : UserPreferences {
         set(value) = prefs.edit().putBoolean(KEY_DAILY_SUMMARY_ENABLED, value).apply()
 
     override var dailySummaryMinuteOfDay: Int
-        get() = prefs.getInt(KEY_DAILY_SUMMARY_TIME, 22 * 60)
+        get() = prefs.getInt(KEY_DAILY_SUMMARY_TIME, 21 * 60)
         set(value) = prefs.edit().putInt(KEY_DAILY_SUMMARY_TIME, value.coerceIn(0, 1439)).apply()
 
     override var isWeeklySummaryEnabled: Boolean

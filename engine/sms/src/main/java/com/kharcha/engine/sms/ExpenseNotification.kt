@@ -37,11 +37,19 @@ class ExpenseNotification(
 
         createChannel()
         val isIncome = transaction.type == TransactionType.Income
+        val isTransfer = transaction.categorySource.equals("Transfer", ignoreCase = true) ||
+            transaction.categorySource.equals("A/C Transfer", ignoreCase = true)
         val title = when {
             hideAmount && isIncome -> context.getString(R.string.income_notification_hidden_title, merchant)
+            hideAmount && isTransfer -> context.getString(R.string.transfer_notification_hidden_title, merchant)
             hideAmount -> context.getString(R.string.expense_notification_hidden_title, merchant)
             isIncome -> context.getString(
                 R.string.income_notification_title,
+                formatAmount(transaction.amount),
+                merchant,
+            )
+            isTransfer -> context.getString(
+                R.string.transfer_notification_title,
                 formatAmount(transaction.amount),
                 merchant,
             )
@@ -51,10 +59,10 @@ class ExpenseNotification(
                 merchant,
             )
         }
-        val dismissLabel = if (isIncome) {
-            context.getString(R.string.income_notification_not_income)
-        } else {
-            context.getString(R.string.expense_notification_not_expense)
+        val dismissLabel = when {
+            isIncome -> context.getString(R.string.income_notification_not_income)
+            isTransfer -> context.getString(R.string.transfer_notification_not_transfer)
+            else -> context.getString(R.string.expense_notification_not_expense)
         }
 
         val notification =

@@ -3,6 +3,7 @@
     <string name="daily_summary_notification_title">Daily spend summary</string>
     <string name="weekly_summary_notification_title">Weekly spend summary</string>
     <string name="summary_notification_body">Your tracked expenses total %1$s.</string>
+    <string name="daily_summary_notification_body">Today: %1$s • This month: %2$s</string>
     <string name="app_lock_title">Unlock Kharcha</string>
     <string name="app_lock_subtitle">Verify your identity to view your finances.</string>
     <string name="app_lock_unlock">Unlock with fingerprint</string>

@@ -22,6 +22,7 @@ import com.kharcha.core.common.MoneyFormatter
 import com.kharcha.core.common.NotificationChannels
 import com.kharcha.core.common.TransactionRepository
 import com.kharcha.core.common.UserPreferences
+import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.core.model.forTotals
 import dagger.assisted.Assisted
@@ -67,19 +68,22 @@ class SummaryNotificationWorker @AssistedInject constructor(
         ) return
 
         val now = System.currentTimeMillis()
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = now
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+        val allTransactions = repository.getTransactionsSync()
+        val (firstSpend, secondSpend) = calculateSummarySpends(allTransactions, now, weekly)
+
+        val title: String
+        val message: String
+        if (weekly) {
+            title = applicationContext.getString(R.string.weekly_summary_notification_title)
+            message = applicationContext.getString(R.string.summary_notification_body, MoneyFormatter.formatMinorUnits(firstSpend))
+        } else {
+            title = applicationContext.getString(R.string.daily_summary_notification_title)
+            message = applicationContext.getString(
+                R.string.daily_summary_notification_body,
+                MoneyFormatter.formatMinorUnits(firstSpend),
+                MoneyFormatter.formatMinorUnits(secondSpend),
+            )
         }
-        val start = if (weekly) now - TimeUnit.DAYS.toMillis(7) else calendar.timeInMillis
-        val total = repository.getTransactionsSync()
-            .forTotals()
-            .asSequence()
-            .filter { it.dateTime in start..now && it.type == TransactionType.Expense }
-            .sumOf { it.amount }
 
         ensureSummaryChannel(applicationContext)
         val openIntent = applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)
@@ -88,8 +92,6 @@ class SummaryNotificationWorker @AssistedInject constructor(
         val pendingIntent = openIntent?.let {
             PendingIntent.getActivity(applicationContext, if (weekly) 102 else 101, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
-        val title = applicationContext.getString(if (weekly) R.string.weekly_summary_notification_title else R.string.daily_summary_notification_title)
-        val message = applicationContext.getString(R.string.summary_notification_body, MoneyFormatter.formatMinorUnits(total))
         NotificationManagerCompat.from(applicationContext).notify(
             if (weekly) WEEKLY_NOTIFICATION_ID else DAILY_NOTIFICATION_ID,
             NotificationCompat.Builder(applicationContext, NotificationChannels.SPEND_SUMMARIES)
@@ -109,6 +111,45 @@ class SummaryNotificationWorker @AssistedInject constructor(
         private const val DAILY_WORK = "daily_spend_summary"
         private const val WEEKLY_WORK = "weekly_spend_summary"
         const val EXTRA_OPEN_WEEKLY_SUMMARY = "open_weekly_summary"
+
+        internal fun calculateSummarySpends(
+            transactions: List<Transaction>,
+            now: Long,
+            weekly: Boolean,
+        ): Pair<Long, Long> {
+            val calendar = Calendar.getInstance().apply {
+                timeInMillis = now
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val countedExpenses = transactions.forTotals().filter { it.type == TransactionType.Expense }
+            return if (weekly) {
+                val weekStart = now - TimeUnit.DAYS.toMillis(7)
+                val weekTotal = countedExpenses
+                    .asSequence()
+                    .filter { it.dateTime in weekStart..now }
+                    .sumOf { it.amount }
+                Pair(weekTotal, 0L)
+            } else {
+                val todayStart = calendar.timeInMillis
+                val monthCalendar = (calendar.clone() as Calendar).apply {
+                    set(Calendar.DAY_OF_MONTH, 1)
+                }
+                val monthStart = monthCalendar.timeInMillis
+
+                val todayTotal = countedExpenses
+                    .asSequence()
+                    .filter { it.dateTime in todayStart..now }
+                    .sumOf { it.amount }
+                val monthTotal = countedExpenses
+                    .asSequence()
+                    .filter { it.dateTime in monthStart..now }
+                    .sumOf { it.amount }
+                Pair(todayTotal, monthTotal)
+            }
+        }
 
         fun scheduleAll(context: Context, preferences: UserPreferences, updateExisting: Boolean = false) {
             ensureSummaryChannel(context)

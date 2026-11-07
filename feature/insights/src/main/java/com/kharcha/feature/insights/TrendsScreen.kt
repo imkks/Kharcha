@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +63,7 @@ import com.kharcha.core.model.Transaction
 import com.kharcha.core.model.TransactionType
 import com.kharcha.core.model.isCounted
 import java.time.Instant
+import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -69,8 +71,9 @@ import java.util.Locale
 
 enum class TrendsGrouping(val labelRes: Int) {
     BY_MONTH(R.string.trends_grouping_month),
-    BY_CATEGORY(R.string.trends_grouping_category),
     BY_WEEK(R.string.trends_grouping_week),
+    BY_DAY(R.string.trends_grouping_day),
+    BY_CATEGORY(R.string.trends_grouping_category),
 }
 
 /**
@@ -89,18 +92,26 @@ fun TrendsScreen(
     transactions: List<Transaction>,
     accounts: List<Account> = emptyList(),
     monthlyBudgetMinor: Long = 0L,
+    initialGrouping: TrendsGrouping = TrendsGrouping.BY_MONTH,
     onBack: () -> Unit = {},
     onSetMonthlyBudgetClick: () -> Unit = {},
     onReviewMonthClick: (YearMonth) -> Unit = {},
     onFilterClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var selectedGrouping by rememberSaveable { mutableStateOf(TrendsGrouping.BY_MONTH) }
+    var selectedGrouping by rememberSaveable { mutableStateOf(initialGrouping) }
     var showGroupingMenu by remember { mutableStateOf(false) }
+
+    LaunchedEffect(initialGrouping) {
+        selectedGrouping = initialGrouping
+    }
 
     var selectedYearMonth by rememberSaveable { mutableStateOf(YearMonth.now()) }
     var selectedAccount by remember { mutableStateOf<Account?>(null) }
     var showAccountSheet by remember { mutableStateOf(false) }
+
+    var selectedWeekIndex by rememberSaveable { mutableStateOf(1) }
+    var selectedDayOfMonth by rememberSaveable { mutableStateOf(LocalDate.now().dayOfMonth) }
 
     // User Rule: the eye icon hide/reveal toggle is strictly for income (spends is always visible)
     val incomeHiddenBySetting = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
@@ -123,6 +134,31 @@ fun TrendsScreen(
                 val ym = YearMonth.from(Instant.ofEpochMilli(tx.dateTime).atZone(ZoneId.systemDefault()))
                 ym == selectedYearMonth
             }
+        }
+
+    val weeklySummary =
+        remember(accountFilteredTransactions, selectedYearMonth, monthlyBudgetMinor) {
+            InsightsAnalyticsHelper.calculateWeeklyTrends(
+                transactions = accountFilteredTransactions,
+                yearMonth = selectedYearMonth,
+                monthlyBudgetMinor = monthlyBudgetMinor,
+            )
+        }
+
+    val dailySummary =
+        remember(accountFilteredTransactions, selectedYearMonth, monthlyBudgetMinor) {
+            InsightsAnalyticsHelper.calculateDailyTrends(
+                transactions = accountFilteredTransactions,
+                yearMonth = selectedYearMonth,
+                customMonthlyBudgetMinor = monthlyBudgetMinor.takeIf { it > 0L },
+            )
+        }
+
+    val categoryShares =
+        remember(monthTransactions) {
+            InsightsAnalyticsHelper.calculateCategoryShares(
+                monthTransactions.filter { it.type == TransactionType.Expense && it.isCounted },
+            )
         }
 
     val selectedMonthSpendsMinor =
@@ -222,25 +258,50 @@ fun TrendsScreen(
                     .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // 1. Chart Section
+            // 1. Chart Section based on selectedGrouping
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.financialColors.cardBackground,
-                        ),
-                    border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        val chartData =
-                            remember(accountFilteredTransactions) {
-                                calculateMonthlyComparisonData(accountFilteredTransactions, monthsCount = 6)
+                when (selectedGrouping) {
+                    TrendsGrouping.BY_MONTH -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.financialColors.cardBackground,
+                                ),
+                            border = BorderStroke(1.dp, MaterialTheme.financialColors.hairlineDivider),
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                val chartData =
+                                    remember(accountFilteredTransactions) {
+                                        calculateMonthlyComparisonData(accountFilteredTransactions, monthsCount = 6)
+                                    }
+                                IncomeExpenseBarChart(
+                                    data = chartData,
+                                    onMonthSelected = { item -> selectedYearMonth = item.yearMonth },
+                                )
                             }
-                        IncomeExpenseBarChart(
-                            data = chartData,
-                            onMonthSelected = { item -> selectedYearMonth = item.yearMonth },
+                        }
+                    }
+                    TrendsGrouping.BY_WEEK -> {
+                        WeeklyTrendsCard(
+                            summary = weeklySummary,
+                            allTransactions = accountFilteredTransactions,
+                            selectedWeekIndex = selectedWeekIndex,
+                            onSelectWeek = { selectedWeekIndex = it },
+                        )
+                    }
+                    TrendsGrouping.BY_DAY -> {
+                        DailyTrendsCard(
+                            summary = dailySummary,
+                            allTransactions = accountFilteredTransactions,
+                            selectedDayOfMonth = selectedDayOfMonth,
+                            onSelectDayOfMonth = { selectedDayOfMonth = it },
+                        )
+                    }
+                    TrendsGrouping.BY_CATEGORY -> {
+                        CategoryBreakdownCard(
+                            categoryShares = categoryShares,
                         )
                     }
                 }

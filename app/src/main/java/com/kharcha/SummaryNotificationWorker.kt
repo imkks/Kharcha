@@ -88,6 +88,8 @@ class SummaryNotificationWorker @AssistedInject constructor(
         ensureSummaryChannel(applicationContext)
         val openIntent = applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)
             ?.putExtra(EXTRA_OPEN_WEEKLY_SUMMARY, weekly)
+            ?.putExtra(EXTRA_OPEN_DAILY_SUMMARY, !weekly)
+            ?.putExtra(EXTRA_OPEN_TRENDS_GROUPING, if (weekly) "BY_WEEK" else "BY_DAY")
             ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val pendingIntent = openIntent?.let {
             PendingIntent.getActivity(applicationContext, if (weekly) 102 else 101, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -111,6 +113,8 @@ class SummaryNotificationWorker @AssistedInject constructor(
         private const val DAILY_WORK = "daily_spend_summary"
         private const val WEEKLY_WORK = "weekly_spend_summary"
         const val EXTRA_OPEN_WEEKLY_SUMMARY = "open_weekly_summary"
+        const val EXTRA_OPEN_DAILY_SUMMARY = "open_daily_summary"
+        const val EXTRA_OPEN_TRENDS_GROUPING = "open_trends_grouping"
 
         internal fun calculateSummarySpends(
             transactions: List<Transaction>,

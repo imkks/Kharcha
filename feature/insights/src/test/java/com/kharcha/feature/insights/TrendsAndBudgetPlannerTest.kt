@@ -17,10 +17,85 @@ class TrendsAndBudgetPlannerTest {
 
     @Test
     fun testTrendsGroupingEnumValues() {
-        assertEquals(3, TrendsGrouping.entries.size)
+        assertEquals(4, TrendsGrouping.entries.size)
         assertTrue(TrendsGrouping.entries.contains(TrendsGrouping.BY_MONTH))
-        assertTrue(TrendsGrouping.entries.contains(TrendsGrouping.BY_CATEGORY))
         assertTrue(TrendsGrouping.entries.contains(TrendsGrouping.BY_WEEK))
+        assertTrue(TrendsGrouping.entries.contains(TrendsGrouping.BY_DAY))
+        assertTrue(TrendsGrouping.entries.contains(TrendsGrouping.BY_CATEGORY))
+    }
+
+    @Test
+    fun testWeeklyTrendBucketingOptionA_sumsToMonthlyTotal() {
+        val oct4Epoch = Instant.parse("2026-10-04T10:00:00Z").toEpochMilli() // Week 1 (1..7)
+        val oct10Epoch = Instant.parse("2026-10-10T10:00:00Z").toEpochMilli() // Week 2 (8..14)
+        val oct18Epoch = Instant.parse("2026-10-18T10:00:00Z").toEpochMilli() // Week 3 (15..21)
+        val oct24Epoch = Instant.parse("2026-10-24T10:00:00Z").toEpochMilli() // Week 4 (22..28)
+        val oct30Epoch = Instant.parse("2026-10-30T10:00:00Z").toEpochMilli() // Week 5 (29..31)
+
+        val txns = listOf(
+            Transaction(id = 1L, amount = 1000_00L, type = TransactionType.Expense, dateTime = oct4Epoch, isCounted = true),
+            Transaction(id = 2L, amount = 2000_00L, type = TransactionType.Expense, dateTime = oct10Epoch, isCounted = true),
+            Transaction(id = 3L, amount = 1500_00L, type = TransactionType.Expense, dateTime = oct18Epoch, isCounted = true),
+            Transaction(id = 4L, amount = 3000_00L, type = TransactionType.Expense, dateTime = oct24Epoch, isCounted = true),
+            Transaction(id = 5L, amount = 2500_00L, type = TransactionType.Expense, dateTime = oct30Epoch, isCounted = true),
+        )
+
+        val summary = InsightsAnalyticsHelper.calculateWeeklyTrends(
+            transactions = txns,
+            yearMonth = testMonth,
+            monthlyBudgetMinor = 50_000_00L,
+            zoneId = zoneId,
+        )
+
+        assertEquals(5, summary.buckets.size)
+        assertEquals(1000_00L, summary.buckets[0].totalExpenseMinor)
+        assertEquals(2000_00L, summary.buckets[1].totalExpenseMinor)
+        assertEquals(1500_00L, summary.buckets[2].totalExpenseMinor)
+        assertEquals(3000_00L, summary.buckets[3].totalExpenseMinor)
+        assertEquals(2500_00L, summary.buckets[4].totalExpenseMinor)
+
+        val totalWeekly = summary.buckets.sumOf { it.totalExpenseMinor }
+        assertEquals(10000_00L, totalWeekly)
+        assertEquals(4, summary.highestSpendWeekIndex) // Week 4 had 3000_00L
+        assertEquals(10_000_00L, summary.targetWeeklyBudgetMinor) // 50,000 / 5
+    }
+
+    @Test
+    fun testDailyTrendsOptionA_calculatesDailySpendsAndSafePacing() {
+        val oct10Epoch = Instant.parse("2026-10-10T10:00:00Z").toEpochMilli()
+        val oct15Epoch = Instant.parse("2026-10-15T12:00:00Z").toEpochMilli()
+
+        val txns = listOf(
+            Transaction(id = 1L, amount = 3000_00L, type = TransactionType.Expense, dateTime = oct10Epoch, isCounted = true),
+            Transaction(id = 2L, amount = 500_00L, type = TransactionType.Expense, dateTime = oct15Epoch, isCounted = true),
+        )
+
+        val summary = InsightsAnalyticsHelper.calculateDailyTrends(
+            transactions = txns,
+            yearMonth = testMonth,
+            customMonthlyBudgetMinor = 31_000_00L, // daily safe ~1,000 INR
+            zoneId = zoneId,
+            referenceDate = java.time.LocalDate.of(2026, 10, 31),
+        )
+
+        assertEquals(31, summary.buckets.size)
+        // Day 10 spent 3000 -> exceeds safe limit of 1000
+        val day10 = summary.buckets[9]
+        assertEquals(10, day10.dayOfMonth)
+        assertEquals(3000_00L, day10.totalExpenseMinor)
+        assertTrue(day10.isOverSafeDaily)
+        assertEquals(2000_00L, day10.varianceMinor)
+
+        // Day 15 spent 500 -> within safe limit
+        val day15 = summary.buckets[14]
+        assertEquals(15, day15.dayOfMonth)
+        assertEquals(500_00L, day15.totalExpenseMinor)
+        assertFalse(day15.isOverSafeDaily)
+
+        // Day 1 spent 0 -> zero spend day
+        val day1 = summary.buckets[0]
+        assertEquals(0L, day1.totalExpenseMinor)
+        assertEquals(29, summary.zeroSpendDaysCount) // 31 days - 2 spend days
     }
 
     @Test
@@ -97,5 +172,55 @@ class TrendsAndBudgetPlannerTest {
         assertEquals(5000_00L, mappedBudgets["Shopping"])
         assertEquals(3000_00L, mappedBudgets["Food & Drinks"])
         assertFalse(mappedBudgets.containsKey("Others"))
+    }
+
+    @Test
+    fun testWeeklyAndDailyDisplayedSelection_computesTargetRangeAndAmounts() {
+        val oct4Epoch = Instant.parse("2026-10-04T10:00:00Z").toEpochMilli() // Week 1 (Day 4)
+        val oct10Epoch = Instant.parse("2026-10-10T10:00:00Z").toEpochMilli() // Week 2 (Day 10)
+
+        val txns = listOf(
+            Transaction(id = 1L, amount = 1200_00L, type = TransactionType.Expense, dateTime = oct4Epoch, isCounted = true),
+            Transaction(id = 2L, amount = 5000_00L, type = TransactionType.Income, dateTime = oct4Epoch, isCounted = true),
+            Transaction(id = 3L, amount = 3400_00L, type = TransactionType.Expense, dateTime = oct10Epoch, isCounted = true),
+        )
+
+        val weekly = InsightsAnalyticsHelper.calculateWeeklyTrends(
+            transactions = txns,
+            yearMonth = testMonth,
+            monthlyBudgetMinor = 30_000_00L,
+            zoneId = zoneId,
+        )
+
+        // Select Week 1
+        val week1Bucket = weekly.buckets.find { it.weekIndex == 1 }!!
+        assertEquals("Week 1", week1Bucket.label)
+        assertEquals(1200_00L, week1Bucket.totalExpenseMinor)
+        assertEquals(5000_00L, week1Bucket.totalIncomeMinor)
+        assertTrue(week1Bucket.startEpochMs <= oct4Epoch)
+        assertTrue(week1Bucket.endEpochMs >= oct4Epoch)
+
+        // Select Week 2
+        val week2Bucket = weekly.buckets.find { it.weekIndex == 2 }!!
+        assertEquals("Week 2", week2Bucket.label)
+        assertEquals(3400_00L, week2Bucket.totalExpenseMinor)
+        assertEquals(0L, week2Bucket.totalIncomeMinor)
+
+        val daily = InsightsAnalyticsHelper.calculateDailyTrends(
+            transactions = txns,
+            yearMonth = testMonth,
+            customMonthlyBudgetMinor = 30_000_00L,
+            zoneId = zoneId,
+        )
+
+        // Select Day 4
+        val day4 = daily.buckets.find { it.dayOfMonth == 4 }!!
+        assertEquals(1200_00L, day4.totalExpenseMinor)
+        assertEquals(5000_00L, day4.totalIncomeMinor)
+
+        // Select Day 10
+        val day10 = daily.buckets.find { it.dayOfMonth == 10 }!!
+        assertEquals(3400_00L, day10.totalExpenseMinor)
+        assertEquals(0L, day10.totalIncomeMinor)
     }
 }

@@ -75,6 +75,7 @@ import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
 import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
+import com.kharcha.core.model.DateRangeSelection
 import com.kharcha.core.model.RecurringTransaction
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.designsystem.component.DEFAULT_CREDIT_CATEGORIES
@@ -85,6 +86,7 @@ import com.kharcha.engine.sms.ExpenseNotification
 import com.kharcha.engine.sms.ImportWorker
 import com.kharcha.feature.home.ui.HomeScreen
 import com.kharcha.feature.insights.InsightsScreen
+import com.kharcha.feature.insights.TrendsGrouping
 import com.kharcha.feature.onboarding.OnboardingRoute
 import com.kharcha.feature.review.ui.ReviewQueueScreen
 import com.kharcha.feature.settings.ui.MoreScreen
@@ -241,6 +243,7 @@ class MainActivity : FragmentActivity() {
                                     .takeIf { it >= 0L },
                             notificationAction = intent.getStringExtra(ExpenseNotification.EXTRA_ACTION),
                             openWeeklySummary = intent.getBooleanExtra(SummaryNotificationWorker.EXTRA_OPEN_WEEKLY_SUMMARY, false),
+                            openDailySummary = intent.getBooleanExtra(SummaryNotificationWorker.EXTRA_OPEN_DAILY_SUMMARY, false),
                             locationPermissionIssue = locationPermissionIssue.value,
                             onRescanSmsInbox = { windowCode ->
                                 WorkManager.getInstance(applicationContext).enqueueUniqueWork(
@@ -407,9 +410,28 @@ fun MainAppShell(
     notificationTransactionId: Long? = null,
     notificationAction: String? = null,
     openWeeklySummary: Boolean = false,
+    openDailySummary: Boolean = false,
     locationPermissionIssue: LocationPermissionIssue? = null,
 ) {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
+    val initialDestination = if (openWeeklySummary || openDailySummary) AppDestination.INSIGHTS else AppDestination.HOME
+    var currentDestination by rememberSaveable { mutableStateOf(initialDestination) }
+    var initialTrendsGrouping by rememberSaveable {
+        mutableStateOf(
+            if (openDailySummary) TrendsGrouping.BY_DAY
+            else if (openWeeklySummary) TrendsGrouping.BY_WEEK
+            else TrendsGrouping.BY_MONTH,
+        )
+    }
+
+    LaunchedEffect(openWeeklySummary, openDailySummary) {
+        if (openDailySummary) {
+            currentDestination = AppDestination.INSIGHTS
+            initialTrendsGrouping = TrendsGrouping.BY_DAY
+        } else if (openWeeklySummary) {
+            currentDestination = AppDestination.INSIGHTS
+            initialTrendsGrouping = TrendsGrouping.BY_WEEK
+        }
+    }
     val transactions by transactionRepository.getTransactions().collectAsState(initial = emptyList())
     val recurringTransactions by recurringTransactionRepository.getRecurringTransactions().collectAsState(initial = emptyList())
     val context = LocalContext.current
@@ -656,6 +678,7 @@ fun MainAppShell(
                     onSetBudgetClick = { showSetBudgetSheet = true },
                     onAddTransactionClick = { showAddTransactionDialog = true },
                     onTrendsClick = { currentDestination = AppDestination.INSIGHTS },
+                    initialTrendsGrouping = initialTrendsGrouping,
                     onCategoriesClick = {
                         transactionsSubTab = TransactionsSubTab.CATEGORIES
                         currentDestination = AppDestination.TRANSACTIONS
@@ -1144,6 +1167,7 @@ fun BoxDestinationContent(
     onSetBudgetClick: () -> Unit = {},
     onAddTransactionClick: () -> Unit = {},
     onTrendsClick: () -> Unit = {},
+    initialTrendsGrouping: TrendsGrouping = TrendsGrouping.BY_MONTH,
     onCategoriesClick: () -> Unit = {},
     onIncomeClick: () -> Unit = {},
     onWeeklySummaryClick: () -> Unit = {},
@@ -1230,6 +1254,7 @@ fun BoxDestinationContent(
                 accounts = accounts,
                 monthlyBudgetMinor = userPreferences.monthlyBudgetMinor,
                 categoryBudgets = userPreferences.getAllCategoryBudgets(),
+                initialTrendsGrouping = initialTrendsGrouping,
                 onUpdateMonthlyBudget = { newBudget -> userPreferences.monthlyBudgetMinor = newBudget },
                 onUpdateCategoryBudget = { cat, minor -> userPreferences.setCategoryBudgetMinor(cat, minor) },
                 onTransactionClick = onTransactionClick,
@@ -1238,6 +1263,30 @@ fun BoxDestinationContent(
                 onBack = onNavigateToHome,
                 onReviewMonthClick = { ym ->
                     onYearMonthChange(ym)
+                    onAllMonthsSelectedChange(false)
+                    onFilterChange(transactionsFilter.copy(dateRange = DateRangeSelection.AllTime))
+                    onSubTabChange(TransactionsSubTab.TRANSACTIONS)
+                    onNavigateToTransactions()
+                },
+                onReviewRangeClick = { startMs, endMs, ym, isCustomRange ->
+                    onYearMonthChange(ym)
+                    onAllMonthsSelectedChange(false)
+                    if (isCustomRange) {
+                        onFilterChange(
+                            transactionsFilter.copy(
+                                dateRange = DateRangeSelection.Custom(
+                                    startEpochMs = startMs,
+                                    endEpochMs = endMs,
+                                ),
+                            ),
+                        )
+                    } else {
+                        onFilterChange(
+                            transactionsFilter.copy(
+                                dateRange = DateRangeSelection.AllTime,
+                            ),
+                        )
+                    }
                     onSubTabChange(TransactionsSubTab.TRANSACTIONS)
                     onNavigateToTransactions()
                 },

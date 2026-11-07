@@ -168,8 +168,7 @@ class SmsReceiver : BroadcastReceiver() {
                         repo.insertTransaction(txn)
                         val preferences = DefaultUserPreferences(context)
                         if (!alreadySaved &&
-                            preferences.isExpenseNotificationsEnabled &&
-                            txn.isCounted
+                            preferences.isExpenseNotificationsEnabled
                         ) {
                             val accountDescription =
                                 if (!txn.accountLast4.isNullOrBlank()) {

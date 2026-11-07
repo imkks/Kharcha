@@ -68,6 +68,37 @@ class ExpenseNotificationTest {
         assertEquals("Show SMS", notification.actions[2].title)
     }
 
+    @Test
+    fun publishesTransferNotification() {
+        val transaction = expense().copy(categorySource = "Transfer", isCounted = false)
+        publisher().show(transaction, "Alice", "Transfer", "HDFC Bank")
+
+        val notification =
+            shadowOf(context.getSystemService(NotificationManager::class.java))
+                .getNotification(transaction.id.toInt())
+
+        assertNotNull(notification)
+        assertEquals("Transferred ₹25.00 to Alice", notification.extras.getString("android.title"))
+        assertEquals("Transfer · HDFC Bank", notification.extras.getString("android.text"))
+        assertEquals(3, notification.actions.size)
+        assertEquals("Edit", notification.actions[0].title)
+        assertEquals("Not a transfer", notification.actions[1].title)
+        assertEquals("Show SMS", notification.actions[2].title)
+    }
+
+    @Test
+    fun publishesTransferNotificationWithHiddenAmount() {
+        val transaction = expense().copy(categorySource = "A/C Transfer", isCounted = false)
+        publisher().show(transaction, "Savings A/C", "A/C Transfer", "SBI", hideAmount = true)
+
+        val notification =
+            shadowOf(context.getSystemService(NotificationManager::class.java))
+                .getNotification(transaction.id.toInt())
+
+        assertNotNull(notification)
+        assertEquals("New transfer to Savings A/C", notification.extras.getString("android.title"))
+    }
+
     private fun publisher() =
         ExpenseNotification(
             context = context,

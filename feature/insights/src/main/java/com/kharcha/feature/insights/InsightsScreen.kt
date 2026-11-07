@@ -79,12 +79,14 @@ fun InsightsScreen(
     accounts: List<Account> = emptyList(),
     monthlyBudgetMinor: Long = 30_000_00L,
     categoryBudgets: Map<String, Long> = emptyMap(),
+    initialTrendsGrouping: TrendsGrouping = TrendsGrouping.BY_MONTH,
     onUpdateMonthlyBudget: (Long) -> Unit = {},
     onUpdateCategoryBudget: (String, Long) -> Unit = { _, _ -> },
     onCategoryClick: ((String) -> Unit)? = null,
     onMerchantClick: ((String) -> Unit)? = null,
     onBack: () -> Unit = {},
     onReviewMonthClick: (YearMonth) -> Unit = {},
+    onReviewRangeClick: ((startEpochMs: Long, endEpochMs: Long, yearMonth: YearMonth, isCustomRange: Boolean) -> Unit)? = null,
 ) {
     var showBudgetPlanner by rememberSaveable { mutableStateOf(false) }
 
@@ -109,9 +111,11 @@ fun InsightsScreen(
             transactions = transactions,
             accounts = accounts,
             monthlyBudgetMinor = monthlyBudgetMinor,
+            initialGrouping = initialTrendsGrouping,
             onBack = onBack,
             onSetMonthlyBudgetClick = { showBudgetPlanner = true },
             onReviewMonthClick = onReviewMonthClick,
+            onReviewRangeClick = onReviewRangeClick,
             onFilterClick = { selectedTab = InsightsTab.BUDGETS },
             modifier = modifier,
         )

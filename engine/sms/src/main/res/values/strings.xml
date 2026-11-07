@@ -4,10 +4,13 @@
     <string name="expense_notification_hidden_title">New expense at %1$s</string>
     <string name="income_notification_title">Received %1$s from %2$s</string>
     <string name="income_notification_hidden_title">New credit from %1$s</string>
+    <string name="transfer_notification_title">Transferred %1$s to %2$s</string>
+    <string name="transfer_notification_hidden_title">New transfer to %1$s</string>
     <string name="expense_notification_body">%1$s · %2$s</string>
     <string name="expense_notification_edit">Edit</string>
     <string name="expense_notification_not_expense">Not an expense</string>
     <string name="income_notification_not_income">Not income</string>
+    <string name="transfer_notification_not_transfer">Not a transfer</string>
     <string name="expense_notification_show_sms">Show SMS</string>
     <string name="expense_notification_amount">₹%1$d.%2$s</string>
     <string name="expense_notification_account">%1$s ending %2$s</string>

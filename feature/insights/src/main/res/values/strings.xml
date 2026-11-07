@@ -75,7 +75,9 @@
     <string name="trends_filter_title">Filter Trends</string>
     <string name="trends_all_accounts">All accounts ▾</string>
     <string name="trends_spends_tile">Spends</string>
+    <string name="trends_spends_tile_with_target">Spends (%1$s)</string>
     <string name="trends_income_tile">Income</string>
+    <string name="trends_income_tile_with_target">Income (%1$s)</string>
     <string name="trends_set_monthly_budget">Set monthly budget</string>
     <string name="trends_review_action">Review %1$s</string>
     <string name="trends_toggle_income">Toggle income visibility</string>

@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kharcha.core.common.MoneyFormatter
@@ -76,6 +77,16 @@ enum class TrendsGrouping(val labelRes: Int) {
     BY_CATEGORY(R.string.trends_grouping_category),
 }
 
+private data class TrendsDisplayedSelection(
+    val spendsMinor: Long,
+    val incomeMinor: Long,
+    val targetLabel: String?,
+    val reviewLabel: String,
+    val rangeStartMs: Long,
+    val rangeEndMs: Long,
+    val isCustomRange: Boolean,
+)
+
 /**
  * Trends Screen (UI Spec Section 7.2).
  * Features:
@@ -96,6 +107,7 @@ fun TrendsScreen(
     onBack: () -> Unit = {},
     onSetMonthlyBudgetClick: () -> Unit = {},
     onReviewMonthClick: (YearMonth) -> Unit = {},
+    onReviewRangeClick: ((startEpochMs: Long, endEpochMs: Long, yearMonth: YearMonth, isCustomRange: Boolean) -> Unit)? = null,
     onFilterClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -110,8 +122,42 @@ fun TrendsScreen(
     var selectedAccount by remember { mutableStateOf<Account?>(null) }
     var showAccountSheet by remember { mutableStateOf(false) }
 
-    var selectedWeekIndex by rememberSaveable { mutableStateOf(1) }
-    var selectedDayOfMonth by rememberSaveable { mutableStateOf(LocalDate.now().dayOfMonth) }
+    val today = remember { LocalDate.now() }
+    val initialWeekIndex = remember(today, selectedYearMonth) {
+        if (selectedYearMonth == YearMonth.from(today)) {
+            when (today.dayOfMonth) {
+                in 1..7 -> 1
+                in 8..14 -> 2
+                in 15..21 -> 3
+                in 22..28 -> 4
+                else -> 5
+            }
+        } else {
+            1
+        }
+    }
+    var selectedWeekIndex by rememberSaveable { mutableStateOf(initialWeekIndex) }
+    var selectedDayOfMonth by rememberSaveable {
+        mutableStateOf(
+            if (selectedYearMonth == YearMonth.from(today)) today.dayOfMonth else 1,
+        )
+    }
+
+    LaunchedEffect(selectedYearMonth) {
+        if (selectedYearMonth == YearMonth.from(LocalDate.now())) {
+            selectedDayOfMonth = LocalDate.now().dayOfMonth
+            selectedWeekIndex = when (LocalDate.now().dayOfMonth) {
+                in 1..7 -> 1
+                in 8..14 -> 2
+                in 15..21 -> 3
+                in 22..28 -> 4
+                else -> 5
+            }
+        } else {
+            selectedDayOfMonth = 1
+            selectedWeekIndex = 1
+        }
+    }
 
     // User Rule: the eye icon hide/reveal toggle is strictly for income (spends is always visible)
     val incomeHiddenBySetting = LocalIncomeHidden.current?.value == true && LocalIncomeRevealed.current?.value != true
@@ -177,6 +223,91 @@ fun TrendsScreen(
 
     val monthLabelFormatter = remember { DateTimeFormatter.ofPattern("MMM''yy", Locale.ENGLISH) }
     val monthLabel = remember(selectedYearMonth) { selectedYearMonth.format(monthLabelFormatter) }
+    val dayFormatter = remember { DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH) }
+
+    val displayedSelection =
+        remember(
+            selectedGrouping,
+            selectedWeekIndex,
+            selectedDayOfMonth,
+            weeklySummary,
+            dailySummary,
+            selectedMonthSpendsMinor,
+            selectedMonthIncomeMinor,
+            monthLabel,
+        ) {
+            when (selectedGrouping) {
+                TrendsGrouping.BY_WEEK -> {
+                    val bucket =
+                        weeklySummary.buckets.find { it.weekIndex == selectedWeekIndex }
+                            ?: weeklySummary.buckets.firstOrNull()
+                    if (bucket != null) {
+                        TrendsDisplayedSelection(
+                            spendsMinor = bucket.totalExpenseMinor,
+                            incomeMinor = bucket.totalIncomeMinor,
+                            targetLabel = bucket.label,
+                            reviewLabel = bucket.label,
+                            rangeStartMs = bucket.startEpochMs,
+                            rangeEndMs = bucket.endEpochMs,
+                            isCustomRange = true,
+                        )
+                    } else {
+                        TrendsDisplayedSelection(
+                            spendsMinor = selectedMonthSpendsMinor,
+                            incomeMinor = selectedMonthIncomeMinor,
+                            targetLabel = null,
+                            reviewLabel = monthLabel,
+                            rangeStartMs = 0L,
+                            rangeEndMs = 0L,
+                            isCustomRange = false,
+                        )
+                    }
+                }
+                TrendsGrouping.BY_DAY -> {
+                    val bucket =
+                        dailySummary.buckets.find { it.dayOfMonth == selectedDayOfMonth }
+                            ?: dailySummary.buckets.firstOrNull()
+                    if (bucket != null) {
+                        val formattedDay = bucket.date.format(dayFormatter)
+                        val zone = ZoneId.systemDefault()
+                        val startMs = bucket.date.atStartOfDay(zone).toInstant().toEpochMilli()
+                        val endMs =
+                            bucket.date.atTime(23, 59, 59, 999_000_000).atZone(zone).toInstant().toEpochMilli()
+                        TrendsDisplayedSelection(
+                            spendsMinor = bucket.totalExpenseMinor,
+                            incomeMinor = bucket.totalIncomeMinor,
+                            targetLabel = formattedDay,
+                            reviewLabel = formattedDay,
+                            rangeStartMs = startMs,
+                            rangeEndMs = endMs,
+                            isCustomRange = true,
+                        )
+                    } else {
+                        TrendsDisplayedSelection(
+                            spendsMinor = selectedMonthSpendsMinor,
+                            incomeMinor = selectedMonthIncomeMinor,
+                            targetLabel = null,
+                            reviewLabel = monthLabel,
+                            rangeStartMs = 0L,
+                            rangeEndMs = 0L,
+                            isCustomRange = false,
+                        )
+                    }
+                }
+                TrendsGrouping.BY_MONTH,
+                TrendsGrouping.BY_CATEGORY -> {
+                    TrendsDisplayedSelection(
+                        spendsMinor = selectedMonthSpendsMinor,
+                        incomeMinor = selectedMonthIncomeMinor,
+                        targetLabel = null,
+                        reviewLabel = monthLabel,
+                        rangeStartMs = 0L,
+                        rangeEndMs = 0L,
+                        isCustomRange = false,
+                    )
+                }
+            }
+        }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -245,8 +376,19 @@ fun TrendsScreen(
         },
         bottomBar = {
             StickyActionPill(
-                label = stringResource(id = R.string.trends_review_action, monthLabel),
-                onClick = { onReviewMonthClick(selectedYearMonth) },
+                label = stringResource(id = R.string.trends_review_action, displayedSelection.reviewLabel),
+                onClick = {
+                    if (onReviewRangeClick != null) {
+                        onReviewRangeClick(
+                            displayedSelection.rangeStartMs,
+                            displayedSelection.rangeEndMs,
+                            selectedYearMonth,
+                            displayedSelection.isCustomRange,
+                        )
+                    } else {
+                        onReviewMonthClick(selectedYearMonth)
+                    }
+                },
             )
         },
     ) { innerPadding ->
@@ -365,10 +507,22 @@ fun TrendsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                val spendTitle =
+                                    if (displayedSelection.targetLabel != null) {
+                                        stringResource(
+                                            id = R.string.trends_spends_tile_with_target,
+                                            displayedSelection.targetLabel,
+                                        )
+                                    } else {
+                                        stringResource(id = R.string.trends_spends_tile)
+                                    }
                                 Text(
-                                    text = stringResource(id = R.string.trends_spends_tile),
+                                    text = spendTitle,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.financialColors.textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false),
                                 )
                                 Icon(
                                     painter = painterResource(id = DesignR.drawable.ic_trending_down),
@@ -379,7 +533,7 @@ fun TrendsScreen(
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = MoneyFormatter.formatMinorUnits(selectedMonthSpendsMinor),
+                                text = MoneyFormatter.formatMinorUnits(displayedSelection.spendsMinor),
                                 style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.financialColors.textPrimary,
@@ -403,10 +557,22 @@ fun TrendsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                val incomeTitle =
+                                    if (displayedSelection.targetLabel != null) {
+                                        stringResource(
+                                            id = R.string.trends_income_tile_with_target,
+                                            displayedSelection.targetLabel,
+                                        )
+                                    } else {
+                                        stringResource(id = R.string.trends_income_tile)
+                                    }
                                 Text(
-                                    text = stringResource(id = R.string.trends_income_tile),
+                                    text = incomeTitle,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.financialColors.textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false),
                                 )
                                 IconButton(
                                     onClick = { if (!incomeHiddenBySetting) isIncomeHidden = !isIncomeHidden },
@@ -434,7 +600,7 @@ fun TrendsScreen(
                                     if (shouldHideIncome) {
                                         "₹ ••••••"
                                     } else {
-                                        MoneyFormatter.formatMinorUnits(selectedMonthIncomeMinor)
+                                        MoneyFormatter.formatMinorUnits(displayedSelection.incomeMinor)
                                     },
                                 style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
                                 fontWeight = FontWeight.Bold,

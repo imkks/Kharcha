@@ -75,6 +75,7 @@ import com.kharcha.core.designsystem.theme.LocalIncomeRevealed
 import com.kharcha.core.designsystem.theme.LocalIncomeReveal
 import com.kharcha.core.designsystem.theme.financialColors
 import com.kharcha.core.model.Account
+import com.kharcha.core.model.DateRangeSelection
 import com.kharcha.core.model.RecurringTransaction
 import com.kharcha.core.model.Transaction
 import com.kharcha.core.designsystem.component.DEFAULT_CREDIT_CATEGORIES
@@ -1262,6 +1263,30 @@ fun BoxDestinationContent(
                 onBack = onNavigateToHome,
                 onReviewMonthClick = { ym ->
                     onYearMonthChange(ym)
+                    onAllMonthsSelectedChange(false)
+                    onFilterChange(transactionsFilter.copy(dateRange = DateRangeSelection.AllTime))
+                    onSubTabChange(TransactionsSubTab.TRANSACTIONS)
+                    onNavigateToTransactions()
+                },
+                onReviewRangeClick = { startMs, endMs, ym, isCustomRange ->
+                    onYearMonthChange(ym)
+                    onAllMonthsSelectedChange(false)
+                    if (isCustomRange) {
+                        onFilterChange(
+                            transactionsFilter.copy(
+                                dateRange = DateRangeSelection.Custom(
+                                    startEpochMs = startMs,
+                                    endEpochMs = endMs,
+                                ),
+                            ),
+                        )
+                    } else {
+                        onFilterChange(
+                            transactionsFilter.copy(
+                                dateRange = DateRangeSelection.AllTime,
+                            ),
+                        )
+                    }
                     onSubTabChange(TransactionsSubTab.TRANSACTIONS)
                     onNavigateToTransactions()
                 },

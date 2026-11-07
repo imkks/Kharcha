@@ -173,4 +173,54 @@ class TrendsAndBudgetPlannerTest {
         assertEquals(3000_00L, mappedBudgets["Food & Drinks"])
         assertFalse(mappedBudgets.containsKey("Others"))
     }
+
+    @Test
+    fun testWeeklyAndDailyDisplayedSelection_computesTargetRangeAndAmounts() {
+        val oct4Epoch = Instant.parse("2026-10-04T10:00:00Z").toEpochMilli() // Week 1 (Day 4)
+        val oct10Epoch = Instant.parse("2026-10-10T10:00:00Z").toEpochMilli() // Week 2 (Day 10)
+
+        val txns = listOf(
+            Transaction(id = 1L, amount = 1200_00L, type = TransactionType.Expense, dateTime = oct4Epoch, isCounted = true),
+            Transaction(id = 2L, amount = 5000_00L, type = TransactionType.Income, dateTime = oct4Epoch, isCounted = true),
+            Transaction(id = 3L, amount = 3400_00L, type = TransactionType.Expense, dateTime = oct10Epoch, isCounted = true),
+        )
+
+        val weekly = InsightsAnalyticsHelper.calculateWeeklyTrends(
+            transactions = txns,
+            yearMonth = testMonth,
+            monthlyBudgetMinor = 30_000_00L,
+            zoneId = zoneId,
+        )
+
+        // Select Week 1
+        val week1Bucket = weekly.buckets.find { it.weekIndex == 1 }!!
+        assertEquals("Week 1", week1Bucket.label)
+        assertEquals(1200_00L, week1Bucket.totalExpenseMinor)
+        assertEquals(5000_00L, week1Bucket.totalIncomeMinor)
+        assertTrue(week1Bucket.startEpochMs <= oct4Epoch)
+        assertTrue(week1Bucket.endEpochMs >= oct4Epoch)
+
+        // Select Week 2
+        val week2Bucket = weekly.buckets.find { it.weekIndex == 2 }!!
+        assertEquals("Week 2", week2Bucket.label)
+        assertEquals(3400_00L, week2Bucket.totalExpenseMinor)
+        assertEquals(0L, week2Bucket.totalIncomeMinor)
+
+        val daily = InsightsAnalyticsHelper.calculateDailyTrends(
+            transactions = txns,
+            yearMonth = testMonth,
+            customMonthlyBudgetMinor = 30_000_00L,
+            zoneId = zoneId,
+        )
+
+        // Select Day 4
+        val day4 = daily.buckets.find { it.dayOfMonth == 4 }!!
+        assertEquals(1200_00L, day4.totalExpenseMinor)
+        assertEquals(5000_00L, day4.totalIncomeMinor)
+
+        // Select Day 10
+        val day10 = daily.buckets.find { it.dayOfMonth == 10 }!!
+        assertEquals(3400_00L, day10.totalExpenseMinor)
+        assertEquals(0L, day10.totalIncomeMinor)
+    }
 }

@@ -86,6 +86,7 @@ fun InsightsScreen(
     onMerchantClick: ((String) -> Unit)? = null,
     onBack: () -> Unit = {},
     onReviewMonthClick: (YearMonth) -> Unit = {},
+    onReviewRangeClick: ((startEpochMs: Long, endEpochMs: Long, yearMonth: YearMonth, isCustomRange: Boolean) -> Unit)? = null,
 ) {
     var showBudgetPlanner by rememberSaveable { mutableStateOf(false) }
 
@@ -114,6 +115,7 @@ fun InsightsScreen(
             onBack = onBack,
             onSetMonthlyBudgetClick = { showBudgetPlanner = true },
             onReviewMonthClick = onReviewMonthClick,
+            onReviewRangeClick = onReviewRangeClick,
             onFilterClick = { selectedTab = InsightsTab.BUDGETS },
             modifier = modifier,
         )
